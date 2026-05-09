@@ -1,12 +1,13 @@
 // IPA Pronunciation Stylizer — content script
 
 const VOWEL_COLORS = {
-  AH: '#b06fd6', AA: '#b06fd6', AE: '#db6fa0',
-  EH: '#e06060', ER: '#e06060',
-  IH: '#4dbf7a', IY: '#4dbf7a',
-  UH: '#3dbdba', UW: '#3dbdba',
-  AO: '#c8a030',
-  AY: '#db6fa0', EY: '#e06060', OY: '#c8a030', OW: '#c8a030', AW: '#b06fd6',
+  AH: { c: 'var(--ipa-purple)', t: 'color_u_alt' }, AA: { c: 'var(--ipa-purple)', t: 'color_u_alt' }, AE: { c: 'var(--ipa-pink)', t: 'color_a' },
+  EH: { c: 'var(--ipa-red)', t: 'color_e' }, ER: { c: 'var(--ipa-red)', t: 'color_e' },
+  IH: { c: 'var(--ipa-green)', t: 'color_i' }, IY: { c: 'var(--ipa-green)', t: 'color_i' },
+  UH: { c: 'var(--ipa-teal)', t: 'color_u' }, UW: { c: 'var(--ipa-teal)', t: 'color_u' },
+  AO: { c: 'var(--ipa-orange)', t: 'color_o' },
+  AY: { c: 'var(--ipa-pink)', t: 'color_a' }, EY: { c: 'var(--ipa-red)', t: 'color_e' }, OY: { c: 'var(--ipa-orange)', t: 'color_o' }, OW: { c: 'var(--ipa-orange)', t: 'color_o' }, AW: { c: 'var(--ipa-purple)', t: 'color_u_alt' },
+  AX: { c: 'var(--ipa-purple)', t: 'color_u_alt' }
 };
 const ARPA_IPA = {
   IY: 'iː', IH: 'ɪ', EH: 'ɛ', AE: 'æ', AH: 'ʌ', AA: 'ɑː', AO: 'ɔː',
@@ -16,6 +17,7 @@ const ARPA_IPA = {
   TH: 'θ', DH: 'ð', S: 's', Z: 'z', SH: 'ʃ', ZH: 'ʒ',
   HH: 'h', M: 'm', N: 'n', NG: 'ŋ', L: 'l', R: 'r', W: 'w', Y: 'j',
   CH: 'tʃ', JH: 'dʒ',
+  KW: 'kw', KS: 'ks', KSH: 'kʃ', KZ: 'kz', GZ: 'ɡz', GZH: 'ɡʒ', JHD: 'dʒ', CCC: 'k', HHH: 'h'
 };
 const ACUTE = { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', y: 'ý', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', Y: 'Ý' };
 const LONG_VOWELS = new Set(['IY', 'UW', 'ER', 'AO']);
@@ -24,7 +26,10 @@ const TH_SUPER = { TH: 'ᵗ', DH: 'ᵈ' };
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'SELECT', 'CODE', 'PRE', 'KBD', 'SAMP', 'MATH', 'SVG', 'NOSCRIPT', 'RP-W', 'READPRONUNCIATION-WORD']);
 
 let dict = null;
-let opts = { colors: true, stress: true, silent: true, consonants: true, diphthongs: true, length: true, tmark: true, zmark: true };
+let opts = {
+  silent: true, color_e: true, color_i: true, color_u_alt: true, color_a: true, color_u: true, color_o: true,
+  stress: true, tmark: true, th_t: true, zmark: true, diph_ai: true, diph_ei_oi: true, phonemes: true, th_d: true, diph_ou_au: true, length: true
+};
 let enabled = true;
 let hasProcessed = false;
 
@@ -32,24 +37,44 @@ let hasProcessed = false;
 
 function parseArpabet(str) {
   return str.trim().split(/\s+/).map(raw => {
-    if (raw === '-' || raw === '--') return { phoneme: null, silent: true, ghost: false, stress: 0 };
-    if (raw.startsWith('+')) return { phoneme: null, silent: false, ghost: true, stress: 0 };
-    if (raw.startsWith('-r')) return { phoneme: null, silent: false, ghost: false, stress: 0 }; // rhotic modifier — plain, no color
+    if (raw === '-' || raw === '--') return { phoneme: null, base: null, silent: true, ghost: false, stress: 0 };
+    if (raw.startsWith('+')) {
+      const clean = raw.replace(/^\+/, '').replace(/^\.+/, '');
+      const stress = parseInt(clean.match(/([012])$/)?.[1] ?? '0');
+      const phoneme = clean.replace(/[012]$/, '');
+      const base = phoneme.replace(/[^A-Z]/gi, '').toUpperCase();
+      return { phoneme, base, silent: false, ghost: true, stress };
+    }
+    if (raw.startsWith('-r')) return { phoneme: null, base: null, silent: false, ghost: false, stress: 0 };
     const clean = raw.replace(/^\.+/, '');
     const stress = parseInt(clean.match(/([012])$/)?.[1] ?? '0');
     const phoneme = clean.replace(/[012]$/, '');
-    return { phoneme, silent: false, ghost: false, stress };
+    const base = phoneme.replace(/[^A-Z]/gi, '').toUpperCase();
+    return { phoneme, base, silent: false, ghost: false, stress };
   });
 }
 
 function alignWord(word, arpa) {
-  const tokens = parseArpabet(arpa).filter(t => !t.ghost);
+  const allTokens = parseArpabet(arpa);
   const chars = [...word];
-  const result = [];
-  const len = Math.min(tokens.length, chars.length);
-  for (let i = 0; i < len; i++) result.push({ char: chars[i], ...tokens[i] });
-  for (let i = len; i < chars.length; i++) result.push({ char: chars[i], phoneme: null, silent: true, stress: 0 });
-  return result;
+  const aligned = [];
+
+  let charIdx = 0;
+  for (let i = 0; i < allTokens.length; i++) {
+    const t = allTokens[i];
+    if (t.ghost) {
+      aligned.push({ char: null, ...t });
+    } else {
+      aligned.push({ char: chars[charIdx] || null, ...t });
+      charIdx++;
+    }
+  }
+
+  for (let i = charIdx; i < chars.length; i++) {
+    aligned.push({ char: chars[i], phoneme: null, base: null, silent: true, stress: 0, ghost: false });
+  }
+
+  return aligned;
 }
 
 function toIPA(arpaStr) {
@@ -60,7 +85,8 @@ function toIPA(arpaStr) {
       const syllableStart = tok.replace(/^-r/, '').startsWith('.') && tok.includes('.');
       const stress = parseInt(clean.match(/([012])$/)?.[1] ?? '0');
       const phon = clean.replace(/[012]$/, '');
-      return { phon, stress, syllableStart };
+      const base = phon.replace(/[^A-Z]/gi, '').toUpperCase();
+      return { phon, base, stress, syllableStart };
     });
 
   const syllStress = (from) => {
@@ -73,10 +99,10 @@ function toIPA(arpaStr) {
 
   let ipa = '';
   for (let i = 0; i < toks.length; i++) {
-    const { phon, stress, syllableStart } = toks[i];
+    const { phon, base, stress, syllableStart } = toks[i];
     if (syllableStart) { const s = syllStress(i); ipa += s === 1 ? 'ˈ' : s === 2 ? 'ˌ' : '.'; }
     else if (i === 0 && stress > 0) { ipa += stress === 1 ? 'ˈ' : 'ˌ'; }
-    ipa += ARPA_IPA[phon] ?? phon.toLowerCase();
+    ipa += ARPA_IPA[base] ?? base.toLowerCase();
   }
   return '/' + ipa + '/';
 }
@@ -91,53 +117,75 @@ function renderWordFrag(word, arpa) {
 
   const aligned = alignWord(word, arpa);
   for (let i = 0; i < aligned.length; i++) {
-    const { char, phoneme, silent, stress } = aligned[i];
+    const { char, phoneme, base, silent, stress, ghost } = aligned[i];
+
+    if (ghost) {
+      if (opts.phonemes && base && ARPA_IPA[base]) {
+        const sup = document.createElement('rp-sup');
+        sup.textContent = ARPA_IPA[base];
+        const vColor = VOWEL_COLORS[base];
+        if (vColor && opts[vColor.t]) {
+          sup.style.color = vColor.c;
+        } else if (!vColor) {
+          sup.style.color = 'var(--accent, #ff3e88)';
+        }
+        wEl.appendChild(sup);
+      }
+      continue;
+    }
+
     const sEl = document.createElement('rp-s');
     let display = char;
     let after = null;
 
-    const isFirstInSequence = (i === 0 || aligned[i - 1]?.phoneme !== phoneme);
-    const isLastInSequence = (i === aligned.length - 1 || aligned[i + 1]?.phoneme !== phoneme);
+    const isFirstInSequence = (i === 0 || aligned[i - 1]?.base !== base);
+    const isLastInSequence = (i === aligned.length - 1 || aligned[i + 1]?.base !== base);
 
     if (silent && opts.silent) {
       sEl.style.opacity = '0.25';
-    } else if (phoneme) {
-      const color = VOWEL_COLORS[phoneme];
-      if (color && opts.colors) {
-        sEl.style.color = color;
+    } else if (base) {
+      const vColor = VOWEL_COLORS[base];
+      if (vColor && opts[vColor.toggle !== undefined ? vColor.toggle : vColor.t]) {
+        sEl.style.color = vColor.c || vColor.color;
         if (opts.stress && stress === 1 && isFirstInSequence && ACUTE[char]) {
           display = ACUTE[char];
         }
         if (isLastInSequence) {
-          if (opts.length && LONG_VOWELS.has(phoneme)) {
+          if (opts.length && LONG_VOWELS.has(base)) {
             const c = document.createElement('rp-c');
             c.textContent = ':';
             after = after ?? document.createDocumentFragment();
             after.appendChild(c);
           }
-          if (opts.diphthongs && DIPH_SUPER[phoneme]) {
-            const s = document.createElement('rp-sup');
-            s.textContent = DIPH_SUPER[phoneme];
-            after = after ?? document.createDocumentFragment();
-            after.appendChild(s);
+          if (DIPH_SUPER[base]) {
+            let showDiph = false;
+            if (base === 'AY' && opts.diph_ai) showDiph = true;
+            if ((base === 'EY' || base === 'OY') && opts.diph_ei_oi) showDiph = true;
+            if ((base === 'OW' || base === 'AW') && opts.diph_ou_au) showDiph = true;
+
+            if (showDiph) {
+              const c = document.createElement('rp-sup');
+              c.textContent = DIPH_SUPER[base];
+              after = after ?? document.createDocumentFragment();
+              after.appendChild(c);
+            }
           }
         }
       }
       if (isLastInSequence) {
-        if (opts.consonants && TH_SUPER[phoneme]) {
-          const s = document.createElement('rp-sup');
-          s.textContent = TH_SUPER[phoneme];
+        if (TH_SUPER[base] && ((base === 'TH' && opts.th_t) || (base === 'DH' && opts.th_d))) {
+          const c = document.createElement('rp-sup');
+          c.textContent = TH_SUPER[base];
           after = after ?? document.createDocumentFragment();
-          after.appendChild(s);
-        }
-        if (opts.tmark && phoneme === 'T' && char.toLowerCase() !== 't') {
+          after.appendChild(c);
+        } else if (opts.tmark && (base === 'T') && !['t', 'T'].includes(char)) {
           const s = document.createElement('rp-sup');
           s.textContent = 'ᵗ';
           after = after ?? document.createDocumentFragment();
           after.appendChild(s);
         }
       }
-      if (opts.zmark && (phoneme === 'Z' || phoneme === 'ZH')) {
+      if (opts.zmark && (base === 'Z' || base === 'ZH')) {
         sEl.style.textDecoration = 'underline dotted';
         sEl.style.textUnderlineOffset = '2px';
       }
@@ -296,45 +344,116 @@ const SUFFIXES = [
   { s: 'est', t: 'IH0 S T' }, { s: 'ed', t: '- D' }, { s: 'es', t: 'IH0 Z' },
   { s: 'er', t: 'ER0 -rER0' }, { s: 'ly', t: 'L IY0' }, { s: 's', t: 'Z' },
   { s: 'ism', t: 'IH0 Z M' }, { s: 'ist', t: 'IH0 S T' }, { s: 'ful', t: 'F UH0 L' },
-  { s: 'less', t: 'L EH0 S S' }, { s: 'tion', t: 'SH - AX0 N' }
+  { s: 'less', t: 'L EH0 S S' }, { s: 'tion', t: 'SH - AX0 N' },
+  { s: 'able', t: 'AX0 B L -' }, { s: 'ible', t: 'IH0 B L -' },
+  { s: "'s", t: '- Z' }, { s: "'ve", t: '- V' }, { s: "'re", t: '- ER0' },
+  { s: "'ll", t: '- L' }, { s: "'d", t: '- D' }
 ];
 
-function guessPronunciation(word) {
+function guessPronunciation(word, depth = 0) {
+  if (depth > 2) return null;
   const w = word.toLowerCase();
-  
-  // 1. Try suffixes
+
+  const getStem = (stem) => dict[stem] || guessPronunciation(stem, depth + 1);
+
+  // 1.1 Try smart suffixes (-ization -> -ize)
+  if (w.endsWith('ization')) {
+    const stem = w.slice(0, -7) + 'ize';
+    const dictStem = getStem(stem);
+    if (dictStem) return dictStem.replace(/\s+-\s*$/, ' EY1 SH - AX0 N');
+  }
+
+  // 1.2 Try smart suffixes (-ation -> -ate)
+  if (w.endsWith('ation')) {
+    const stem = w.slice(0, -5) + 'ate';
+    const dictStem = getStem(stem);
+    if (dictStem) return dictStem.replace(/\s+-\s*$/, ' EY1 SH - AX0 N');
+  }
+
+  // 1.3 Try smart suffixes (-ing -> drop e)
+  if (w.endsWith('ing')) {
+    const stem = w.slice(0, -3) + 'e';
+    const dictStem = getStem(stem);
+    if (dictStem) return dictStem.replace(/\s+-\s*$/, ' IH0 NG -');
+  }
+
+  // 1.4 Try smart suffixes (-ed -> drop e)
+  if (w.endsWith('ed')) {
+    const stem = w.slice(0, -2) + 'e';
+    const dictStem = getStem(stem);
+    if (dictStem) return dictStem + ' D';
+  }
+
+  // 1.5 Try smart suffixes (-ies -> -y)
+  if (w.endsWith('ies')) {
+    const stem = w.slice(0, -3) + 'y';
+    const dictStem = getStem(stem);
+    if (dictStem) {
+      const toks = dictStem.split(/\s+/);
+      const last = toks.pop();
+      return toks.join(' ') + ' ' + last + ' - Z';
+    }
+  }
+
+  // 1.6 Try smart suffixes (-ily -> -y)
+  if (w.endsWith('ily')) {
+    const stem = w.slice(0, -3) + 'y';
+    const dictStem = getStem(stem);
+    if (dictStem) {
+      const toks = dictStem.split(/\s+/);
+      const last = toks.pop();
+      return toks.join(' ') + ' ' + last + ' L IY0';
+    }
+  }
+
+  // 1.7 Try smart suffixes (-able -> drop e)
+  if (w.endsWith('able')) {
+    const stem = w.slice(0, -4) + 'e';
+    const dictStem = getStem(stem);
+    if (dictStem) return dictStem.replace(/\s+-\s*$/, ' AX0 B L -');
+  }
+
+  // 1.8 Try smart suffixes (-ible -> drop e)
+  if (w.endsWith('ible')) {
+    const stem = w.slice(0, -4) + 'e';
+    const dictStem = getStem(stem);
+    if (dictStem) return dictStem.replace(/\s+-\s*$/, ' IH0 B L -');
+  }
+
+  // 2. Try simple suffixes
   for (const suf of SUFFIXES) {
     if (w.endsWith(suf.s)) {
       const stem = w.slice(0, -suf.s.length);
-      if (dict[stem]) return dict[stem] + ' ' + suf.t;
+      const dictStem = getStem(stem);
+      if (dictStem) return dictStem + ' ' + suf.t;
     }
   }
-  
-  // 2. Try prefixes
+
+  // 3. Try prefixes
   for (const pref of PREFIXES) {
     if (w.startsWith(pref.p)) {
       const stem = w.slice(pref.p.length);
-      if (dict[stem]) return pref.t + ' ' + dict[stem];
+      const dictStem = getStem(stem);
+      if (dictStem) return pref.t + ' ' + dictStem;
     }
   }
-  
-  // 3. Try prefix + suffix
+
+  // 4. Try prefix + suffix
   for (const pref of PREFIXES) {
     if (w.startsWith(pref.p)) {
       const remaining = w.slice(pref.p.length);
       for (const suf of SUFFIXES) {
         if (remaining.endsWith(suf.s)) {
           const stem = remaining.slice(0, -suf.s.length);
-          if (dict[stem]) return pref.t + ' ' + dict[stem] + ' ' + suf.t;
+          const dictStem = getStem(stem);
+          if (dictStem) return pref.t + ' ' + dictStem + ' ' + suf.t;
         }
       }
     }
   }
-  
-  return null;
-}
 
-// ── DOM Walker ───────────────────────────────────────────────────
+  return null;
+} // ── DOM Walker ───────────────────────────────────────────────────
 
 function processTextNode(node) {
   const text = node.textContent;
@@ -346,7 +465,7 @@ function processTextNode(node) {
     if (/^[a-zA-Z']+$/i.test(token)) {
       const clean = token.replace(/^'+|'+$/g, '');
       let arpa = clean ? (dict?.[clean.toLowerCase()] ?? null) : null;
-      
+
       // Morphological Fallback
       if (!arpa && clean && clean.length > 4) {
         arpa = guessPronunciation(clean);
@@ -408,7 +527,7 @@ async function checkActivation() {
   const isEnabled = stored.enabled !== false;
   const host = window.location.hostname;
   const isBlacklisted = (stored.blacklist ?? []).includes(host);
-  
+
   if (!isEnabled || isBlacklisted) {
     document.body.classList.add('ipa-disabled');
   } else {
@@ -435,7 +554,7 @@ async function init() {
   try {
     const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
     dict = await r.json();
-    
+
     walk(document.body);
 
     new MutationObserver(mutations => {

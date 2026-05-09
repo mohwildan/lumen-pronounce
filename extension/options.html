@@ -174,32 +174,75 @@
     <div id="appearance" class="tab-content active">
       <header>
         <div>
-          <h2>Appearance</h2>
-          <p class="subtitle">Customize how pronunciation looks on the page.</p>
+          <h2>Appearance & Colors</h2>
+          <p class="subtitle">Build phonetic intuition with individual color toggles.</p>
         </div>
       </header>
 
       <div class="card">
-        <h2>Vowel Colors</h2>
-        <p class="desc">Colors used for different phonetic sounds.</p>
-        <div class="swatch-grid">
-          <div class="swatch-item"><span class="dot" style="background:#4dbf7a"></span> /i/ /ɪ/ Green</div>
-          <div class="swatch-item"><span class="dot" style="background:#e06060"></span> /ɛ/ /ɝ/ Red</div>
-          <div class="swatch-item"><span class="dot" style="background:#db6fa0"></span> /æ/ /aɪ/ Pink</div>
-          <div class="swatch-item"><span class="dot" style="background:#b06fd6"></span> /ʌ/ /ɑ/ Purple</div>
-          <div class="swatch-item"><span class="dot" style="background:#3dbdba"></span> /u/ /ʊ/ Teal</div>
-          <div class="swatch-item"><span class="dot" style="background:#c8a030"></span> /ɔ/ /oʊ/ Amber</div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title">Ghost Letters (Silent)</span>
+            <span class="desc">Make unpronounced letters semi-transparent (e.g., a<span style="opacity:0.4">w</span>esom<span style="opacity:0.4">e</span>, s<span style="opacity:0.4">w</span>ord).</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="silent" checked><span class="slider"></span></label>
         </div>
       </div>
-      
+
       <div class="card">
-        <h2>Visual Toggles</h2>
-        <div class="setting-row">
-          <div class="info"><span class="title">Colorize Vowels</span><span class="desc">Apply sound-based colors to vowels.</span></div>
-          <label class="switch"><input type="checkbox" id="colors" checked><span class="slider"></span></label>
+        <h2>Adaptive Vowel Colorization</h2>
+        <p class="desc">Colorize English vowels based on their underlying phonetic sound.</p>
+        <div class="setting-row" style="margin-top:12px;">
+          <div class="info">
+            <span class="title" style="color:var(--ipa-green, #4dbf7a)">Colorize /i/, /ɪ/ Green</span>
+            <span class="desc">(r<b>e</b>c<b>ei</b>pt)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="color_i" checked><span class="slider"></span></label>
         </div>
         <div class="setting-row">
-          <div class="info"><span class="title">Silent Letters</span><span class="desc">Dim letters that aren't pronounced.</span></div>
+          <div class="info">
+            <span class="title" style="color:var(--ipa-red, #e06060)">Colorize /ɛ/, /ɝ/ Red</span>
+            <span class="desc">(s<b>e</b>c<b>o</b>nd)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="color_e" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title" style="color:var(--ipa-pink, #db6fa0)">Colorize /æ/, /aɪ/ Pink</span>
+            <span class="desc">(c<b>a</b>t, b<b>i</b>k<span style="opacity:0.4">e</span>)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="color_a" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title" style="color:var(--ipa-purple, #b06fd6)">Colorize /ʌ/, /ə/ Purple</span>
+            <span class="desc">(s<b>o</b>m<b>e</b>)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="color_u_alt" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title" style="color:var(--ipa-teal, #3dbdba)">Colorize /u/, /ʊ/ Teal</span>
+            <span class="desc">(t<b>o</b>mb)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="color_u" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title" style="color:var(--ipa-orange, #c8a030)">Colorize /ɔ/, /oʊ/ Amber</span>
+            <span class="desc">(qu<b>a</b>rt<b>e</b>r)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="color_o" checked><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+      
+      <div class="card">
+        <div class="setting-row">
+          <div class="info">
+            <span class="title">Ghost Letters (Silent)</span>
+            <span class="desc">Make unpronounced letters semi-transparent (e.g., a<span style="opacity:0.4">w</span>esom<span style="opacity:0.4">e</span>, s<span style="opacity:0.4">w</span>ord).</span>
+          </div>
           <label class="switch"><input type="checkbox" id="silent" checked><span class="slider"></span></label>
         </div>
       </div>
@@ -208,34 +251,89 @@
     <div id="modifications" class="tab-content">
       <header>
         <div>
-          <h2>Modifications</h2>
-          <p class="subtitle">Fine-tune the phonetic decoration rules.</p>
+          <h2>Phonetic Markers</h2>
+          <p class="subtitle">Creative typographic cues to guide your pronunciation.</p>
         </div>
       </header>
 
       <div class="card">
         <div class="setting-row">
-          <div class="info"><span class="title">Stress Accents</span><span class="desc">Show acute accents (á é í) on primary stress.</span></div>
+          <div class="info">
+            <span class="title">Primary Stress Accents</span>
+            <span class="desc">Place an acute accent on stressed vowels (e.g., upd<b>á</b><sup style="opacity:0.6;font-size:0.7em">ⁱ</sup>t<span style="opacity:0.4">e</span>).</span>
+          </div>
           <label class="switch"><input type="checkbox" id="stress" checked><span class="slider"></span></label>
         </div>
         <div class="setting-row">
-          <div class="info"><span class="title">TH / DH Superscript</span><span class="desc">Show ᵗ/ᵈ indicators for th sounds.</span></div>
-          <label class="switch"><input type="checkbox" id="consonants" checked><span class="slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="info"><span class="title">Diphthong Markers</span><span class="desc">Show small superscript vowels for diphthongs.</span></div>
-          <label class="switch"><input type="checkbox" id="diphthongs" checked><span class="slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="info"><span class="title">Vowel Length</span><span class="desc">Show IPA length colon (:) for long vowels.</span></div>
+          <div class="info">
+            <span class="title">Long Vowel Colons</span>
+            <span class="desc">Append an IPA length colon (:) after long vowels (e.g., s<b>oo</b><span style="opacity:0.6">:</span>n, f<b>a</b><span style="opacity:0.6">:</span>th<span style="opacity:0.4">e</span>r).</span>
+          </div>
           <label class="switch"><input type="checkbox" id="length" checked><span class="slider"></span></label>
         </div>
         <div class="setting-row">
-          <div class="info"><span class="title">T-Sound Mark</span><span class="desc">Add ᵗ to letters sounding like T (e.g. "asked").</span></div>
+          <div class="info">
+            <span class="title">Hidden Phonemes</span>
+            <span class="desc">Show additional phonemes not present in spelling (e.g., <sup style="color:var(--accent)">w</sup><b>o</b>n<span style="opacity:0.4">e</span>).</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="phonemes" checked><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Diphthong Hints</h2>
+        <p class="desc">Show small superscript vowels for gliding sounds.</p>
+        <div class="setting-row" style="margin-top:12px;">
+          <div class="info">
+            <span class="title">Show /aɪ/ Diphthongs</span>
+            <span class="desc">(<b>i</b><sup style="opacity:0.6;font-size:0.7em">ⁱ</sup>t<span style="opacity:0.4">e</span>m)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="diph_ai" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title">Show /eɪ, ɔɪ/ Diphthongs</span>
+            <span class="desc">(gr<b>e</b><sup style="opacity:0.6;font-size:0.7em">ⁱ</sup>at)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="diph_ei_oi" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title">Show /oʊ, aʊ/ Diphthongs</span>
+            <span class="desc">(r<b>o</b><sup style="opacity:0.6;font-size:0.7em">ᵘ</sup>ad)</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="diph_ou_au" checked><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Consonant Clarifiers</h2>
+        <div class="setting-row" style="margin-top:12px;">
+          <div class="info">
+            <span class="title">Unvoiced TH Mark (/θ/)</span>
+            <span class="desc">Add ᵗ above 'th' (e.g., <b>th</b><sup style="opacity:0.6;font-size:0.7em">ᵗ</sup>in).</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="th_t" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title">Voiced DH Mark (/ð/)</span>
+            <span class="desc">Add ᵈ above 'th' (e.g., <b>th</b><sup style="opacity:0.6;font-size:0.7em">ᵈ</sup>is).</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="th_d" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info">
+            <span class="title">T-Sound Morphing</span>
+            <span class="desc">Add ᵗ to letters that sound like T (e.g., ask<b>ed</b><sup style="opacity:0.6;font-size:0.7em">ᵗ</sup>).</span>
+          </div>
           <label class="switch"><input type="checkbox" id="tmark" checked><span class="slider"></span></label>
         </div>
         <div class="setting-row">
-          <div class="info"><span class="title">Z/ZH Underline</span><span class="desc">Dotted underline for Z/ZH sounds.</span></div>
+          <div class="info">
+            <span class="title">Z-Sound Underlines</span>
+            <span class="desc">Dotted underline for disguised Z sounds (e.g., vi<u style="text-decoration:underline dotted;text-underline-offset:2px">s</u>it).</span>
+          </div>
           <label class="switch"><input type="checkbox" id="zmark" checked><span class="slider"></span></label>
         </div>
       </div>

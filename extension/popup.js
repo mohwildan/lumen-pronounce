@@ -1,4 +1,4 @@
-const MOD_KEYS = ['silent', 'colors', 'stress', 'consonants', 'diphthongs', 'length', 'tmark', 'zmark'];
+const MOD_KEYS = ['silent', 'color_e', 'color_i', 'color_u_alt', 'color_a', 'color_u', 'color_o', 'stress', 'tmark', 'th_t', 'zmark', 'diph_ai', 'diph_ei_oi', 'phonemes', 'th_d', 'diph_ou_au', 'length'];
 const globalEnabledEl = document.getElementById('enabled');
 const domainEnabledEl = document.getElementById('domainEnabled');
 const domainText      = document.getElementById('currentDomain');

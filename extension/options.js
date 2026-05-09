@@ -1,4 +1,4 @@
-const MOD_KEYS = ['enabled', 'silent', 'colors', 'stress', 'consonants', 'diphthongs', 'length', 'tmark', 'zmark'];
+const MOD_KEYS = ['enabled', 'silent', 'color_e', 'color_i', 'color_u_alt', 'color_a', 'color_u', 'color_o', 'stress', 'tmark', 'th_t', 'zmark', 'diph_ai', 'diph_ei_oi', 'phonemes', 'th_d', 'diph_ou_au', 'length'];
 
 // Tab switching
 const tabLinks = document.querySelectorAll('.tab-link');

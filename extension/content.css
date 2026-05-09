@@ -1,17 +1,44 @@
+:root {
+  /* ── Light Mode Colors (Deeper, rich tones for readability on white) ── */
+  --ipa-purple: #8e24aa;
+  --ipa-pink:   #d81b60;
+  --ipa-red:    #e53935;
+  --ipa-green:  #2e7d32;
+  --ipa-teal:   #00838f;
+  --ipa-orange: #e65100;
+  
+  --ipa-sup:    #666666; /* Superscripts / Colons */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* ── Dark Mode Colors (Brighter, vibrant pastels for contrast on dark) ── */
+    --ipa-purple: #c084fc; /* Violet */
+    --ipa-pink:   #f472b6; /* Pink */
+    --ipa-red:    #fb7185; /* Rose/Red */
+    --ipa-green:  #4ade80; /* Green */
+    --ipa-teal:   #2dd4bf; /* Teal */
+    --ipa-orange: #fbbf24; /* Amber/Orange */
+    
+    --ipa-sup:    #94a3b8; /* Superscripts / Colons */
+  }
+}
+
+/* Custom tags for phonetic styling */
 rp-w   { display: inline !important; float: none !important; }
-rp-s   { display: inline !important; float: none !important; }
-rp-c   { display: inline !important; opacity: .4 !important; margin-left: 1px !important; }
+rp-s   { display: inline !important; float: none !important; transition: color 0.2s, opacity 0.2s; }
+rp-c   { display: inline !important; opacity: .6 !important; margin-left: 1px !important; color: var(--ipa-sup) !important; }
 rp-sup {
   display: inline !important;
   font-size: .48em !important;
   vertical-align: super !important;
-  opacity: .75 !important;
+  opacity: .8 !important;
   margin-left: .5px !important;
   line-height: 1 !important;
+  color: var(--ipa-sup) !important;
 }
 
 /* ── Live Inactive State ── */
-/* Jika body memiliki class .ipa-disabled, sembunyikan semua modifikasi */
 body.ipa-disabled rp-s {
   color: inherit !important;
   opacity: 1 !important;
