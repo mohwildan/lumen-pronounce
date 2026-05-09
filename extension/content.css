@@ -1,0 +1,40 @@
+rp-w   { display: inline !important; float: none !important; }
+rp-s   { display: inline !important; float: none !important; }
+rp-c   { display: inline !important; opacity: .4 !important; margin-left: 1px !important; }
+rp-sup {
+  display: inline !important;
+  font-size: .48em !important;
+  vertical-align: super !important;
+  opacity: .75 !important;
+  margin-left: .5px !important;
+  line-height: 1 !important;
+}
+
+/* ── Live Inactive State ── */
+/* Jika body memiliki class .ipa-disabled, sembunyikan semua modifikasi */
+body.ipa-disabled rp-s {
+  color: inherit !important;
+  opacity: 1 !important;
+  text-decoration: none !important;
+}
+
+body.ipa-disabled rp-sup,
+body.ipa-disabled rp-c {
+  display: none !important;
+}
+
+/* Tooltip style */
+.ipa-tooltip {
+  position: absolute;
+  z-index: 2147483647;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  color: #e0e0f0;
+  font-family: system-ui, sans-serif;
+  width: 240px;
+  font-size: 13px;
+  pointer-events: auto;
+}

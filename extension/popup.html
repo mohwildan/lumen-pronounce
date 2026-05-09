@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IPA Stylizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 320px;
+      background: #0f0f1a;
+      color: #e0e0f0;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+    }
+
+    .header {
+      padding: 16px;
+      border-bottom: 1px solid #1e1e3a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand { font-weight: 700; font-size: 1rem; color: #ff3e88; }
+    .brand small { display: block; font-size: .65rem; color: #668; margin-top: 2px; }
+
+    .section { padding: 12px 16px; border-bottom: 1px solid #1a1a2e; }
+    .section-title { font-size: .68rem; font-weight: 600; color: #556; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+
+    .mod-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+    }
+    .mod-row span { color: #aac; font-size: .85rem; }
+
+    /* Switch */
+    .switch { position: relative; width: 40px; height: 20px; cursor: pointer; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #2a2a4a; border-radius: 20px; transition: .2s; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    input:checked + .slider { background: #ff3e88; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .domain-info { font-size: 0.75rem; color: #7b61ff; font-weight: 600; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    .footer { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .options-link { color: #556; text-decoration: none; font-size: 0.75rem; font-weight: 600; }
+    .options-link:hover { color: #ff3e88; }
+
+    .status-msg { font-size: 0.7rem; color: #16ab39; opacity: 0; transition: opacity 0.2s; }
+    .status-msg.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    IPA Stylizer
+    <small id="statusText">Global: Active</small>
+  </div>
+  <label class="switch">
+    <input type="checkbox" id="enabled" checked>
+    <span class="slider"></span>
+  </label>
+</div>
+
+<div class="section">
+  <div class="section-title">This Site</div>
+  <div class="domain-info" id="currentDomain">Detecting site...</div>
+  <div class="mod-row">
+    <span>Enable on this domain</span>
+    <label class="switch">
+      <input type="checkbox" id="domainEnabled" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Modifications</div>
+  <div class="mod-row"><span>Silent letters</span> <label class="switch"><input type="checkbox" id="silent"><span class="slider"></span></label></div>
+  <div class="mod-row"><span>Vowel colors</span>   <label class="switch"><input type="checkbox" id="colors"><span class="slider"></span></label></div>
+  <div class="mod-row"><span>Stress accents</span> <label class="switch"><input type="checkbox" id="stress"><span class="slider"></span></label></div>
+</div>
+
+<div class="footer">
+  <a href="options.html" target="_blank" class="options-link">All Settings →</a>
+  <span id="saveStatus" class="status-msg">Saved</span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

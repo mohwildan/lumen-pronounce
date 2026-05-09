@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IPA Stylizer — Advanced Options</title>
+  <style>
+    :root {
+      --bg: #0f0f1a;
+      --surface: #161625;
+      --surface-light: #1e1e2e;
+      --border: #2a2a4a;
+      --text: #e0e0f0;
+      --muted: #666688;
+      --accent: #ff3e88;
+      --accent-glow: rgba(255, 62, 136, 0.3);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      width: 240px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0;
+    }
+    .logo {
+      padding: 0 24px;
+      margin-bottom: 32px;
+      font-weight: 800;
+      font-size: 1.2rem;
+      background: linear-gradient(90deg, #ff3e88, #7b61ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    nav { flex: 1; }
+    nav button {
+      width: 100%;
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+    nav button:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    nav button.active {
+      color: var(--accent);
+      background: rgba(255, 62, 136, 0.05);
+      border-left-color: var(--accent);
+    }
+
+    /* ── Main Content ── */
+    main {
+      flex: 1;
+      padding: 40px 60px;
+      overflow-y: auto;
+      background: radial-gradient(circle at top right, rgba(123, 97, 255, 0.05), transparent);
+    }
+    .tab-content { display: none; max-width: 650px; }
+    .tab-content.active { display: block; animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    header {
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; }
+
+    /* ── Settings Controls ── */
+    .card {
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .setting-group { margin-bottom: 20px; }
+    .setting-group:last-child { margin-bottom: 0; }
+    
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    
+    .info { flex: 1; padding-right: 20px; }
+    .title { display: block; font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
+    .desc { display: block; color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+
+    /* Switch */
+    .switch { position: relative; width: 44px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #2a2a4a; border-radius: 22px; transition: 0.2s;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
+    }
+    input:checked + .slider { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    /* Buttons */
+    .save-bar {
+      position: sticky; bottom: 0; padding-top: 20px;
+      background: var(--bg); border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .btn {
+      padding: 10px 24px; border-radius: 6px; font-weight: 700;
+      font-size: 0.9rem; cursor: pointer; border: none; transition: 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-secondary { background: #2a2a4a; color: #fff; }
+
+    /* Color Swatches */
+    .swatch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .swatch-item {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    /* Dictionary Preview */
+    .dict-search { margin-bottom: 16px; }
+    input[type="text"] {
+      width: 100%; background: #0a0a14; border: 1px solid var(--border);
+      padding: 10px 14px; border-radius: 6px; color: #fff; outline: none;
+    }
+    .search-result {
+      font-family: monospace; font-size: 0.9rem; color: #7b61ff;
+      background: rgba(123, 97, 255, 0.1); padding: 12px; border-radius: 6px;
+      min-height: 44px; display: flex; align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <aside>
+    <div class="logo">IPA Stylizer</div>
+    <nav>
+      <button class="tab-link active" data-tab="appearance">Appearance</button>
+      <button class="tab-link" data-tab="modifications">Modifications</button>
+      <button class="tab-link" data-tab="dictionary">Dictionary</button>
+      <button class="tab-link" data-tab="advanced">Advanced</button>
+    </nav>
+  </aside>
+
+  <main>
+    <div id="appearance" class="tab-content active">
+      <header>
+        <div>
+          <h2>Appearance</h2>
+          <p class="subtitle">Customize how pronunciation looks on the page.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <h2>Vowel Colors</h2>
+        <p class="desc">Colors used for different phonetic sounds.</p>
+        <div class="swatch-grid">
+          <div class="swatch-item"><span class="dot" style="background:#4dbf7a"></span> /i/ /ɪ/ Green</div>
+          <div class="swatch-item"><span class="dot" style="background:#e06060"></span> /ɛ/ /ɝ/ Red</div>
+          <div class="swatch-item"><span class="dot" style="background:#db6fa0"></span> /æ/ /aɪ/ Pink</div>
+          <div class="swatch-item"><span class="dot" style="background:#b06fd6"></span> /ʌ/ /ɑ/ Purple</div>
+          <div class="swatch-item"><span class="dot" style="background:#3dbdba"></span> /u/ /ʊ/ Teal</div>
+          <div class="swatch-item"><span class="dot" style="background:#c8a030"></span> /ɔ/ /oʊ/ Amber</div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h2>Visual Toggles</h2>
+        <div class="setting-row">
+          <div class="info"><span class="title">Colorize Vowels</span><span class="desc">Apply sound-based colors to vowels.</span></div>
+          <label class="switch"><input type="checkbox" id="colors" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info"><span class="title">Silent Letters</span><span class="desc">Dim letters that aren't pronounced.</span></div>
+          <label class="switch"><input type="checkbox" id="silent" checked><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div id="modifications" class="tab-content">
+      <header>
+        <div>
+          <h2>Modifications</h2>
+          <p class="subtitle">Fine-tune the phonetic decoration rules.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <div class="setting-row">
+          <div class="info"><span class="title">Stress Accents</span><span class="desc">Show acute accents (á é í) on primary stress.</span></div>
+          <label class="switch"><input type="checkbox" id="stress" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info"><span class="title">TH / DH Superscript</span><span class="desc">Show ᵗ/ᵈ indicators for th sounds.</span></div>
+          <label class="switch"><input type="checkbox" id="consonants" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info"><span class="title">Diphthong Markers</span><span class="desc">Show small superscript vowels for diphthongs.</span></div>
+          <label class="switch"><input type="checkbox" id="diphthongs" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info"><span class="title">Vowel Length</span><span class="desc">Show IPA length colon (:) for long vowels.</span></div>
+          <label class="switch"><input type="checkbox" id="length" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info"><span class="title">T-Sound Mark</span><span class="desc">Add ᵗ to letters sounding like T (e.g. "asked").</span></div>
+          <label class="switch"><input type="checkbox" id="tmark" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="info"><span class="title">Z/ZH Underline</span><span class="desc">Dotted underline for Z/ZH sounds.</span></div>
+          <label class="switch"><input type="checkbox" id="zmark" checked><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div id="dictionary" class="tab-content">
+      <header>
+        <div>
+          <h2>Dictionary</h2>
+          <p class="subtitle">Check if words are in your local pronunciation database.</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <div class="dict-search">
+          <input type="text" id="dictInput" placeholder="Enter a word to test...">
+        </div>
+        <div class="search-result" id="dictResult">Result will appear here...</div>
+      </div>
+      <p class="desc">The dictionary currently contains over 100,000 English words (4.2MB).</p>
+    </div>
+
+    <div id="advanced" class="tab-content">
+      <header>
+        <div>
+          <h2>Advanced</h2>
+          <p class="subtitle">Experimental features and data management.</p>
+        </div>
+      </header>
+      <div class="card">
+        <div class="setting-row">
+          <div class="info"><span class="title">Global Activation</span><span class="desc">Master toggle to enable/disable the extension.</span></div>
+          <label class="switch"><input type="checkbox" id="enabled" checked><span class="slider"></span></label>
+        </div>
+      </div>
+      <button class="btn btn-secondary" id="resetBtn">Reset to Defaults</button>
+    </div>
+
+    <div class="save-bar">
+      <button class="btn btn-primary" id="saveBtnBottom">Save Changes</button>
+      <span id="saveStatus" style="color:#16ab39; font-weight:600; opacity:0;">Saved!</span>
+    </div>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>

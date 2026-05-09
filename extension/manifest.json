@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "IPA Pronunciation Stylizer",
+  "version": "1.0.0",
+  "description": "Visualize English pronunciation: silent letters, vowel colors, stress marks.",
+  "permissions": ["storage", "activeTab", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "IPA Stylizer"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["pronunciation.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
