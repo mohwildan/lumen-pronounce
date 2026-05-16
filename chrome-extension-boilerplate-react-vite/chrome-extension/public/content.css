@@ -1,0 +1,45 @@
+:root {
+  --ipa-purple: #8e24aa;
+  --ipa-pink:   #d81b60;
+  --ipa-red:    #e53935;
+  --ipa-green:  #2e7d32;
+  --ipa-teal:   #00838f;
+  --ipa-orange: #e65100;
+  --ipa-sup:    #666666;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ipa-purple: #c084fc;
+    --ipa-pink:   #f472b6;
+    --ipa-red:    #fb7185;
+    --ipa-green:  #4ade80;
+    --ipa-teal:   #2dd4bf;
+    --ipa-orange: #fbbf24;
+    --ipa-sup:    #94a3b8;
+  }
+}
+
+rp-w   { display: inline !important; float: none !important; }
+rp-s   { display: inline !important; float: none !important; transition: color 0.2s, opacity 0.2s; }
+rp-c   { display: inline !important; opacity: .6 !important; margin-left: 1px !important; color: var(--ipa-sup) !important; }
+rp-sup {
+  display: inline !important;
+  font-size: .48em !important;
+  vertical-align: super !important;
+  opacity: .8 !important;
+  margin-left: .5px !important;
+  line-height: 1 !important;
+  color: var(--ipa-sup) !important;
+}
+
+body.ipa-disabled rp-s {
+  color: inherit !important;
+  opacity: 1 !important;
+  text-decoration: none !important;
+}
+
+body.ipa-disabled rp-sup,
+body.ipa-disabled rp-c {
+  display: none !important;
+}
