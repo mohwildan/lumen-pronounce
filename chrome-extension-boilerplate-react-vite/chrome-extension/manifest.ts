@@ -29,7 +29,7 @@ const manifest = {
       js: ['content/all.iife.js'],
       css: ['content.css'],
       run_at: 'document_idle',
-      all_frames: false,
+      all_frames: true,
     },
   ],
   web_accessible_resources: [

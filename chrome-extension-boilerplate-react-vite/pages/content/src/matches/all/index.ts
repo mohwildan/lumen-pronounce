@@ -325,6 +325,11 @@ function isOwnEl(node: Node | null): boolean {
   return !!(el.id && IPA_ROOT_IDS.has(el.id)) || !!el.closest?.('[data-ipa-ui]');
 }
 
+function tipParent(): Element {
+  const fs = document.fullscreenElement;
+  return (fs && fs.tagName !== 'VIDEO') ? fs : document.body;
+}
+
 function getTip(): HTMLDivElement {
   if (tip) return tip;
   tip = document.createElement('div');
@@ -344,7 +349,7 @@ function getTip(): HTMLDivElement {
   tip.addEventListener('mouseleave', e => {
     if (!(e.relatedTarget as Element)?.closest?.('rp-w')) hideTip();
   });
-  document.body.appendChild(tip);
+  tipParent().appendChild(tip);
   return tip;
 }
 
@@ -519,11 +524,26 @@ async function fetchDictDef(word: string): Promise<void> {
 function posTip(mouseX: number, mouseY: number): void {
   if (!tip) return;
   const PAD = 10, H = 280;
-  let left = mouseX + 14, top = mouseY + 18;
-  if (left + TIP_W > window.innerWidth - PAD) left = mouseX - TIP_W - 14;
-  if (top + H > window.innerHeight - PAD) top = mouseY - H - 10;
-  tip.style.left = Math.max(PAD, left) + 'px';
-  tip.style.top = Math.max(PAD, top) + 'px';
+  const fs = document.fullscreenElement;
+  if (fs && fs.tagName !== 'VIDEO') {
+    // Inside fullscreen el: use absolute coords relative to its bounding rect
+    const r = fs.getBoundingClientRect();
+    const W = r.width || window.innerWidth;
+    const Ht = r.height || window.innerHeight;
+    let left = mouseX - r.left + 14, top = mouseY - r.top + 18;
+    if (left + TIP_W > W - PAD) left = mouseX - r.left - TIP_W - 14;
+    if (top + H > Ht - PAD) top = mouseY - r.top - H - 10;
+    tip.style.position = 'absolute';
+    tip.style.left = Math.max(PAD, left) + 'px';
+    tip.style.top = Math.max(PAD, top) + 'px';
+  } else {
+    tip.style.position = 'fixed';
+    let left = mouseX + 14, top = mouseY + 18;
+    if (left + TIP_W > window.innerWidth - PAD) left = mouseX - TIP_W - 14;
+    if (top + H > window.innerHeight - PAD) top = mouseY - H - 10;
+    tip.style.left = Math.max(PAD, left) + 'px';
+    tip.style.top = Math.max(PAD, top) + 'px';
+  }
 }
 
 function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
@@ -553,6 +573,10 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
       renderTab((btn as HTMLElement).dataset.tab!, word, defCache[word.toLowerCase()]);
     });
   });
+
+  // Ensure tip is in correct parent (body or fullscreen element)
+  const parent = tipParent();
+  if (tip.parentElement !== parent) parent.appendChild(tip);
 
   posTip(mouseX, mouseY);
   t.style.display = 'block';
@@ -765,20 +789,98 @@ function walk(node: Node): void {
 
 // ── Hover events ─────────────────────────────────────────────────
 
-document.addEventListener('mouseover', e => {
-  const rpw = (e.target as Element).closest?.('rp-w');
-  if (!rpw) return;
-  if (hoverTimer) clearTimeout(hoverTimer);
-  hoverTimer = setTimeout(() => showTip(rpw, (e as MouseEvent).clientX, (e as MouseEvent).clientY), 250);
+let lastMoveX = 0, lastMoveY = 0;
+let fsHoverInterval: ReturnType<typeof setInterval> | null = null;
+
+// Track mouse at all times (needed for interval-based fullscreen detection)
+document.addEventListener('mousemove', e => {
+  lastMoveX = (e as MouseEvent).clientX;
+  lastMoveY = (e as MouseEvent).clientY;
+}, { capture: true, passive: true });
+
+function findRpwAtPoint(x: number, y: number, container: Element): Element | null {
+  // caretRangeFromPoint gives exact text node under cursor — more accurate than bbox scan
+  const range = document.caretRangeFromPoint?.(x, y);
+  if (range) {
+    const node = range.startContainer;
+    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node as Element;
+    const rpw = el?.closest?.('rp-w');
+    if (rpw && container.contains(rpw)) return rpw;
+  }
+  // Fallback: bounding rect scan within container
+  for (const el of container.querySelectorAll('rp-w[data-word]')) {
+    const r = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
+  }
+  return null;
+}
+
+// Fullscreen: poll every 120ms. Only show after hovering same word 400ms (anti-jitter).
+let fsHoverWord: string | null = null;
+let fsHoverSince = 0;
+
+function startFsHover(): void {
+  if (fsHoverInterval) return;
+  fsHoverInterval = setInterval(() => {
+    const fs = document.fullscreenElement;
+    if (!fs) { stopFsHover(); return; }
+    const x = lastMoveX, y = lastMoveY;
+    const found = findRpwAtPoint(x, y, fs);
+    const word = found?.getAttribute('data-word') ?? null;
+
+    if (word !== fsHoverWord) {
+      // Mouse moved to different word — reset timer
+      fsHoverWord = word;
+      fsHoverSince = Date.now();
+      if (hoverTimer) clearTimeout(hoverTimer);
+      if (!word) hoverTimer = setTimeout(hideTip, 150);
+    } else if (word && word !== currentWord && Date.now() - fsHoverSince >= 400) {
+      // Stayed on same word for 400ms — show
+      showTip(found!, x, y);
+      fsHoverSince = Infinity; // prevent re-triggering until word changes
+    }
+  }, 120);
+}
+
+function stopFsHover(): void {
+  if (fsHoverInterval) { clearInterval(fsHoverInterval); fsHoverInterval = null; }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const fs = document.fullscreenElement;
+  if (fs) {
+    startFsHover();
+    // Re-walk CC in case fullscreen recreated subtitle elements
+    if (dict) setTimeout(() => walk(fs), 400);
+  } else {
+    stopFsHover();
+    hideTip();
+    // Return tip to body
+    if (tip && tip.parentElement !== document.body) {
+      document.body.appendChild(tip);
+      tip.style.position = 'fixed';
+    }
+  }
 });
 
-document.addEventListener('mouseout', e => {
+// Normal mode: standard event-driven hover
+document.addEventListener('mouseover', e => {
+  if (document.fullscreenElement) return; // handled by interval above
   const rpw = (e.target as Element).closest?.('rp-w');
   if (!rpw) return;
-  if (getTip().contains(e.relatedTarget as Node)) return;
+  if (hoverTimer) clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => showTip(rpw, (e as MouseEvent).clientX, (e as MouseEvent).clientY), 380);
+}, { capture: true });
+
+document.addEventListener('mouseout', e => {
+  if (document.fullscreenElement) return;
+  const rpw = (e.target as Element).closest?.('rp-w');
+  if (!rpw) return;
+  const rel = e.relatedTarget as Element | null;
+  if (rel?.closest?.('[data-ipa-ui]')) return;
   if (hoverTimer) clearTimeout(hoverTimer);
   hoverTimer = setTimeout(hideTip, 80);
-});
+}, { capture: true });
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip(); hideSelUI(); } });
 
@@ -803,6 +905,10 @@ async function checkActivation(): Promise<void> {
 
 async function init(): Promise<void> {
   if (hasProcessed) return;
+  // In sub-frames, only run if the frame actually contains a video player
+  if (window !== window.top && !document.querySelector('video, [class*="caption"], [class*="subtitle"], [class*="transcript"]')) return;
+  if (!document.body) return;
+
   const stored = await chrome.storage.sync.get(['ipa-settings']);
   const s = stored['ipa-settings'];
   if (s?.enabled === false || (s?.blacklist ?? []).includes(window.location.hostname)) {

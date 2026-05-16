@@ -20,7 +20,7 @@
   }
 }
 
-rp-w   { display: inline !important; float: none !important; }
+rp-w   { display: inline !important; float: none !important; pointer-events: auto !important; cursor: default; }
 rp-s   { display: inline !important; float: none !important; transition: color 0.2s, opacity 0.2s; }
 rp-c   { display: inline !important; opacity: .6 !important; margin-left: 1px !important; color: var(--ipa-sup) !important; }
 rp-sup {
