@@ -357,55 +357,76 @@ function posAbbr(pos: string): string {
 const SPEAK_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
 
 let ttsActive = false;
+let currentAudio: HTMLAudioElement | null = null;
+let audioCtx: AudioContext | null = null;
+let currentSource: AudioBufferSourceNode | null = null;
 
-function playPronunciation(word: string): void {
-  if (!('speechSynthesis' in window)) return;
+function getAudioCtx(): AudioContext {
+  if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContext();
+  return audioCtx;
+}
 
+function stopCurrent() {
+  try { currentSource?.stop(); } catch { /* already stopped */ }
+  currentSource = null;
+  currentAudio?.pause();
+  currentAudio = null;
+}
+
+async function playPronunciation(word: string): Promise<void> {
   const btn = document.getElementById('__ipa_speak_btn__') as HTMLButtonElement | null;
 
-  // Stop if already speaking
   if (ttsActive) {
-    window.speechSynthesis.cancel();
+    stopCurrent();
     ttsActive = false;
     if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; }
     return;
   }
 
-  const utter = new SpeechSynthesisUtterance(word);
-  utter.lang = 'en-US';
-  utter.rate = 0.85;
-  utter.pitch = 1;
+  // Resume AudioContext inside user gesture
+  const ctx = getAudioCtx();
+  if (ctx.state === 'suspended') await ctx.resume();
 
-  // Prefer a natural English voice
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')))
-    ?? voices.find(v => v.lang === 'en-US')
-    ?? null;
-  if (preferred) utter.voice = preferred;
+  if (btn) { btn.style.color = '#a78bfa'; btn.style.transform = 'scale(1.15)'; btn.style.opacity = '0.6'; }
 
-  utter.onstart = () => {
-    ttsActive = true;
-    if (btn) { btn.style.color = '#a78bfa'; btn.style.transform = 'scale(1.2)'; }
-  };
-  utter.onend = utter.onerror = () => {
-    ttsActive = false;
-    if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; }
-  };
+  chrome.runtime.sendMessage({ type: 'TTS_FETCH', word }, (response: { base64?: string; mimeType?: string; error?: string } | undefined) => {
+    if (!response?.base64) {
+      if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+      return;
+    }
 
-  window.speechSynthesis.speak(utter);
+    const binary = atob(response.base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    ctx.decodeAudioData(bytes.buffer, (buffer) => {
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      currentSource = src;
+      ttsActive = true;
+      if (btn) { btn.style.color = '#a78bfa'; btn.style.transform = 'scale(1.2)'; btn.style.opacity = '1'; }
+      src.onended = () => {
+        ttsActive = false;
+        currentSource = null;
+        if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+      };
+      src.start(0);
+    }, () => {
+      ttsActive = false;
+      if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+    });
+  });
 }
 
 function buildTipHTML(word: string, ipa: string): string {
-  const hasTTS = 'speechSynthesis' in window;
   return (
     // Header
     `<div style="padding:14px 16px 0">` +
     `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">` +
     // Left: speaker + word
     `<div style="display:flex;align-items:center;gap:8px">` +
-    (hasTTS
-      ? `<button id="__ipa_speak_btn__" title="Play pronunciation" style="background:none;border:none;cursor:pointer;color:#556;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;flex-shrink:0">${SPEAK_ICON}</button>`
-      : '') +
+    `<button id="__ipa_speak_btn__" title="Play pronunciation" style="background:none;border:none;cursor:pointer;color:#556;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;flex-shrink:0">${SPEAK_ICON}</button>` +
     `<span style="font-size:1.25rem;font-weight:800;color:#fff;letter-spacing:.01em">${word.toUpperCase()}</span>` +
     `</div>` +
     // Right: IPA
@@ -512,7 +533,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
   if (!word || !arpa) return;
   currentWord = word;
 
-  window.speechSynthesis?.cancel();
+  stopCurrent();
   ttsActive = false;
 
   t.innerHTML = buildTipHTML(word, toIPA(arpa));
@@ -522,10 +543,6 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
   const speakBtn = t.querySelector('#__ipa_speak_btn__') as HTMLButtonElement | null;
   if (speakBtn) {
     speakBtn.addEventListener('click', e => { e.stopPropagation(); playPronunciation(word); });
-    // Load voices async if not ready
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.addEventListener('voiceschanged', () => {}, { once: true });
-    }
   }
 
   // Wire up tabs
@@ -569,7 +586,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 function hideTip(): void {
   if (!tip) return;
   currentWord = null;
-  window.speechSynthesis?.cancel();
+  stopCurrent();
   ttsActive = false;
   tip.style.opacity = '0'; tip.style.transform = 'translateY(6px)'; tip.style.pointerEvents = 'none';
   setTimeout(() => { if (!currentWord && tip) tip.style.display = 'none'; }, 150);
