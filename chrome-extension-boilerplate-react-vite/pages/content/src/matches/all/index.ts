@@ -61,6 +61,7 @@ let opts: IpaOpts = {
 };
 let targetLanguage = 'id';
 let translatePerSentence = true;
+let pauseOnHover = false;
 let hasProcessed = false;
 
 // ── ARPAbet ──────────────────────────────────────────────────────
@@ -378,6 +379,28 @@ function stopCurrent() {
   currentAudio = null;
 }
 
+// ── Video pause-on-hover ──────────────────────────────────────────
+let videoPausedByUs = false;
+
+function getActiveVideo(): HTMLVideoElement | null {
+  const fs = document.fullscreenElement;
+  const v = (fs?.querySelector('video') ?? document.querySelector('video')) as HTMLVideoElement | null;
+  return v;
+}
+
+function maybePauseVideo(): void {
+  if (!pauseOnHover) return;
+  const v = getActiveVideo();
+  if (v && !v.paused) { v.pause(); videoPausedByUs = true; }
+}
+
+function maybeResumeVideo(): void {
+  if (!videoPausedByUs) return;
+  videoPausedByUs = false;
+  const v = getActiveVideo();
+  if (v && v.paused) v.play().catch(() => {});
+}
+
 async function playPronunciation(word: string): Promise<void> {
   const btn = document.getElementById('__ipa_speak_btn__') as HTMLButtonElement | null;
 
@@ -555,6 +578,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
   stopCurrent();
   ttsActive = false;
+  maybePauseVideo();
 
   t.innerHTML = buildTipHTML(word, toIPA(arpa));
   t.style.pointerEvents = 'auto';
@@ -612,6 +636,7 @@ function hideTip(): void {
   currentWord = null;
   stopCurrent();
   ttsActive = false;
+  maybeResumeVideo();
   tip.style.opacity = '0'; tip.style.transform = 'translateY(6px)'; tip.style.pointerEvents = 'none';
   setTimeout(() => { if (!currentWord && tip) tip.style.display = 'none'; }, 150);
 }
@@ -893,6 +918,7 @@ async function checkActivation(): Promise<void> {
   const s = stored['ipa-settings'];
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
+  if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
   const isEnabled = s?.enabled !== false;
   const isBlacklisted = (s?.blacklist ?? []).includes(window.location.hostname);
   if (!isEnabled || isBlacklisted) {
@@ -918,6 +944,7 @@ async function init(): Promise<void> {
   if (s?.opts) opts = { ...opts, ...s.opts };
   if (s?.targetLanguage) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
+  if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
   try {
     const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
     dict = await r.json() as Record<string, string>;

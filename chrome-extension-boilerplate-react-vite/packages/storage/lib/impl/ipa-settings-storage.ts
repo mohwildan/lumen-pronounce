@@ -27,6 +27,7 @@ export type IpaSettingsState = {
   blacklist: string[];
   targetLanguage: string;
   translatePerSentence: boolean;
+  pauseOnHover: boolean;
 };
 
 const DEFAULT_OPTS: IpaOpts = {
@@ -55,6 +56,7 @@ const DEFAULT_STATE: IpaSettingsState = {
   blacklist: [],
   targetLanguage: 'id',
   translatePerSentence: true,
+  pauseOnHover: false,
 };
 
 export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
@@ -65,6 +67,7 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   isBlacklisted: (host: string) => Promise<boolean>;
   setLanguage: (lang: string) => Promise<void>;
   setTranslatePerSentence: (val: boolean) => Promise<void>;
+  setPauseOnHover: (val: boolean) => Promise<void>;
   reset: () => Promise<void>;
 };
 
@@ -99,6 +102,9 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setTranslatePerSentence: async (translatePerSentence: boolean) => {
     await storage.set(prev => ({ ...prev, translatePerSentence }));
+  },
+  setPauseOnHover: async (pauseOnHover: boolean) => {
+    await storage.set(prev => ({ ...prev, pauseOnHover }));
   },
   reset: async () => {
     await storage.set(DEFAULT_STATE);

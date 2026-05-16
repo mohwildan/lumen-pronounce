@@ -146,6 +146,17 @@ const Popup = () => {
       </div>
 
       <div className="ipa-section">
+        <div className="ipa-section-title">Video</div>
+        <div className="ipa-row">
+          <span>Pause video on hover <small>(CC words)</small></span>
+          <Switch
+            checked={settings.pauseOnHover ?? false}
+            onChange={v => ipaSettingsStorage.setPauseOnHover(v)}
+          />
+        </div>
+      </div>
+
+      <div className="ipa-section">
         <div className="ipa-section-title">Visuals &amp; Colors</div>
         {VISUAL_ROWS.map(row => (
           <div key={row.id} className="ipa-row">
