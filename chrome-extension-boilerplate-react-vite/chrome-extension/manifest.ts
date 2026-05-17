@@ -57,6 +57,9 @@ const manifest = {
   browser_specific_settings: {
     gecko: {
       id: 'lumen-pronounce@wildanmhd.dev',
+      data_collection_permissions: {
+        required: ['none'],
+      },
     },
   },
 } satisfies ManifestType;
