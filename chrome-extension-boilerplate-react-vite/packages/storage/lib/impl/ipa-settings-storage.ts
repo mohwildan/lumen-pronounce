@@ -54,7 +54,7 @@ const DEFAULT_STATE: IpaSettingsState = {
   enabled: true,
   opts: DEFAULT_OPTS,
   blacklist: [],
-  targetLanguage: 'id',
+  targetLanguage: 'en',
   translatePerSentence: true,
   pauseOnHover: false,
 };

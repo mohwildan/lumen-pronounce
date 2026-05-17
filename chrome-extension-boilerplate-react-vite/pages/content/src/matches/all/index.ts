@@ -314,8 +314,8 @@ const TIP_W = 320;
 const S = {
   // Shared inline style fragments
   tab: 'flex:1;padding:6px 4px;border:none;background:none;cursor:pointer;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:color .1s,border-color .1s;',
-  tabOn: 'color:#a78bfa;border-bottom:2px solid #a78bfa;',
-  tabOff: 'color:#445;border-bottom:2px solid transparent;',
+  tabOn: 'color:#e8a351;border-bottom:2px solid #e8a351;',
+  tabOff: 'color:#8c887a;border-bottom:2px solid transparent;',
 };
 
 let tip: HTMLDivElement | null = null;
@@ -341,11 +341,11 @@ function getTip(): HTMLDivElement {
   tip.setAttribute('data-ipa-ui', '1');
   tip.style.cssText = [
     'position:fixed', 'z-index:2147483647',
-    'background:#0e0f1e', 'border:1px solid #252650',
+    'background:#22211c', 'border:1px solid #3e3c33',
     'border-radius:14px',
     'box-shadow:0 16px 48px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.4)',
     `width:${TIP_W}px`, 'font-family:system-ui,sans-serif',
-    'color:#d0d0ee', 'display:none', 'overflow:hidden',
+    'color:#fdfbf6', 'display:none', 'overflow:hidden',
     'transition:opacity .15s,transform .15s',
     'opacity:0', 'transform:translateY(6px)', 'pointer-events:none',
   ].join(';');
@@ -410,7 +410,7 @@ async function playPronunciation(word: string): Promise<void> {
   if (ttsActive) {
     stopCurrent();
     ttsActive = false;
-    if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; }
+    if (btn) { btn.style.color = '#8c887a'; btn.style.transform = 'scale(1)'; }
     return;
   }
 
@@ -418,11 +418,11 @@ async function playPronunciation(word: string): Promise<void> {
   const ctx = getAudioCtx();
   if (ctx.state === 'suspended') await ctx.resume();
 
-  if (btn) { btn.style.color = '#a78bfa'; btn.style.transform = 'scale(1.15)'; btn.style.opacity = '0.6'; }
+  if (btn) { btn.style.color = '#e8a351'; btn.style.transform = 'scale(1.15)'; btn.style.opacity = '0.6'; }
 
   chrome.runtime.sendMessage({ type: 'TTS_FETCH', word }, (response: { base64?: string; mimeType?: string; error?: string } | undefined) => {
     if (!response?.base64) {
-      if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+      if (btn) { btn.style.color = '#8c887a'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
       return;
     }
 
@@ -436,16 +436,16 @@ async function playPronunciation(word: string): Promise<void> {
       src.connect(ctx.destination);
       currentSource = src;
       ttsActive = true;
-      if (btn) { btn.style.color = '#a78bfa'; btn.style.transform = 'scale(1.2)'; btn.style.opacity = '1'; }
+      if (btn) { btn.style.color = '#e8a351'; btn.style.transform = 'scale(1.2)'; btn.style.opacity = '1'; }
       src.onended = () => {
         ttsActive = false;
         currentSource = null;
-        if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+        if (btn) { btn.style.color = '#8c887a'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
       };
       src.start(0);
     }, () => {
       ttsActive = false;
-      if (btn) { btn.style.color = '#556'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+      if (btn) { btn.style.color = '#8c887a'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
     });
   });
 }
@@ -457,29 +457,29 @@ function buildTipHTML(word: string, ipa: string): string {
     `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">` +
     // Left: speaker + word
     `<div style="display:flex;align-items:center;gap:8px">` +
-    `<button id="__ipa_speak_btn__" title="Play pronunciation" style="background:none;border:none;cursor:pointer;color:#556;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;flex-shrink:0">${SPEAK_ICON}</button>` +
-    `<span style="font-size:1.25rem;font-weight:800;color:#fff;letter-spacing:.01em">${word.toUpperCase()}</span>` +
+    `<button id="__ipa_speak_btn__" title="Play pronunciation" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;flex-shrink:0">${SPEAK_ICON}</button>` +
+    `<span style="font-size:1.25rem;font-weight:800;color:#fdfbf6;letter-spacing:.01em;font-family:'Fraunces', Georgia, serif">${word.toLowerCase()}</span>` +
     `</div>` +
     // Right: IPA
-    `<span style="font-size:.9rem;color:#8899cc;font-style:italic;letter-spacing:.02em;white-space:nowrap;padding-top:4px">${ipa}</span>` +
+    `<span style="font-size:.9rem;color:#c7c3b5;font-style:italic;letter-spacing:.02em;white-space:nowrap;padding-top:4px">${ipa}</span>` +
     `</div>` +
     // POS translations area
     `<div id="__ipa_pos_area__" style="margin-top:8px;min-height:32px;font-size:.84rem;line-height:1.65">` +
-    `<span style="color:#334">Loading…</span>` +
+    `<span style="color:#8c887a">Loading…</span>` +
     `</div>` +
     // Sentence translation
-    `<div id="__ipa_sent__" style="margin:8px 0 14px;font-size:.8rem;color:#a78bfa;font-style:italic;min-height:14px"></div>` +
+    `<div id="__ipa_sent__" style="margin:8px 0 14px;font-size:.8rem;color:#e8a351;font-style:italic;min-height:14px"></div>` +
     `</div>` +
     // Tabs
-    `<div style="display:flex;border-top:1px solid #1a1a30;border-bottom:1px solid #1a1a30;background:#0a0b18">` +
+    `<div style="display:flex;border-top:1px solid #3e3c33;border-bottom:1px solid #3e3c33;background:#1a1915">` +
     `<button data-tab="definition" style="${S.tab}${S.tabOn}">Definition</button>` +
     `<button data-tab="examples"   style="${S.tab}${S.tabOff}">Examples</button>` +
     `<button data-tab="slang"      style="${S.tab}${S.tabOff}">Slang</button>` +
     `<button data-tab="search"     style="${S.tab}${S.tabOff}">Search</button>` +
     `</div>` +
     // Body
-    `<div id="__ipa_body__" style="padding:10px 16px;min-height:42px;font-size:.82rem;color:#99a;line-height:1.55">` +
-    `<span style="color:#334">Loading…</span>` +
+    `<div id="__ipa_body__" style="padding:10px 16px;min-height:42px;font-size:.84rem;color:#c7c3b5;line-height:1.55">` +
+    `<span style="color:#8c887a">Loading…</span>` +
     `</div>`
   );
 }
@@ -490,8 +490,8 @@ function renderPosArea(posList: Array<{ pos: string; translations: string[] }>, 
   if (!posList.length || lang === 'none') { area.innerHTML = ''; return; }
   area.innerHTML = posList.map(({ pos, translations }) =>
     `<div style="display:flex;gap:10px;align-items:baseline">` +
-    `<span style="font-size:.72rem;font-weight:700;color:#556;text-transform:uppercase;letter-spacing:.06em;min-width:32px;flex-shrink:0">${posAbbr(pos)}</span>` +
-    `<span style="color:#ccd">${translations.join(', ')}</span>` +
+    `<span style="font-size:.72rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;min-width:32px;flex-shrink:0">${posAbbr(pos)}</span>` +
+    `<span style="color:#c7c3b5">${translations.join(', ')}</span>` +
     `</div>`
   ).join('');
 }
@@ -506,33 +506,33 @@ function renderTab(tab: string, word: string, data: unknown): void {
   const body = document.getElementById('__ipa_body__');
   if (!body) return;
   if (tab === 'definition') {
-    if (!data) { body.innerHTML = '<span style="color:#334">No definition found.</span>'; return; }
+    if (!data) { body.innerHTML = '<span style="color:#8c887a">No definition found.</span>'; return; }
     const arr = data as Array<{ meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string; example?: string }> }> }>;
     const meanings = arr[0]?.meanings ?? [];
-    if (!meanings.length) { body.innerHTML = '<span style="color:#334">—</span>'; return; }
+    if (!meanings.length) { body.innerHTML = '<span style="color:#8c887a">—</span>'; return; }
     body.innerHTML = meanings.slice(0, 3).map(m =>
       `<div style="margin-bottom:8px">` +
-      `<span style="font-size:.7rem;font-weight:700;color:#556;text-transform:uppercase;letter-spacing:.06em">${m.partOfSpeech ?? ''}</span>` +
-      `<p style="color:#c8c8e8;margin:2px 0">${m.definitions?.[0]?.definition ?? ''}</p>` +
-      (m.definitions?.[0]?.example ? `<p style="color:#778;font-style:italic;font-size:.78rem">"${m.definitions[0].example}"</p>` : '') +
+      `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em">${m.partOfSpeech ?? ''}</span>` +
+      `<p style="color:#fdfbf6;margin:2px 0">${m.definitions?.[0]?.definition ?? ''}</p>` +
+      (m.definitions?.[0]?.example ? `<p style="color:#c7c3b5;font-style:italic;font-size:.8rem">"${m.definitions[0].example}"</p>` : '') +
       `</div>`
     ).join('');
   } else if (tab === 'examples') {
     const arr = data as Array<{ meanings?: Array<{ definitions?: Array<{ example?: string }> }> }>;
     const exs = arr?.[0]?.meanings?.flatMap(m => m.definitions ?? []).map(d => d.example).filter(Boolean).slice(0, 4);
     body.innerHTML = exs?.length
-      ? exs.map(ex => `<p style="margin-bottom:8px;border-left:2px solid #2e2060;padding-left:10px;font-style:italic;color:#99a">${ex}</p>`).join('')
-      : '<span style="color:#334">No examples.</span>';
+      ? exs.map(ex => `<p style="margin-bottom:8px;border-left:2px solid #504d41;padding-left:10px;font-style:italic;color:#c7c3b5">${ex}</p>`).join('')
+      : '<span style="color:#8c887a">No examples.</span>';
   } else if (tab === 'slang') {
     const udUrl = `https://www.urbandictionary.com/define.php?term=${encodeURIComponent(word)}`;
-    body.innerHTML = `<a href="${udUrl}" target="_blank" style="color:#a78bfa;text-decoration:none;display:block;margin-bottom:8px">&#x1F4AC; Urban Dictionary: "${word}"</a>` +
-      `<p style="color:#445;font-size:.78rem">Slang, informal, and colloquial meanings.</p>`;
+    body.innerHTML = `<a href="${udUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block;margin-bottom:8px">&#x1F4AC; Urban Dictionary: "${word}"</a>` +
+      `<p style="color:#8c887a;font-size:.8rem">Slang, informal, and colloquial meanings.</p>`;
   } else {
     const gUrl = `https://www.google.com/search?q=${encodeURIComponent(word + ' pronunciation')}`;
     const mUrl = `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word)}`;
     body.innerHTML =
-      `<a href="${gUrl}" target="_blank" style="color:#7b9fff;text-decoration:none;display:block;margin-bottom:8px">&#x1F50D; Google: "${word} pronunciation"</a>` +
-      `<a href="${mUrl}" target="_blank" style="color:#7b9fff;text-decoration:none;display:block">&#x1F4D6; Merriam-Webster</a>`;
+      `<a href="${gUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block;margin-bottom:8px">&#x1F50D; Google: "${word} pronunciation"</a>` +
+      `<a href="${mUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block">&#x1F4D6; Merriam-Webster</a>`;
   }
 }
 
@@ -656,9 +656,9 @@ function getSelBtn(): HTMLDivElement {
   selBtn.setAttribute('data-ipa-ui', '1');
   selBtn.style.cssText = [
     'position:fixed', 'z-index:2147483646',
-    'background:#7b61ff', 'color:#fff',
-    'font-family:system-ui,sans-serif', 'font-size:11px', 'font-weight:700',
-    'padding:4px 10px', 'border-radius:6px', 'cursor:pointer',
+    'background:#da892b', 'color:#fff',
+    'font-family:system-ui,sans-serif', 'font-size:12px', 'font-weight:700',
+    'padding:5px 12px', 'border-radius:6px', 'cursor:pointer',
     'display:none', 'box-shadow:0 4px 12px rgba(0,0,0,.4)',
     'user-select:none',
   ].join(';');
@@ -676,9 +676,9 @@ function getSelTip(): HTMLDivElement {
   selTip.setAttribute('data-ipa-ui', '1');
   selTip.style.cssText = [
     'position:fixed', 'z-index:2147483646',
-    'background:#0e0f1e', 'border:1px solid #252650',
+    'background:#22211c', 'border:1px solid #3e3c33',
     'border-radius:10px', 'box-shadow:0 8px 30px rgba(0,0,0,.5)',
-    'font-family:system-ui,sans-serif', 'font-size:13px', 'color:#d0d0ee',
+    'font-family:system-ui,sans-serif', 'font-size:14px', 'color:#fdfbf6',
     'padding:12px 14px', 'max-width:380px', 'display:none', 'line-height:1.55',
   ].join(';');
   document.body.appendChild(selTip);
@@ -699,14 +699,14 @@ async function handleSelTranslate(): Promise<void> {
   st.style.left = Math.min(btnLeft, window.innerWidth - 400) + 'px';
   st.style.top = Math.min(btnTop, window.innerHeight - 120) + 'px';
   st.style.display = 'block';
-  st.innerHTML = `<div style="color:#445;font-size:.72rem;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Translating…</div>`;
+  st.innerHTML = `<div style="color:#8c887a;font-size:.75rem;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Translating…</div>`;
 
   const result = await translate(text, targetLanguage);
   st.innerHTML = result
-    ? `<div style="color:#445;font-size:.72rem;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Translation</div>` +
-      `<div style="color:#d0d0ee">${result}</div>` +
-      `<div style="color:#445;font-size:.7rem;margin-top:6px;font-style:italic">"${text.length > 60 ? text.slice(0, 60) + '…' : text}"</div>`
-    : `<div style="color:#e06060">Translation failed.</div>`;
+    ? `<div style="color:#8c887a;font-size:.75rem;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Translation</div>` +
+      `<div style="color:#fdfbf6">${result}</div>` +
+      `<div style="color:#8c887a;font-size:.75rem;margin-top:6px;font-style:italic">"${text.length > 60 ? text.slice(0, 60) + '…' : text}"</div>`
+    : `<div style="color:#e34d52">Translation failed.</div>`;
 }
 
 function hideSelUI(): void {

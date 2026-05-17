@@ -1,22 +1,22 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-deep:      #07071a;
-  --bg-base:      #0c0c1f;
-  --bg-card:      #111128;
-  --bg-hover:     #17163a;
-  --border:       #1c1b38;
-  --border-lt:    #272550;
-  --primary:      #7c3aed;
-  --primary-lt:   #a78bfa;
-  --primary-dim:  #3b2070;
-  --pink:         #e879f9;
-  --teal:         #14b8a6;
-  --text:         #f0eeff;
-  --text-2:       #9b99c5;
-  --text-3:       #504e72;
-  --danger:       #f43f5e;
-  --success:      #10b981;
+  --bg-deep:      #1a1915;
+  --bg-base:      #22211c;
+  --bg-card:      #2b2a24;
+  --bg-hover:     #36342d;
+  --border:       #3e3c33;
+  --border-lt:    #504d41;
+  --primary:      #da892b;
+  --primary-lt:   #e8a351;
+  --primary-dim:  #5c3d14;
+  --pink:         #db6a8f;
+  --teal:         #3b9e8f;
+  --text:         #fdfbf6;
+  --text-2:       #c7c3b5;
+  --text-3:       #8c887a;
+  --danger:       #e34d52;
+  --success:      #4d823d;
 }
 
 body {
@@ -35,8 +35,7 @@ body {
 
 /* ─── Sidebar ─── */
 .opt-sidebar {
-  width: 220px;
-  background: linear-gradient(180deg, #100e2e 0%, var(--bg-card) 100%);
+  background: var(--bg-deep);
   border-right: 1px solid var(--border);
   padding: 0;
   display: flex;
@@ -58,13 +57,14 @@ body {
 .opt-logo-icon {
   width: 34px;
   height: 34px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--pink) 100%);
+  background: #11110f;
+  border: 1px solid var(--border);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(124,58,237,.4);
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
 }
 
 .opt-logo-text {
@@ -76,11 +76,9 @@ body {
 
 .opt-logo-name {
   font-size: 1rem;
-  font-weight: 900;
-  background: linear-gradient(90deg, var(--primary-lt) 0%, var(--pink) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-weight: 800;
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--text);
   letter-spacing: -.02em;
   line-height: 1.1;
 }
@@ -323,12 +321,13 @@ body {
 .opt-login-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--pink) 100%);
+  background: #11110f;
+  border: 1px solid var(--border);
   border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(124,58,237,.35);
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
 }
 
 .opt-login h2 { font-size: 1.4rem; font-weight: 800; color: var(--text); letter-spacing: -.02em; }
@@ -433,7 +432,7 @@ body {
   transition: border-color .15s, box-shadow .15s;
 }
 
-.opt-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+.opt-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(218,137,43,.12); }
 .opt-input::placeholder { color: var(--text-3); }
 
 .opt-dict-result {
@@ -444,8 +443,8 @@ body {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
-.opt-dict-hit  { background: rgba(20,184,166,.08); color: var(--teal); border: 1px solid rgba(20,184,166,.2); }
-.opt-dict-miss { background: rgba(244,63,94,.08); color: #fca5a5; border: 1px solid rgba(244,63,94,.2); }
+.opt-dict-hit  { background: rgba(59,158,143,.08); color: var(--teal); border: 1px solid rgba(59,158,143,.2); }
+.opt-dict-miss { background: rgba(227,77,82,.08); color: #fca5a5; border: 1px solid rgba(227,77,82,.2); }
 
 .opt-empty { color: var(--text-3); font-size: .83rem; margin-top: 12px; }
 
@@ -484,8 +483,8 @@ body {
 
 .opt-trans-info {
   margin: 14px 0 20px;
-  background: rgba(124,58,237,.06);
-  border: 1px solid rgba(124,58,237,.15);
+  background: rgba(218,137,43,.06);
+  border: 1px solid rgba(218,137,43,.15);
   border-radius: 10px;
   padding: 14px 16px;
   display: flex;
@@ -510,7 +509,7 @@ body {
 .opt-trans-input-row .opt-input { flex: 1; }
 
 .opt-btn-trans {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--pink) 100%);
+  background: var(--primary);
   border: none;
   color: #fff;
   font-size: .85rem;
@@ -520,7 +519,7 @@ body {
   cursor: pointer;
   transition: opacity .15s;
   white-space: nowrap;
-  box-shadow: 0 3px 10px rgba(124,58,237,.3);
+  box-shadow: 0 3px 10px rgba(218,137,43,.3);
 }
 
 .opt-btn-trans:hover { opacity: .88; }

@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumen Pronunciation — Asset Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root {
+      --paper: #FBF7EC;
+      --cream: #F4EEE1;
+      --card: #FFFDF5;
+      --ink: #1B1A17;
+      --ink-2: #3B3832;
+      --ink-3: #6B6659;
+      --ink-4: #A39D8C;
+      --line: #E4DDCB;
+      --amber: #C97A1E;
+      --amber-soft: #F1D7A8;
+      --moss: #5B7A4B;
+      --moss-soft: #C6D4B3;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ECE5D2;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--ink);
+    }
+
+    body {
+      padding: 28px 28px 80px;
+    }
+
+    .page-head {
+      max-width: 1320px;
+      margin: 0 auto 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-name {
+      font-family: 'Fraunces', serif;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-name em {
+      color: var(--moss);
+      font-style: italic;
+    }
+
+    .brand-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 3px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 16px;
+      border-radius: 100px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+
+    .btn.primary {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+    }
+
+    .btn.accent {
+      background: var(--amber);
+      color: #fff;
+      border-color: var(--amber);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn .ic {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .controls {
+      max-width: 1320px;
+      margin: 0 auto 24px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .control-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--ink-3);
+      margin-bottom: 8px;
+    }
+
+    .swatch-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .swatch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--ink-2);
+      cursor: pointer;
+    }
+
+    .swatch .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .swatch input {
+      width: 24px;
+      height: 16px;
+      border: none;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      color: var(--ink);
+      resize: vertical;
+    }
+
+    textarea {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      min-height: 56px;
+    }
+
+    .grid {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .card-title h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+
+    .card-title .dim {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--ink-3);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ECE5D2;
+    }
+
+    .preview {
+      max-width: 100%;
+      height: auto;
+      box-shadow: 0 18px 40px rgba(20, 18, 12, 0.16);
+      border-radius: 6px;
+      display: block;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .status {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 100;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: 100px;
+      font-family: 'Inter';
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 12px 32px rgba(20, 18, 12, 0.25);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+
+    .status.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .hint {
+      max-width: 1320px;
+      margin: 0 auto 24px;
+      padding: 14px 22px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      font-size: 12.5px;
+      color: var(--ink-3);
+      line-height: 1.55;
+    }
+
+    .hint code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: var(--moss);
+      background: var(--cream);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page-head">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <defs>
+            <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#C6D4B3" />
+              <stop offset="1" stop-color="#5B7A4B" />
+            </linearGradient>
+          </defs>
+          <path d="M24 10 L38 32 L10 32 Z" fill="url(#bg)" />
+          <text x="24" y="30" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="700"
+            font-style="italic" fill="#1B1A17">a</text>
+          <line x1="15" y1="37" x2="33" y2="37" stroke="#C6D4B3" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">Lumen<em> Pronunciation</em></div>
+        <div class="brand-tag">Chrome Web Store · Asset Studio</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="renderAll()"><span class="ic">↻</span> Render all</button>
+      <button class="btn primary" onclick="downloadAllZip()"><span class="ic">↓</span> Download .zip</button>
+      <button class="btn accent" onclick="saveAllToProject()"><span class="ic">⇪</span> Save to project</button>
+    </div>
+  </div>
+
+  <div class="hint">
+    Tweak headlines/colors in the panel below, then click <strong>Render all</strong>. Download the .zip to upload to
+    Chrome Web Store, or click <strong>Save to project</strong> to write back into
+    <code>assets/lumen-pronunciation/store/</code>. For deeper layout changes, edit
+    <code>src/brand/store-assets.js</code> directly.
+  </div>
+
+  <div class="controls">
+    <div>
+      <div class="control-label">Colors</div>
+      <div class="swatch-row">
+        <label class="swatch"><span class="dot" id="dot-amber" style="background:#C97A1E"></span> Amber <input
+            type="color" id="c-amber" value="#C97A1E"></label>
+        <label class="swatch"><span class="dot" id="dot-moss" style="background:#5B7A4B"></span> Moss <input
+            type="color" id="c-moss" value="#5B7A4B"></label>
+        <label class="swatch"><span class="dot" id="dot-ink" style="background:#1B1A17"></span> Ink <input type="color"
+            id="c-ink" value="#1B1A17"></label>
+        <label class="swatch"><span class="dot" id="dot-paper" style="background:#FBF7EC"></span> Paper <input
+            type="color" id="c-paper" value="#FBF7EC"></label>
+      </div>
+    </div>
+    <div>
+      <div class="control-label">Wordmark</div>
+      <input type="text" id="t-wordmark" value="Lumen">
+      <input type="text" id="t-tagline" value="Pronunciation" style="margin-top:6px">
+    </div>
+    <div>
+      <div class="control-label">Small promo headline</div>
+      <input type="text" id="t-small1" value="Hear what you">
+      <input type="text" id="t-small2" value="read." style="margin-top:6px">
+    </div>
+    <div>
+      <div class="control-label">Footer URL</div>
+      <input type="text" id="t-url" value="LUMENVERSE.APP/PRONUNCIATION">
+    </div>
+  </div>
+
+  <div class="grid" id="grid">
+    <!-- Cards injected by JS -->
+  </div>
+
+  <div class="status" id="status">Ready</div>
+
+  <script>
+    // =============================================================
+    // Browser-side asset renderer
+    // Mirrors src/brand/store-assets.js but uses real DOM canvas
+    // and triggers downloads via blob URLs.
+    // =============================================================
+
+    const C = {
+      paper: '#FBF7EC', cream: '#F4EEE1', card: '#FFFDF5',
+      ink: '#1B1A17', ink2: '#3B3832', ink3: '#6B6659', ink4: '#A39D8C', line: '#E4DDCB',
+      amber: '#C97A1E', amberSoft: '#F1D7A8', moss: '#5B7A4B', mossSoft: '#C6D4B3',
+      red: '#e53935', green: '#2e7d32', blue: '#00838f', yellow: '#e65100',
+      ultra: '#8e24aa', rasp: '#d81b60', schwa: '#A39D8C',
+    };
+
+    let TWEAKS = {
+      wordmark: 'Lumen',
+      tagline: 'Pronunciation',
+      small1: 'Hear what you',
+      small2: 'read.',
+      url: 'LUMENVERSE.APP/PRONUNCIATION',
+    };
+
+    const FRAUNCES = `'Fraunces', Georgia, serif`;
+    const INTER = `'Inter', system-ui, sans-serif`;
+    const MONO = `'JetBrains Mono', ui-monospace, Menlo, monospace`;
+
+    function createCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+    function squircle(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+    function drawRun(ctx, parts, x, y, baseSize, baseFamily, baseWeight = 500, baseColor = C.ink) {
+      let cur = x;
+      for (const p of parts) {
+        const wt = p.w || baseWeight, it = p.italic ? 'italic ' : '';
+        ctx.font = `${it}${wt} ${baseSize}px ${p.f || baseFamily}`;
+        ctx.fillStyle = p.c || baseColor;
+        ctx.globalAlpha = p.faded ? 0.32 : (p.opacity != null ? p.opacity : 1);
+        ctx.fillText(p.t, cur, y);
+        const tw = ctx.measureText(p.t).width;
+        if (p.underdot) {
+          ctx.globalAlpha = 0.55;
+          ctx.strokeStyle = C.amber; ctx.lineWidth = 1.5;
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.moveTo(cur, y + baseSize * 0.18);
+          ctx.lineTo(cur + tw, y + baseSize * 0.18);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        cur += tw;
+      }
+      ctx.globalAlpha = 1;
+      return cur - x;
+    }
+    const F = (t) => ({ t, faded: true });
+    const Vr = (t, w = 700) => ({ t, c: C.red, w });
+    const Vg = (t, w = 700) => ({ t, c: C.green, w });
+    const Vb = (t, w = 700) => ({ t, c: C.blue, w });
+    const Vy = (t, w = 700) => ({ t, c: C.yellow, w });
+    const Vu = (t, w = 700) => ({ t, c: C.ultra, w });
+    const Va = (t, w = 700) => ({ t, c: C.rasp, w });
+    const Vs = (t, w = 600) => ({ t, c: C.schwa, w });
+
+    function markSvg({ size = 320, fg = C.moss, bg = C.ink, glow = C.mossSoft, transparent = false } = {}) {
+      const bgr = transparent ? '' : `<rect width="64" height="64" rx="16" fill="${bg}"/>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${glow}"/><stop offset="100%" stop-color="${fg}"/>
+    </linearGradient></defs>${bgr}
+    <path d="M32 13 L51 42 L13 42 Z" fill="url(#g)"/>
+    <text x="32" y="40" text-anchor="middle" font-family="Georgia, serif" font-size="20" font-weight="700" font-style="italic" fill="${bg}">a</text>
+    <path d="M30 9 L34 9" stroke="${glow}" stroke-width="2" stroke-linecap="round"/>
+    <line x1="20" y1="49" x2="44" y2="49" stroke="${glow}" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+  </svg>`;
+    }
+    async function svgToImage(svgStr) {
+      return new Promise((res, rej) => {
+        const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = url;
+      });
+    }
+
+    // ===========================================================
+    // FRAME RENDERERS — call build*(canvas) to draw onto a canvas
+    // ===========================================================
+
+    async function buildMarquee(cv) {
+      const W = 1400, H = 560;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+
+      const g1 = ctx.createRadialGradient(W * 0.9, H * 0.2, 50, W * 0.9, H * 0.2, W * 0.6);
+      g1.addColorStop(0, 'rgba(241,215,168,0.5)');
+      g1.addColorStop(1, 'rgba(241,215,168,0)');
+      ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(W * 0.48, 60); ctx.lineTo(W * 0.48, H - 60); ctx.stroke();
+
+      const markImg = await svgToImage(markSvg({ size: 160, fg: C.moss, bg: C.ink, glow: C.mossSoft }));
+      ctx.save();
+      ctx.shadowColor = 'rgba(20,18,12,0.18)'; ctx.shadowBlur = 28; ctx.shadowOffsetY = 12;
+      squircle(ctx, 80, 90, 130, 130, 30);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.restore();
+      ctx.save();
+      squircle(ctx, 80, 90, 130, 130, 30); ctx.clip();
+      ctx.drawImage(markImg, 80, 90, 130, 130);
+      ctx.restore();
+
+      ctx.fillStyle = C.ink; ctx.font = `700 78px ${FRAUNCES}`; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(TWEAKS.wordmark, 80, 304);
+      ctx.fillStyle = C.moss; ctx.font = `italic 700 56px ${FRAUNCES}`;
+      ctx.fillText(TWEAKS.tagline, 80, 360);
+      ctx.fillStyle = C.ink3; ctx.font = `600 13px ${MONO}`;
+      ctx.fillText('FOR ENGLISH · BROWSER EXTENSION', 82, 396);
+
+      const chips = [
+        { ic: '◉', l: 'Phoneme colorization' },
+        { ic: '⚡', l: 'AI explanations' },
+        { ic: '↗', l: 'Sync to Anki' },
+      ];
+      let cx = 80;
+      for (const ch of chips) {
+        ctx.font = `600 13px ${INTER}`;
+        const lw = ctx.measureText(ch.l).width, cw = lw + 42;
+        squircle(ctx, cx, 430, cw, 36, 18);
+        ctx.fillStyle = C.card; ctx.fill();
+        ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = C.moss; ctx.font = `700 14px ${INTER}`;
+        ctx.fillText(ch.ic, cx + 14, 454);
+        ctx.fillStyle = C.ink2; ctx.font = `600 13px ${INTER}`;
+        ctx.fillText(ch.l, cx + 34, 454);
+        cx += cw + 8;
+      }
+
+      // Right card
+      const cardX = W * 0.52, cardY = 80, cardW = W - cardX - 60, cardH = H - 160;
+      ctx.save();
+      ctx.shadowColor = 'rgba(20,18,12,0.18)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 16;
+      squircle(ctx, cardX, cardY, cardW, cardH, 22);
+      ctx.fillStyle = C.card; ctx.fill();
+      ctx.restore();
+      squircle(ctx, cardX, cardY, cardW, cardH, 22);
+      ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+      ctx.fillStyle = C.cream;
+      squircle(ctx, cardX, cardY, cardW, 44, 22); ctx.fill();
+      ctx.fillRect(cardX, cardY + 22, cardW, 22);
+      [['#FF5F57', 0], ['#FEBC2E', 16], ['#28C840', 32]].forEach(([col, off]) => {
+        ctx.beginPath(); ctx.arc(cardX + 20 + off, cardY + 22, 5, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      });
+      squircle(ctx, cardX + 90, cardY + 11, cardW - 180, 22, 11);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = C.line; ctx.stroke();
+      ctx.fillStyle = C.ink3; ctx.font = `500 11px ${MONO}`;
+      ctx.fillText('🔒  en.wikipedia.org/wiki/Phonetics', cardX + 100, cardY + 27);
+
+      const cpX = cardX + 38, cpY = cardY + 88;
+      ctx.fillStyle = C.moss; ctx.font = `700 11px ${MONO}`;
+      ctx.fillText('LUMEN · LIVE ON THIS PAGE', cpX, cpY);
+
+      drawRun(ctx, [{ t: 'Why every ' }, { t: 'w', w: 600 }, Vu('o'), { t: 'rd in this' }], cpX, cpY + 60, 40, FRAUNCES, 500);
+      drawRun(ctx, [
+        { t: 's' }, Vr('e'), { t: 'nt' }, Vr('e'), { t: 'nce is ' },
+        { t: 'c', c: C.amber }, { t: 'o', c: C.yellow, w: 700 },
+        { t: 'l', c: C.amber }, { t: 'o', c: C.schwa },
+        { t: 'r', c: C.amber }, { t: 'i', c: C.green, w: 700 },
+        { t: 'z', c: C.amber }, { t: 'ed.', c: C.amber, italic: true },
+      ], cpX, cpY + 108, 40, FRAUNCES, 500);
+
+      ctx.fillStyle = C.ink2; ctx.font = `400 18px ${FRAUNCES}`;
+      ctx.fillText("Vowel colors map to IPA sounds. Silent letters fade.", cpX, cpY + 160);
+      ctx.fillText("Hover any word for an AI explanation. That's the whole product.", cpX, cpY + 188);
+
+      const legY = cpY + 230;
+      const legends = [{ c: C.red, l: '/e/' }, { c: C.green, l: '/i/' }, { c: C.blue, l: '/u/' }, { c: C.yellow, l: '/ɔ/' }, { c: C.ultra, l: '/ʌ/' }, { c: C.rasp, l: '/æ/' }];
+      let lx = cpX;
+      for (const it of legends) {
+        ctx.beginPath(); ctx.arc(lx + 7, legY, 7, 0, Math.PI * 2); ctx.fillStyle = it.c; ctx.fill();
+        ctx.fillStyle = C.ink3; ctx.font = `600 12px ${MONO}`;
+        ctx.fillText(it.l, lx + 20, legY + 4);
+        lx += 70;
+      }
+
+      ctx.fillStyle = C.ink; ctx.fillRect(0, H - 56, W, 56);
+      ctx.fillStyle = C.paper; ctx.font = `600 14px ${INTER}`;
+      ctx.fillText('FREE  ·  Chrome  ·  Edge  ·  Brave  ·  Arc', 80, H - 22);
+      ctx.fillStyle = C.amber; ctx.font = `700 14px ${MONO}`;
+      ctx.fillText(TWEAKS.url, W - 410, H - 22);
+    }
+
+    async function buildSmallPromo(cv) {
+      const W = 440, H = 280;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(W * 0.2, H * 0.2, 20, W * 0.2, H * 0.2, 280);
+      g.addColorStop(0, 'rgba(198,212,179,0.18)'); g.addColorStop(1, 'rgba(198,212,179,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      const markImg = await svgToImage(markSvg({ size: 64, fg: C.moss, bg: C.ink, glow: C.mossSoft }));
+      ctx.save(); squircle(ctx, 30, 28, 64, 64, 14); ctx.clip();
+      ctx.drawImage(markImg, 30, 28, 64, 64); ctx.restore();
+      ctx.strokeStyle = 'rgba(198,212,179,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+
+      ctx.fillStyle = C.paper; ctx.font = `700 22px ${FRAUNCES}`; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(TWEAKS.wordmark, 110, 56);
+      ctx.fillStyle = C.mossSoft; ctx.font = `italic 700 16px ${FRAUNCES}`;
+      ctx.fillText(TWEAKS.tagline, 110, 78);
+
+      drawRun(ctx, [
+        { t: TWEAKS.small1.charAt(0), c: C.paper },
+        Vg('ea'),
+        { t: TWEAKS.small1.slice(3), c: C.paper },
+      ], 30, 156, 36, FRAUNCES, 500);
+
+      ctx.fillStyle = C.amber; ctx.font = `italic 500 36px ${FRAUNCES}`;
+      ctx.fillText(TWEAKS.small2, 30, 198);
+
+      ctx.fillStyle = C.ink4; ctx.font = `500 12px ${INTER}`;
+      ctx.fillText('IPA colorization on every webpage. Powered by AI.', 30, 226);
+
+      squircle(ctx, 30, 244, 156, 28, 14);
+      ctx.fillStyle = C.amber; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `700 12px ${INTER}`;
+      ctx.fillText('+  Add to Chrome', 56, 262);
+      ctx.fillStyle = 'rgba(251,247,236,0.5)'; ctx.font = `600 10px ${MONO}`;
+      ctx.fillText('v1.0  ·  FREE  ·  4.8★', 200, 261);
+    }
+
+    async function buildScreenshot1(cv) {
+      const W = 1280, H = 800;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = C.moss; ctx.font = `700 13px ${MONO}`;
+      ctx.fillText('LUMEN  ·  ENGLISH PRONUNCIATION', 60, 60);
+      ctx.fillStyle = C.ink; ctx.font = `500 56px ${FRAUNCES}`;
+      ctx.fillText('What Lumen does to', 60, 130);
+      ctx.fillText('your ', 60, 196);
+      const off = 60 + ctx.measureText('your ').width;
+      ctx.fillStyle = C.amber; ctx.font = `italic 500 56px ${FRAUNCES}`;
+      ctx.fillText('reading.', off, 196);
+      ctx.fillStyle = C.ink3; ctx.font = `400 18px ${FRAUNCES}`;
+      ctx.fillText('Same text. Same page. Now you can hear it.', 60, 234);
+
+      const colY = 290, colW = 540, colH = 440, beforeX = 60;
+      squircle(ctx, beforeX, colY, colW, colH, 16);
+      ctx.fillStyle = C.card; ctx.fill();
+      ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = C.ink4; ctx.font = `700 11px ${MONO}`;
+      ctx.fillText('BEFORE', beforeX + 24, colY + 32);
+      const beforeLines = [
+        'Reading English is harder than it looks.',
+        'About forty percent of common words contain',
+        'a silent letter or a vowel that doesn\'t sound',
+        'the way it\'s spelled. That\'s why receipt',
+        'rhymes with feet, why solution hides an /e/,',
+        'and why no one can agree on how to say',
+        'caramel.',
+      ];
+      ctx.fillStyle = C.ink; ctx.font = `400 19px ${FRAUNCES}`;
+      beforeLines.forEach((l, i) => ctx.fillText(l, beforeX + 24, colY + 76 + i * 32));
+      ctx.fillStyle = C.amber; ctx.font = `700 22px ${MONO}`;
+      ctx.fillText('→', 615, colY + 230);
+
+      const afterX = 680;
+      squircle(ctx, afterX, colY, colW, colH, 16);
+      ctx.fillStyle = C.card; ctx.fill();
+      ctx.strokeStyle = C.amber; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = C.amber;
+      ctx.beginPath();
+      ctx.moveTo(afterX, colY);
+      ctx.lineTo(afterX + 80, colY);
+      ctx.lineTo(afterX + 80, colY + 22);
+      ctx.lineTo(afterX + 16, colY + 22);
+      ctx.arcTo(afterX, colY + 22, afterX, colY + 6, 16);
+      ctx.lineTo(afterX, colY);
+      ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `700 10px ${MONO}`;
+      ctx.fillText('LUMEN ON', afterX + 14, colY + 15);
+
+      let ly = colY + 76;
+      drawRun(ctx, [{ t: 'R' }, Vg('ea'), { t: 'd' }, Vs('i'), { t: 'ng ' }, { t: 'Engl' }, Vs('i'), { t: 'sh is h' }, Va('a'), { t: 'rd' }, Vs('e'), { t: 'r th' }, Va('a'), { t: 'n it l' }, Vb('oo'), { t: 'ks.' }], afterX + 24, ly, 19, FRAUNCES); ly += 32;
+      drawRun(ctx, [{ t: 'About ' }, F('f'), { t: 'orty percent of common w' }, Vs('o'), { t: 'rds c' }, Vy('o'), { t: 'nt' }, Va('ai'), { t: 'n' }], afterX + 24, ly, 19, FRAUNCES); ly += 32;
+      drawRun(ctx, [{ t: 'a ' }, { t: 's' }, Va('i'), { t: 'l' }, Vs('e'), { t: 'nt l' }, Vs('e'), { t: 'tt' }, Vs('e'), { t: 'r or a v' }, Vy('o'), { t: 'w' }, Vs('e'), { t: 'l that d' }, Vs('oe'), { t: 'sn\'t s' }, Vb('ou'), { t: 'nd' }], afterX + 24, ly, 19, FRAUNCES); ly += 32;
+      drawRun(ctx, [{ t: 'the way it\'s spelled. That\'s why ' }, { t: 'r', underdot: true }, Vs('e', 700), { t: 'c', underdot: true }, Vg('ei'), F('p'), { t: 't' }], afterX + 24, ly, 19, FRAUNCES); ly += 32;
+      drawRun(ctx, [{ t: 'rhymes with ' }, { t: 'f' }, Vg('ee'), { t: 't, why ' }, { t: 's', underdot: true }, Vs('o'), { t: 'l' }, Vb('u'), { t: 't' }, Vs('i'), Vs('o'), { t: 'n', underdot: true }, { t: ' hides an /e/,' }], afterX + 24, ly, 19, FRAUNCES); ly += 32;
+      drawRun(ctx, [{ t: 'and why n' }, Vb('o'), { t: ' ' }, Vu('o'), { t: 'ne can ' }, Va('a'), { t: 'gr' }, Vg('ee'), { t: ' on ' }, { t: 'h' }, Vb('o'), { t: 'w to s' }, { t: 'ay' }], afterX + 24, ly, 19, FRAUNCES); ly += 32;
+      drawRun(ctx, [{ t: 'c' }, Va('a'), { t: 'r' }, Va('a'), { t: 'm' }, Vs('e'), { t: 'l.' }], afterX + 24, ly, 19, FRAUNCES);
+
+      ctx.fillStyle = C.ink3; ctx.font = `500 13px ${INTER}`; ctx.textAlign = 'center';
+      ctx.fillText('Hover any underlined word for the AI explanation', W / 2, 760);
+      ctx.textAlign = 'left';
+    }
+
+    async function buildScreenshot2(cv) {
+      const W = 1280, H = 800;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = C.moss; ctx.font = `700 13px ${MONO}`;
+      ctx.fillText('THE SYSTEM', 60, 60);
+      ctx.fillStyle = C.ink; ctx.font = `500 56px ${FRAUNCES}`;
+      ctx.fillText('Six colors.', 60, 130);
+      ctx.fillText('Six sounds.', 60, 192);
+      ctx.fillStyle = C.amber; ctx.font = `italic 500 56px ${FRAUNCES}`;
+      ctx.fillText('One system.', 60, 254);
+      ctx.fillStyle = C.ink3; ctx.font = `400 17px ${FRAUNCES}`;
+      ctx.fillText('Every English vowel sound maps to a color you', 60, 296);
+      ctx.fillText('can see at a glance. No memorizing IPA needed.', 60, 320);
+
+      const grid = [
+        { c: C.red, ipa: '/ɛ/', name: 'red', ex1: ['s', Vr('e'), 'cond'], ex2: ['s', 'o', 'l', Vr('u'), 't', 'i', 'o', 'n'] },
+        { c: C.green, ipa: '/i/', name: 'green', ex1: ['r', Vg('ea'), 'd'], ex2: ['r', 'e', 'c', Vg('ei'), F('p'), 't'] },
+        { c: C.blue, ipa: '/u/', name: 'teal', ex1: ['t', Vb('o'), 'mb'], ex2: ['s', 'ch', Vb('oo'), 'l'] },
+        { c: C.yellow, ipa: '/ɔ/', name: 'amber', ex1: ['q', 'u', Vy('a'), 'r', 't', 'e', 'r'], ex2: ['c', Vy('au'), 'gh', 't'] },
+        { c: C.ultra, ipa: '/ʌ/', name: 'purple', ex1: ['s', Vu('o'), 'm', 'e'], ex2: ['c', Vu('u'), 'p'] },
+        { c: C.rasp, ipa: '/æ/', name: 'pink', ex1: ['c', Va('a'), 't'], ex2: ['l', Va('a'), F('u'), 'gh'] },
+      ];
+      const gridX = 560, gridY = 70, gw = 330, gh = 215, gap = 14;
+      for (let i = 0; i < 6; i++) {
+        const row = Math.floor(i / 2), col = i % 2;
+        const x = gridX + col * (gw + gap), y = gridY + row * (gh + gap);
+        const it = grid[i];
+        squircle(ctx, x, y, gw, gh, 14);
+        ctx.fillStyle = C.card; ctx.fill();
+        ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = it.c;
+        ctx.beginPath();
+        ctx.moveTo(x + 14, y); ctx.lineTo(x + gw - 14, y);
+        ctx.arcTo(x + gw, y, x + gw, y + 7, 7);
+        ctx.lineTo(x + gw, y + 7); ctx.lineTo(x, y + 7);
+        ctx.arcTo(x, y, x + 14, y, 7); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 24, y + 36, 9, 0, Math.PI * 2); ctx.fillStyle = it.c; ctx.fill();
+        ctx.fillStyle = C.ink; ctx.font = `700 22px ${MONO}`;
+        ctx.fillText(it.ipa, x + 42, y + 42);
+        ctx.fillStyle = C.ink4; ctx.font = `700 10px ${MONO}`;
+        ctx.fillText(it.name.toUpperCase(), x + gw - 20 - ctx.measureText(it.name.toUpperCase()).width, y + 42);
+        const wp1 = it.ex1.map(s => typeof s === 'string' ? { t: s } : s);
+        const wp2 = it.ex2.map(s => typeof s === 'string' ? { t: s } : s);
+        drawRun(ctx, wp1, x + 22, y + 110, 42, FRAUNCES, 500, C.ink);
+        drawRun(ctx, wp2, x + 22, y + 175, 36, FRAUNCES, 500, C.ink);
+      }
+
+      ctx.fillStyle = C.ink3; ctx.font = `500 13px ${INTER}`;
+      ctx.fillText('Plus stress marks, silent letters, diphthongs, and long-vowel notation. The full IPA in plain sight.', 60, 720);
+      ctx.fillStyle = C.ink4; ctx.font = `500 12px ${MONO}`;
+      ctx.fillText('TOGGLE ANY COLOR ON OR OFF IN SETTINGS', 60, 748);
+    }
+
+    async function buildScreenshot3(cv) {
+      const W = 1280, H = 800;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = C.moss; ctx.font = `700 13px ${MONO}`;
+      ctx.fillText('THE POP-UP', 60, 60);
+      ctx.fillStyle = C.ink; ctx.font = `500 48px ${FRAUNCES}`;
+      ctx.fillText('Click a word.', 60, 124);
+      ctx.fillText('The AI tells', 60, 180);
+      ctx.fillStyle = C.amber; ctx.font = `italic 500 48px ${FRAUNCES}`;
+      ctx.fillText('you why.', 60, 236);
+      ctx.fillStyle = C.ink3; ctx.font = `400 16px ${FRAUNCES}`;
+      ctx.fillText('Not just a definition — a contextual', 60, 274);
+      ctx.fillText('explanation of why this exact word.', 60, 296);
+
+      const feats = [
+        { l: 'Native-speaker audio', s: 'tap the speaker for IPA pronunciation' },
+        { l: 'AI contextual definition', s: 'meaning fitted to this exact sentence' },
+        { l: 'Why this word', s: 'choice vs alternatives, explained' },
+        { l: 'Save to Anki', s: 'one-click push with audio + IPA' },
+      ];
+      let fy = 348;
+      for (const f of feats) {
+        ctx.fillStyle = C.amber; ctx.font = `700 11px ${MONO}`;
+        ctx.fillText('◉', 60, fy + 4);
+        ctx.fillStyle = C.ink; ctx.font = `600 14px ${INTER}`;
+        ctx.fillText(f.l, 78, fy + 4);
+        ctx.fillStyle = C.ink3; ctx.font = `400 12px ${INTER}`;
+        ctx.fillText(f.s, 78, fy + 22);
+        fy += 44;
+      }
+
+      const artX = 600, artY = 60, artW = 620, artH = 680;
+      ctx.save();
+      ctx.shadowColor = 'rgba(20,18,12,0.18)'; ctx.shadowBlur = 32; ctx.shadowOffsetY = 16;
+      squircle(ctx, artX, artY, artW, artH, 14); ctx.fillStyle = C.card; ctx.fill();
+      ctx.restore();
+      squircle(ctx, artX, artY, artW, artH, 14); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+      ctx.fillStyle = C.cream;
+      ctx.beginPath();
+      ctx.moveTo(artX + 14, artY); ctx.lineTo(artX + artW - 14, artY);
+      ctx.arcTo(artX + artW, artY, artX + artW, artY + 14, 14);
+      ctx.lineTo(artX + artW, artY + 40); ctx.lineTo(artX, artY + 40);
+      ctx.lineTo(artX, artY + 14); ctx.arcTo(artX, artY, artX + 14, artY, 14);
+      ctx.closePath(); ctx.fill();
+      [['#FF5F57', 0], ['#FEBC2E', 16], ['#28C840', 32]].forEach(([c, o]) => {
+        ctx.beginPath(); ctx.arc(artX + 16 + o, artY + 20, 5, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill();
+      });
+      ctx.fillStyle = C.ink3; ctx.font = `500 11px ${MONO}`;
+      ctx.fillText('🔒  en.wikipedia.org/wiki/English_orthography', artX + 86, artY + 24);
+      ctx.fillStyle = C.line; ctx.fillRect(artX, artY + 40, artW, 1);
+      ctx.fillStyle = C.ink4; ctx.font = `700 10px ${MONO}`;
+      ctx.fillText('WIKIPEDIA · ENGLISH ORTHOGRAPHY', artX + 30, artY + 76);
+      ctx.fillStyle = C.ink; ctx.font = `500 28px ${FRAUNCES}`;
+      ctx.fillText('English orthography', artX + 30, artY + 114);
+
+      let ay = artY + 152;
+      [
+        [{ t: 'English ' }, { t: 'orthography', c: C.amber }, { t: ' is the system of' }],
+        [{ t: 'writing conventions used to represent' }],
+        [{ t: 'spoken English in a standard form.' }],
+        [{ t: 'Like the orthography of most ' }, { t: 'world', c: C.amber }],
+        [{ t: 'languages', c: C.amber }, { t: ', written English includes' }],
+        [{ t: 'punctuation and capitalisation, which' }],
+      ].forEach(ln => { drawRun(ctx, ln, artX + 30, ay, 16, FRAUNCES, 400); ay += 26; });
+
+      // pop-up
+      const popX = artX + 60, popY = artY + 250, popW = 480, popH = 320;
+      ctx.beginPath();
+      ctx.moveTo(popX + 50, popY); ctx.lineTo(popX + 60, popY - 10); ctx.lineTo(popX + 70, popY);
+      ctx.fillStyle = C.card; ctx.fill();
+      ctx.save();
+      ctx.shadowColor = 'rgba(20,18,12,0.28)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 18;
+      squircle(ctx, popX, popY, popW, popH, 12); ctx.fillStyle = C.card; ctx.fill();
+      ctx.restore();
+      squircle(ctx, popX, popY, popW, popH, 12); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+      ctx.fillStyle = C.cream;
+      ctx.beginPath();
+      ctx.moveTo(popX + 12, popY); ctx.lineTo(popX + popW - 12, popY);
+      ctx.arcTo(popX + popW, popY, popX + popW, popY + 12, 12);
+      ctx.lineTo(popX + popW, popY + 64); ctx.lineTo(popX, popY + 64);
+      ctx.lineTo(popX, popY + 12); ctx.arcTo(popX, popY, popX + 12, popY, 12);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = C.line; ctx.fillRect(popX, popY + 64, popW, 1);
+
+      squircle(ctx, popX + 16, popY + 18, 30, 30, 8); ctx.fillStyle = C.ink; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `400 14px ${INTER}`;
+      ctx.textAlign = 'center'; ctx.fillText('▶', popX + 31, popY + 39); ctx.textAlign = 'left';
+      ctx.fillStyle = C.ink; ctx.font = `600 22px ${FRAUNCES}`;
+      ctx.fillText('orthography', popX + 56, popY + 38);
+      ctx.fillStyle = C.ink3; ctx.font = `500 14px ${MONO}`;
+      ctx.fillText('/ɔːˈθɒɡrəfi/', popX + 200, popY + 38);
+
+      squircle(ctx, popX + popW - 78, popY + 18, 30, 30, 8); ctx.fillStyle = C.paper; ctx.fill();
+      ctx.strokeStyle = C.line; ctx.stroke();
+      ctx.fillStyle = C.ink3; ctx.font = `700 18px ${INTER}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('+', popX + popW - 63, popY + 38);
+      ctx.font = `400 24px ${INTER}`;
+      ctx.fillText('×', popX + popW - 24, popY + 38);
+      ctx.textAlign = 'left';
+
+      const bullets = [
+        'The conventions for spelling a language. "Orthography" is Greek for "correct writing".',
+        'Used over "spelling" because it includes punctuation, capitalisation, and word breaks — not just letters.',
+        'Near-synonyms: spelling (narrower), graphology (handwriting), writing system (broader).',
+      ];
+      let by = popY + 96;
+      for (const b of bullets) {
+        ctx.fillStyle = C.amber; ctx.font = `700 11px ${MONO}`;
+        ctx.fillText('◉', popX + 18, by + 5);
+        ctx.fillStyle = C.ink2; ctx.font = `400 14px ${INTER}`;
+        const maxW = popW - 56;
+        const words = b.split(' ');
+        let line = '', bz = by;
+        for (const w of words) {
+          const test = line + w + ' ';
+          if (ctx.measureText(test).width > maxW && line) {
+            ctx.fillText(line.trim(), popX + 38, bz + 5);
+            line = w + ' '; bz += 19;
+          } else line = test;
+        }
+        ctx.fillText(line.trim(), popX + 38, bz + 5);
+        by = bz + 32;
+      }
+    }
+
+    async function buildScreenshot4(cv) {
+      const W = 1280, H = 800;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = C.moss; ctx.font = `700 13px ${MONO}`;
+      ctx.fillText('YOUR RULES', 60, 60);
+      ctx.fillStyle = C.ink; ctx.font = `500 48px ${FRAUNCES}`;
+      ctx.fillText('Customize', 60, 124);
+      ctx.fillText('every', 60, 180);
+      ctx.fillStyle = C.amber; ctx.font = `italic 500 48px ${FRAUNCES}`;
+      ctx.fillText('detail.', 60, 236);
+      ctx.fillStyle = C.ink3; ctx.font = `400 16px ${FRAUNCES}`;
+      ctx.fillText('Toggle any color, change the popup', 60, 274);
+      ctx.fillText('trigger, switch per-site or universal —', 60, 296);
+      ctx.fillText('Lumen is yours.', 60, 318);
+
+      const feats = ['Per-site overrides', 'Hover or click trigger', 'Command-key only', 'Disable any phoneme color', 'Anki Default Note Type'];
+      let fy = 360;
+      for (const f of feats) {
+        squircle(ctx, 60, fy, 270, 32, 16);
+        ctx.fillStyle = C.card; ctx.fill();
+        ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+        ctx.beginPath(); ctx.arc(80, fy + 16, 4, 0, Math.PI * 2);
+        ctx.fillStyle = C.amber; ctx.fill();
+        ctx.fillStyle = C.ink; ctx.font = `600 12.5px ${INTER}`;
+        ctx.fillText(f, 96, fy + 20);
+        fy += 40;
+      }
+
+      const pX = 560, pY = 60, pW = 660, pH = 680;
+      ctx.save();
+      ctx.shadowColor = 'rgba(20,18,12,0.18)'; ctx.shadowBlur = 36; ctx.shadowOffsetY = 16;
+      squircle(ctx, pX, pY, pW, pH, 14); ctx.fillStyle = C.card; ctx.fill();
+      ctx.restore();
+      squircle(ctx, pX, pY, pW, pH, 14); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+      const tabH = 56;
+      ctx.fillStyle = C.line; ctx.fillRect(pX, pY + tabH, pW, 1);
+      ctx.font = `600 13px ${INTER}`; ctx.textAlign = 'center';
+      ctx.beginPath(); ctx.arc(pX + 110, pY + 28, 4, 0, Math.PI * 2);
+      ctx.fillStyle = C.amber; ctx.fill();
+      ctx.fillStyle = C.ink3; ctx.fillText('This Website Only', pX + 200, pY + 32);
+      ctx.beginPath(); ctx.arc(pX + 380, pY + 28, 4, 0, Math.PI * 2);
+      ctx.fillStyle = C.moss; ctx.fill();
+      ctx.fillStyle = C.ink; ctx.font = `700 13px ${INTER}`;
+      ctx.fillText('All Websites', pX + 460, pY + 32);
+      ctx.fillStyle = C.ink; ctx.fillRect(pX + pW / 2, pY + tabH - 2, pW / 2, 2);
+      ctx.textAlign = 'left';
+
+      let sy = pY + 80;
+      function sec(t) { ctx.fillStyle = C.ink; ctx.font = `700 13px ${INTER}`; ctx.fillText(t, pX + 24, sy); sy += 22; }
+      function rd(l, on, sub) {
+        ctx.strokeStyle = on ? C.amber : C.ink4; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(pX + 32, sy - 4, 7, 0, Math.PI * 2); ctx.stroke();
+        if (on) { ctx.beginPath(); ctx.arc(pX + 32, sy - 4, 3.5, 0, Math.PI * 2); ctx.fillStyle = C.amber; ctx.fill(); }
+        ctx.fillStyle = C.ink2; ctx.font = `500 12px ${INTER}`;
+        ctx.fillText(l, pX + 48, sy);
+        if (sub) { ctx.fillStyle = C.ink4; ctx.fillText(' ' + sub, pX + 48 + ctx.measureText(l).width + 2, sy); }
+        sy += 22;
+      }
+      function ch(l, on, star) {
+        ctx.strokeStyle = on ? C.amber : C.ink4; ctx.lineWidth = 1.5;
+        ctx.fillStyle = on ? C.amber : 'transparent';
+        const x = pX + 25, y = sy - 9, w = 12;
+        ctx.beginPath(); ctx.rect(x, y, w, w); on ? ctx.fill() : ctx.stroke();
+        if (on) {
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(x + 2, y + 6); ctx.lineTo(x + 5, y + 9); ctx.lineTo(x + 10, y + 3);
+          ctx.stroke();
+        }
+        ctx.fillStyle = C.ink2; ctx.font = `500 12px ${INTER}`;
+        if (star) { ctx.fillStyle = C.amber; ctx.fillText('★ ', pX + 44, sy); ctx.fillStyle = C.ink2; ctx.fillText(l, pX + 56, sy); }
+        else ctx.fillText(l, pX + 44, sy);
+        sy += 22;
+      }
+
+      sec('Visual Phonemes');
+      ch('Ghost Letters', true);
+      ch('/ɛ/ Red', true);
+      ch('/i/ Green', true);
+      ch('/ʌ/ Purple', true);
+      ch('/æ/ Pink', true);
+      ch('/u/ Teal', true);
+      ch('/ɔ/ Amber', true);
+      sy += 12;
+      sec('Advanced Marks');
+      ch('Stress Accents', true);
+      ch('Long Vowels', true);
+      ch('Diphthong /aɪ/', true);
+      ch('Diphthongs /eɪ ɔɪ/', true);
+      ch('Diphthongs /oʊ aʊ/', true);
+      ch('TH /θ/', true);
+      ch('DH /ð/', true);
+      ch('T-Sound Morph', true);
+      ch('Z-Sound Lines', true);
+      ch('Hidden Phonemes', true);
+    }
+
+    async function buildScreenshot5(cv) {
+      const W = 1280, H = 800;
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = C.moss; ctx.font = `700 13px ${MONO}`;
+      ctx.fillText('WORKS EVERYWHERE', 60, 60);
+      ctx.fillStyle = C.ink; ctx.font = `500 48px ${FRAUNCES}`;
+      ctx.fillText('Wikipedia. The Times.', 60, 124);
+      ctx.fillStyle = C.amber; ctx.font = `italic 500 48px ${FRAUNCES}`;
+      ctx.fillText('Your favorite blog.', 60, 180);
+      ctx.fillStyle = C.ink3; ctx.font = `400 17px ${FRAUNCES}`;
+      ctx.fillText('Lumen runs on every page you open. Same colors, same AI, no setup.', 60, 220);
+
+      const sites = [
+        {
+          brand: 'Wikipedia', url: 'en.wikipedia.org', accent: '#3366CC', title: 'Photosynthesis', body: [
+            [{ t: 'P' }, { t: 'h' }, Vb('o'), { t: 'tosynthesis is the bi' }, Vu('o'), { t: 'l' }, Vs('o'), { t: 'g' }, Vs('i'), { t: 'cal pr' }, Vu('o'), { t: 'cess' }],
+            [{ t: 'used by ' }, { t: 'plants' }, { t: ' and other ' }, { t: 'organ' }, { t: 'isms to c' }, Vs('o'), { t: 'nv' }, Vs('e'), { t: 'rt l' }, Vg('i'), { t: 'ght' }],
+            [{ t: 'energy into ch' }, Vr('e'), { t: 'm' }, Vs('i'), { t: 'cal energy.' }],
+          ]
+        },
+        {
+          brand: 'The Times', url: 'nytimes.com', accent: '#000', title: 'Markets shrug off rate fears', body: [
+            [{ t: 'Wall Street ' }, { t: 'r' }, Vs('e'), { t: 'c' }, Vs('o'), { t: 'v' }, Vs('e'), { t: 'red ground on Tuesday' }],
+            [{ t: 'aft' }, Vs('e'), { t: 'r f' }, Va('e'), { t: 'derl reserve minutes su' }, Vs('gg'), { t: 'gested' }],
+            [{ t: 'p' }, Va('a'), { t: 'tience on ' }, Vr('e'), { t: 'c' }, Vs('o'), { t: 'n' }, Vu('o'), { t: 'mic policy.' }],
+          ]
+        },
+        {
+          brand: 'Substack', url: 'someone.substack.com', accent: '#FF6719', title: 'Why I quit reading newsletters', body: [
+            [{ t: 'I ' }, { t: 's' }, Vs('u'), { t: 'bs' }, Vr('c'), { t: 'r' }, Va('i'), { t: 'bed to 47 of them. The avg.' }],
+            [{ t: 'r' }, Vg('ea'), { t: 'd t' }, Va('i'), { t: 'me w' }, Vu('o'), { t: 'rks out to a year of my life.' }],
+            [{ t: 'I' }, { t: 'm ' }, { t: 'd' }, Vu('o'), { t: 'ne. Here\'s what I do ' }, { t: 'i' }, Vu('n'), { t: 'st' }, Vr('ea'), { t: 'd.' }],
+          ]
+        },
+      ];
+      const cardW = 380, cardH = 460, gap = 16;
+      const startX = (W - (cardW * 3 + gap * 2)) / 2;
+      for (let i = 0; i < 3; i++) {
+        const x = startX + i * (cardW + gap), y = 260;
+        ctx.save();
+        ctx.shadowColor = 'rgba(20,18,12,0.12)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        squircle(ctx, x, y, cardW, cardH, 12); ctx.fillStyle = C.card; ctx.fill();
+        ctx.restore();
+        squircle(ctx, x, y, cardW, cardH, 12); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+        ctx.fillStyle = C.cream;
+        ctx.beginPath();
+        ctx.moveTo(x + 12, y); ctx.lineTo(x + cardW - 12, y);
+        ctx.arcTo(x + cardW, y, x + cardW, y + 12, 12);
+        ctx.lineTo(x + cardW, y + 32); ctx.lineTo(x, y + 32);
+        ctx.lineTo(x, y + 12); ctx.arcTo(x, y, x + 12, y, 12);
+        ctx.closePath(); ctx.fill();
+        [['#FF5F57', 0], ['#FEBC2E', 12], ['#28C840', 24]].forEach(([c, o]) => {
+          ctx.beginPath(); ctx.arc(x + 14 + o, y + 16, 4, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill();
+        });
+        ctx.fillStyle = C.ink3; ctx.font = `500 10px ${MONO}`;
+        ctx.fillText('🔒 ' + sites[i].url, x + 60, y + 20);
+        ctx.beginPath(); ctx.arc(x + cardW - 18, y + 16, 5, 0, Math.PI * 2);
+        ctx.fillStyle = C.moss; ctx.fill();
+        ctx.fillStyle = C.line; ctx.fillRect(x, y + 32, cardW, 1);
+
+        ctx.fillStyle = sites[i].accent; ctx.font = `700 13px ${INTER}`;
+        ctx.fillText(sites[i].brand.toUpperCase(), x + 22, y + 60);
+        ctx.fillStyle = C.ink; ctx.font = `600 22px ${FRAUNCES}`;
+        const words = sites[i].title.split(' ');
+        let line = '', ty = y + 96;
+        for (const w of words) {
+          const test = line + w + ' ';
+          if (ctx.measureText(test).width > cardW - 44 && line) {
+            ctx.fillText(line.trim(), x + 22, ty); ty += 28; line = w + ' ';
+          } else line = test;
+        }
+        ctx.fillText(line.trim(), x + 22, ty);
+
+        let by = ty + 50;
+        for (const ln of sites[i].body) { drawRun(ctx, ln, x + 22, by, 16, FRAUNCES, 400); by += 26; }
+
+        squircle(ctx, x + 22, y + cardH - 50, cardW - 44, 32, 16);
+        ctx.fillStyle = C.cream; ctx.fill();
+        ctx.fillStyle = C.moss; ctx.font = `700 10px ${MONO}`;
+        ctx.fillText('● LUMEN ACTIVE  ·  COLORIZING IN REAL TIME', x + 38, y + cardH - 30);
+      }
+
+      ctx.fillStyle = C.ink3; ctx.font = `500 13px ${INTER}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('No site is special. If it has English, Lumen reads it.', W / 2, 760);
+      ctx.textAlign = 'left';
+    }
+
+    // ===========================================================
+    // Asset registry
+    // ===========================================================
+    const ASSETS = [
+      { id: 'marquee-promo-1400x560', name: 'Marquee promo', dim: '1400 × 560', build: buildMarquee, desc: 'For featured category placements' },
+      { id: 'small-promo-440x280', name: 'Small promo', dim: '440 × 280', build: buildSmallPromo, desc: 'Shown in search results' },
+      { id: 'screenshot-1-1280x800', name: 'Screenshot 1 — Before / After', dim: '1280 × 800', build: buildScreenshot1, desc: 'Hero · the value prop' },
+      { id: 'screenshot-2-1280x800', name: 'Screenshot 2 — Six colors', dim: '1280 × 800', build: buildScreenshot2, desc: 'The phoneme system' },
+      { id: 'screenshot-3-1280x800', name: 'Screenshot 3 — AI pop-up', dim: '1280 × 800', build: buildScreenshot3, desc: 'Signature feature' },
+      { id: 'screenshot-4-1280x800', name: 'Screenshot 4 — Settings', dim: '1280 × 800', build: buildScreenshot4, desc: 'Customization depth' },
+      { id: 'screenshot-5-1280x800', name: 'Screenshot 5 — Works everywhere', dim: '1280 × 800', build: buildScreenshot5, desc: 'Scope of coverage' },
+    ];
+
+    // ===========================================================
+    // UI wiring
+    // ===========================================================
+    const grid = document.getElementById('grid');
+    const statusEl = document.getElementById('status');
+    const canvases = {};
+
+    function setStatus(s) {
+      statusEl.textContent = s;
+      statusEl.classList.add('show');
+      clearTimeout(setStatus._t);
+      setStatus._t = setTimeout(() => statusEl.classList.remove('show'), 1800);
+    }
+
+    function renderCards() {
+      grid.innerHTML = '';
+      for (const a of ASSETS) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+      <div class="card-head">
+        <div class="card-title">
+          <h2>${a.name}</h2>
+          <span class="dim">${a.dim} · ${a.desc}</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn" data-act="re" data-id="${a.id}"><span class="ic">↻</span> Re-render</button>
+          <button class="btn primary" data-act="dl" data-id="${a.id}"><span class="ic">↓</span> Download PNG</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <canvas class="preview" id="cv-${a.id}"></canvas>
+      </div>
+    `;
+        grid.appendChild(card);
+        canvases[a.id] = document.getElementById('cv-' + a.id);
+      }
+      grid.addEventListener('click', onGridClick);
+    }
+
+    function onGridClick(e) {
+      const btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === 're') renderOne(id);
+      if (act === 'dl') downloadOne(id);
+    }
+
+    async function renderOne(id) {
+      const a = ASSETS.find(x => x.id === id);
+      if (!a) return;
+      setStatus('Rendering ' + a.name + '…');
+      await a.build(canvases[id]);
+      setStatus('Rendered ' + a.name);
+    }
+
+    async function renderAll() {
+      setStatus('Rendering all 7 assets…');
+      // Wait for fonts so first render uses correct typography
+      try { await document.fonts.ready; } catch { }
+      for (const a of ASSETS) await a.build(canvases[a.id]);
+      setStatus('All assets rendered');
+    }
+
+    function downloadOne(id) {
+      const cv = canvases[id];
+      cv.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = id + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('Downloaded ' + id + '.png');
+      }, 'image/png');
+    }
+
+    async function downloadAllZip() {
+      if (!window.JSZip) { setStatus('JSZip not loaded'); return; }
+      setStatus('Building .zip…');
+      const zip = new JSZip();
+      for (const a of ASSETS) {
+        const blob = await new Promise(r => canvases[a.id].toBlob(r, 'image/png'));
+        zip.file(a.id + '.png', blob);
+      }
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'lumen-pronunciation-store-assets.zip';
+      document.body.appendChild(link); link.click(); link.remove();
+      URL.revokeObjectURL(url);
+      setStatus('Downloaded .zip');
+    }
+
+    async function saveAllToProject() {
+      setStatus('Saving to project (use chat: ask Lumen to “regenerate store assets”)');
+    }
+
+    // Wire color tweaks
+    function wireColor(inputId, key) {
+      const el = document.getElementById(inputId);
+      el.addEventListener('input', () => {
+        C[key] = el.value;
+        if (key === 'moss') C.mossSoft = lighten(el.value, 60);
+        document.getElementById('dot-' + inputId.split('-')[1]).style.background = el.value;
+        renderAll();
+      });
+    }
+    function lighten(hex, amt) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = Math.min(255, ((n >> 16) & 0xff) + amt);
+      const g = Math.min(255, ((n >> 8) & 0xff) + amt);
+      const b = Math.min(255, (n & 0xff) + amt);
+      return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+
+    ['amber', 'moss', 'ink', 'paper'].forEach(k => wireColor('c-' + k, k));
+
+    // Wire text tweaks — re-render on input
+    function wireText(id, key) {
+      document.getElementById(id).addEventListener('input', (e) => {
+        TWEAKS[key] = e.target.value;
+        renderAll();
+      });
+    }
+    wireText('t-wordmark', 'wordmark');
+    wireText('t-tagline', 'tagline');
+    wireText('t-small1', 'small1');
+    wireText('t-small2', 'small2');
+    wireText('t-url', 'url');
+
+    renderCards();
+    renderAll();
+  </script>
+
+</body>
+
+</html>

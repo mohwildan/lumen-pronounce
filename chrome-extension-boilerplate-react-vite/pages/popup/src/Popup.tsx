@@ -146,7 +146,7 @@ const LANGUAGES = [
 /* ─── Icons ─── */
 
 const IconGlobe = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <circle cx="12" cy="12" r="10"/>
     <line x1="2" y1="12" x2="22" y2="12"/>
     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
@@ -154,7 +154,7 @@ const IconGlobe = () => (
 );
 
 const IconLanguages = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M5 8l6 6"/>
     <path d="M4 14l6-6 2-3"/>
     <path d="M2 5h12"/>
@@ -165,14 +165,14 @@ const IconLanguages = () => (
 );
 
 const IconVideo = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="23 7 16 12 23 17 23 7"/>
     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
   </svg>
 );
 
 const IconPalette = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <circle cx="13.5" cy="6.5" r="1" fill="currentColor"/>
     <circle cx="17.5" cy="10.5" r="1" fill="currentColor"/>
     <circle cx="8.5" cy="7.5" r="1" fill="currentColor"/>
@@ -182,7 +182,7 @@ const IconPalette = () => (
 );
 
 const IconSparkles = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 3l1.912 5.813L19 12l-5.088 3.187L12 21l-1.912-5.813L5 12l5.088-3.187L12 3z"/>
   </svg>
 );
