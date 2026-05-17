@@ -1,11 +1,11 @@
 {
   "extensionDescription": {
     "description": "Extension description",
-    "message": "Visualize English pronunciation: silent letters, vowel colors, stress marks."
+    "message": "View the pronunciation of English words on any website. Improve your speaking, accent, and phonetics instantly!"
   },
   "extensionName": {
     "description": "Extension name",
-    "message": "IPA Pronunciation Stylizer"
+    "message": "Lumen: English Pronunciation"
   },
   "toggleTheme": {
     "message": "Toggle theme"

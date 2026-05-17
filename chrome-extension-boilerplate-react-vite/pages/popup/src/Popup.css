@@ -1,32 +1,105 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.ipa-popup {
-  width: 320px;
-  background: #0f0f1a;
-  color: #e0e0f0;
-  font-family: system-ui, sans-serif;
-  font-size: 13px;
+:root {
+  --bg-deep:      #07071a;
+  --bg-base:      #0c0c1f;
+  --bg-card:      #111128;
+  --bg-hover:     #17163a;
+  --border:       #1c1b38;
+  --border-lt:    #272550;
+  --primary:      #7c3aed;
+  --primary-lt:   #a78bfa;
+  --primary-dim:  #3b2070;
+  --pink:         #e879f9;
+  --teal:         #14b8a6;
+  --text:         #f0eeff;
+  --text-2:       #9b99c5;
+  --text-3:       #504e72;
+  --danger:       #f43f5e;
+  --success:      #10b981;
 }
 
+html, body {
+  width: 340px;
+  height: 600px;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.ipa-popup {
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ─── Header ─── */
 .ipa-header {
-  padding: 16px;
-  border-bottom: 1px solid #1e1e3a;
+  padding: 12px 16px;
+  background: linear-gradient(160deg, #100e2e 0%, #0e0c22 100%);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .ipa-brand {
-  font-weight: 700;
-  font-size: 1rem;
-  color: #ff3e88;
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.ipa-brand small {
-  display: block;
-  font-size: .65rem;
-  color: #668;
-  margin-top: 2px;
+.ipa-brand-icon {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--pink) 100%);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(124,58,237,.35);
+}
+
+.ipa-brand-text { display: flex; flex-direction: column; gap: 2px; }
+
+.ipa-brand-name {
+  font-weight: 800;
+  font-size: .85rem;
+  background: linear-gradient(90deg, var(--primary-lt) 0%, var(--pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -.01em;
+  line-height: 1;
+}
+
+.ipa-brand-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.ipa-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transition: background .2s, box-shadow .2s;
+}
+
+.ipa-status-dot.on {
+  background: var(--success);
+  box-shadow: 0 0 5px var(--success);
 }
 
 .ipa-header-right {
@@ -36,164 +109,165 @@
 }
 
 .ipa-avatar {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   cursor: pointer;
-  border: 1px solid #2a2a4a;
-  transition: opacity .15s;
+  border: 2px solid var(--primary-dim);
+  transition: border-color .15s, transform .15s;
+  object-fit: cover;
 }
 
-.ipa-avatar:hover { opacity: .7; }
+.ipa-avatar:hover { border-color: var(--primary-lt); transform: scale(1.08); }
 
+/* ─── Section ─── */
 .ipa-section {
-  padding: 12px 16px;
-  border-bottom: 1px solid #1a1a2e;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .ipa-section-title {
-  font-size: .68rem;
-  font-weight: 600;
-  color: #556;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .6rem;
+  font-weight: 800;
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: .06em;
-  margin-bottom: 10px;
+  letter-spacing: .1em;
+  margin-bottom: 7px;
 }
 
+.ipa-section-title svg { opacity: .55; flex-shrink: 0; }
+
 .ipa-domain {
-  font-size: 0.75rem;
-  color: #7b61ff;
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-size: .78rem;
+  color: var(--primary-lt);
+  font-weight: 700;
+  margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* ─── Row ─── */
 .ipa-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: 5px 0;
+  gap: 8px;
 }
 
-.ipa-row > span {
-  color: #aac;
-  font-size: .85rem;
+.ipa-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: .82rem;
+  flex: 1;
+  min-width: 0;
 }
 
-.ipa-row small {
-  color: #668;
-  margin-left: 4px;
-  font-size: 0.8em;
+.ipa-row-label > span { display: flex; align-items: baseline; gap: 4px; }
+
+.ipa-row small { color: var(--text-3); font-size: .76em; }
+
+.ipa-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.12);
 }
 
+/* ─── Toggle switch ─── */
 .ipa-switch {
   position: relative;
-  width: 40px;
-  height: 20px;
+  width: 34px;
+  height: 18px;
   cursor: pointer;
   flex-shrink: 0;
 }
 
-.ipa-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+.ipa-switch input { opacity: 0; width: 0; height: 0; }
 
 .ipa-slider {
   position: absolute;
   inset: 0;
-  background: #2a2a4a;
-  border-radius: 20px;
-  transition: .2s;
+  background: var(--border-lt);
+  border-radius: 18px;
+  transition: background .2s;
 }
 
 .ipa-slider:before {
   position: absolute;
   content: "";
-  height: 14px;
-  width: 14px;
+  height: 12px;
+  width: 12px;
   left: 3px;
   bottom: 3px;
-  background: #fff;
+  background: var(--text-3);
   border-radius: 50%;
-  transition: .2s;
+  transition: transform .2s, background .2s;
 }
 
-.ipa-switch input:checked + .ipa-slider { background: #ff3e88; }
-.ipa-switch input:checked + .ipa-slider:before { transform: translateX(20px); }
+.ipa-switch input:checked + .ipa-slider { background: var(--primary); }
+.ipa-switch input:checked + .ipa-slider:before { transform: translateX(16px); background: #fff; }
 
+/* ─── Select ─── */
 .ipa-select {
-  background: #1a1a2e;
-  border: 1px solid #2a2a4a;
-  color: #aac;
-  font-size: .8rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-lt);
+  color: var(--text-2);
+  font-size: .78rem;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 7px;
   outline: none;
   cursor: pointer;
   max-width: 130px;
+  transition: border-color .15s;
 }
 
-.ipa-select:focus { border-color: #7b61ff; }
+.ipa-select:focus { border-color: var(--primary); }
 
 .ipa-hint {
-  font-size: .72rem;
-  color: #445;
-  margin-top: 6px;
-  line-height: 1.45;
+  font-size: .69rem;
+  color: var(--text-3);
+  margin-top: 5px;
+  line-height: 1.5;
+  padding: 6px 8px;
+  background: var(--bg-card);
+  border-radius: 6px;
+  border-left: 2px solid var(--primary-dim);
 }
 
+/* ─── Footer ─── */
 .ipa-footer {
-  padding: 12px 16px;
+  padding: 10px 16px;
+  background: var(--bg-deep);
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  align-items: stretch;
 }
 
 .ipa-options-link {
   background: none;
   border: none;
-  color: #556;
-  font-size: 0.75rem;
-  font-weight: 600;
+  color: var(--text-3);
+  font-size: .71rem;
+  font-weight: 700;
   cursor: pointer;
   padding: 0;
+  text-align: left;
+  letter-spacing: .02em;
+  transition: color .15s;
 }
 
-.ipa-options-link:hover { color: #ff3e88; }
+.ipa-options-link:hover { color: var(--primary-lt); }
 
-.ipa-login-btn {
-  background: #7b61ff;
-  border: none;
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background .15s;
-}
-
-.ipa-login-btn:hover { background: #6d50ff; }
-
-.ipa-login-error { font-size: 0.68rem; color: #f87171; flex: 1; text-align: left; }
-
-.ipa-tier-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  letter-spacing: 0.05em;
-}
-
-.ipa-tier-free { background: #2a2a3a; color: #778; }
-.ipa-tier-pro  { background: #4c1d95; color: #c4b5fd; }
-
+/* ─── Auth form ─── */
 .ipa-auth-form {
   display: flex;
   flex-direction: column;
@@ -203,58 +277,98 @@
 
 .ipa-auth-tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 2px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border);
 }
 
 .ipa-auth-tabs button {
   flex: 1;
   background: none;
-  border: 1px solid #2a2a3a;
-  color: #556;
-  font-size: 0.7rem;
-  padding: 3px 0;
-  border-radius: 5px;
+  border: none;
+  color: var(--text-3);
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 4px 0;
+  border-radius: 6px;
   cursor: pointer;
   transition: all .15s;
+  letter-spacing: .02em;
 }
 
 .ipa-auth-tabs button.active {
-  background: #7b61ff;
-  border-color: #7b61ff;
+  background: var(--primary);
   color: #fff;
+  box-shadow: 0 2px 6px rgba(124,58,237,.4);
 }
 
 .ipa-auth-input {
-  background: #0e0f1e;
-  border: 1px solid #252650;
-  border-radius: 6px;
-  color: #d0d0ee;
-  font-size: 0.75rem;
-  padding: 5px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-lt);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: .78rem;
+  padding: 6px 10px;
   outline: none;
   width: 100%;
-  box-sizing: border-box;
+  transition: border-color .15s;
 }
 
-.ipa-auth-input:focus { border-color: #7b61ff; }
+.ipa-auth-input:focus { border-color: var(--primary); }
+.ipa-auth-input::placeholder { color: var(--text-3); }
 
-.ipa-login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ipa-login-error { font-size: .67rem; color: var(--danger); }
 
+.ipa-login-btn {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--pink) 100%);
+  border: none;
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 800;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: .03em;
+  transition: opacity .15s, transform .1s;
+  box-shadow: 0 3px 10px rgba(124,58,237,.3);
+}
+
+.ipa-login-btn:hover { opacity: .9; transform: translateY(-1px); }
+.ipa-login-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+/* ─── Tier badges ─── */
+.ipa-tier-badge {
+  font-size: .57rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  letter-spacing: .07em;
+}
+
+.ipa-tier-free { background: var(--border-lt); color: var(--text-3); }
+.ipa-tier-pro  { background: var(--primary-dim); color: var(--primary-lt); }
+
+/* ─── Auth user row ─── */
 .ipa-auth-user {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
   gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--border);
 }
 
 .ipa-user-email {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.7rem;
-  color: #668;
+  font-size: .7rem;
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -263,14 +377,15 @@
 
 .ipa-logout-btn {
   background: none;
-  border: 1px solid #2a2a3a;
-  color: #556;
-  font-size: 0.65rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  border: 1px solid var(--border-lt);
+  color: var(--text-3);
+  font-size: .63rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 5px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all .15s;
+  transition: border-color .15s, color .15s;
 }
 
-.ipa-logout-btn:hover { border-color: #f87171; color: #f87171; }
+.ipa-logout-btn:hover { border-color: var(--danger); color: var(--danger); }

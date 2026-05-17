@@ -5,49 +5,189 @@ import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
 import type { IpaOpts } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
-type ToggleRow = { id: keyof IpaOpts; label: string; example: string };
+type ToggleRow = { id: keyof IpaOpts; label: string; example: string; swatch?: string };
 
 const VISUAL_ROWS: ToggleRow[] = [
-  { id: 'silent', label: 'Ghost Letters', example: 's<span style="opacity:0.3">w</span>ord' },
-  { id: 'color_e', label: 'Color /ɛ/ Red', example: 's<span style="color:#e53935">e</span>cond' },
-  { id: 'color_i', label: 'Color /i/ Green', example: 'r<span style="color:#2e7d32">e</span>ceipt' },
-  { id: 'color_u_alt', label: 'Color /ʌ/ Purple', example: 's<span style="color:#8e24aa">o</span>me' },
-  { id: 'color_a', label: 'Color /æ/ Pink', example: 'c<span style="color:#d81b60">a</span>t' },
-  { id: 'color_u', label: 'Color /u/ Teal', example: 't<span style="color:#00838f">o</span>mb' },
-  { id: 'color_o', label: 'Color /ɔ/ Amber', example: 'qu<span style="color:#e65100">a</span>rter' },
+  { id: 'silent',     label: 'Ghost Letters',  example: 's<span style="opacity:0.3">w</span>ord' },
+  { id: 'color_e',    label: '/ɛ/ Red',        example: 's<span style="color:#e53935">e</span>cond',   swatch: '#e53935' },
+  { id: 'color_i',    label: '/i/ Green',      example: 'r<span style="color:#2e7d32">e</span>ceipt',  swatch: '#2e7d32' },
+  { id: 'color_u_alt',label: '/ʌ/ Purple',     example: 's<span style="color:#8e24aa">o</span>me',     swatch: '#8e24aa' },
+  { id: 'color_a',    label: '/æ/ Pink',        example: 'c<span style="color:#d81b60">a</span>t',      swatch: '#d81b60' },
+  { id: 'color_u',    label: '/u/ Teal',        example: 't<span style="color:#00838f">o</span>mb',     swatch: '#00838f' },
+  { id: 'color_o',    label: '/ɔ/ Amber',       example: 'qu<span style="color:#e65100">a</span>rter',  swatch: '#e65100' },
 ];
 
 const MOD_ROWS: ToggleRow[] = [
-  { id: 'stress', label: 'Stress Accents', example: 'upd<b>á</b>te' },
-  { id: 'length', label: 'Long Vowels', example: 's<b>oo</b><span style="opacity:0.6">:</span>n' },
-  { id: 'diph_ai', label: 'Diphthong /aɪ/', example: '<b>i</b><sup style="opacity:0.7">ⁱ</sup>tem' },
-  { id: 'diph_ei_oi', label: 'Diphthongs /eɪ, ɔɪ/', example: 'gr<b>e</b><sup style="opacity:0.7">ⁱ</sup>at' },
-  { id: 'diph_ou_au', label: 'Diphthongs /oʊ, aʊ/', example: 'r<b>o</b><sup style="opacity:0.7">ᵘ</sup>ad' },
-  { id: 'th_t', label: 'TH Mark /θ/', example: 'th<sup style="opacity:0.7">ᵗ</sup>in' },
-  { id: 'th_d', label: 'DH Mark /ð/', example: 'th<sup style="opacity:0.7">ᵈ</sup>is' },
-  { id: 'tmark', label: 'T-Sound Morph', example: 'ask<span style="opacity:0.3">e</span>d<sup style="opacity:0.7">ᵗ</sup>' },
-  { id: 'zmark', label: 'Z-Sound Lines', example: 'vi<u style="text-decoration:underline dotted;text-underline-offset:2px">s</u>it' },
-  { id: 'phonemes', label: 'Hidden Phonemes', example: '<sup style="color:#ff3e88">w</sup>one' },
+  { id: 'stress',     label: 'Stress Accents',    example: 'upd<b>á</b>te' },
+  { id: 'length',     label: 'Long Vowels',        example: 's<b>oo</b><span style="opacity:0.6">:</span>n' },
+  { id: 'diph_ai',    label: 'Diphthong /aɪ/',    example: '<b>i</b><sup style="opacity:0.7">ⁱ</sup>tem' },
+  { id: 'diph_ei_oi', label: 'Diphthongs /eɪ ɔɪ/',example: 'gr<b>e</b><sup style="opacity:0.7">ⁱ</sup>at' },
+  { id: 'diph_ou_au', label: 'Diphthongs /oʊ aʊ/',example: 'r<b>o</b><sup style="opacity:0.7">ᵘ</sup>ad' },
+  { id: 'th_t',       label: 'TH /θ/',            example: 'th<sup style="opacity:0.7">ᵗ</sup>in' },
+  { id: 'th_d',       label: 'DH /ð/',            example: 'th<sup style="opacity:0.7">ᵈ</sup>is' },
+  { id: 'tmark',      label: 'T-Sound Morph',     example: 'ask<span style="opacity:0.3">e</span>d<sup style="opacity:0.7">ᵗ</sup>' },
+  { id: 'zmark',      label: 'Z-Sound Lines',     example: 'vi<u style="text-decoration:underline dotted;text-underline-offset:2px">s</u>it' },
+  { id: 'phonemes',   label: 'Hidden Phonemes',   example: '<sup style="color:#e879f9">w</sup>one' },
 ];
 
 const LANGUAGES = [
   { code: 'none', name: 'Off' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'zh-CN', name: 'Chinese (S)' },
-  { code: 'ko', name: 'Korean' },
+  { code: 'af', name: 'Afrikaans' },
+  { code: 'sq', name: 'Albanian' },
+  { code: 'am', name: 'Amharic' },
   { code: 'ar', name: 'Arabic' },
-  { code: 'ru', name: 'Russian' },
+  { code: 'hy', name: 'Armenian' },
+  { code: 'az', name: 'Azerbaijani' },
+  { code: 'eu', name: 'Basque' },
+  { code: 'be', name: 'Belarusian' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'bs', name: 'Bosnian' },
+  { code: 'bg', name: 'Bulgarian' },
+  { code: 'ca', name: 'Catalan' },
+  { code: 'ceb', name: 'Cebuano' },
+  { code: 'ny', name: 'Chichewa' },
+  { code: 'zh-CN', name: 'Chinese (S)' },
+  { code: 'zh-TW', name: 'Chinese (T)' },
+  { code: 'co', name: 'Corsican' },
+  { code: 'hr', name: 'Croatian' },
+  { code: 'cs', name: 'Czech' },
+  { code: 'da', name: 'Danish' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'en', name: 'English' },
+  { code: 'eo', name: 'Esperanto' },
+  { code: 'et', name: 'Estonian' },
+  { code: 'tl', name: 'Filipino' },
+  { code: 'fi', name: 'Finnish' },
+  { code: 'fr', name: 'French' },
+  { code: 'fy', name: 'Frisian' },
+  { code: 'gl', name: 'Galician' },
+  { code: 'ka', name: 'Georgian' },
+  { code: 'de', name: 'German' },
+  { code: 'el', name: 'Greek' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'ht', name: 'Haitian Creole' },
+  { code: 'ha', name: 'Hausa' },
+  { code: 'haw', name: 'Hawaiian' },
+  { code: 'iw', name: 'Hebrew' },
   { code: 'hi', name: 'Hindi' },
-  { code: 'vi', name: 'Vietnamese' },
+  { code: 'hmn', name: 'Hmong' },
+  { code: 'hu', name: 'Hungarian' },
+  { code: 'is', name: 'Icelandic' },
+  { code: 'ig', name: 'Igbo' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'ga', name: 'Irish' },
+  { code: 'it', name: 'Italian' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'jw', name: 'Javanese' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'kk', name: 'Kazakh' },
+  { code: 'km', name: 'Khmer' },
+  { code: 'rw', name: 'Kinyarwanda' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ku', name: 'Kurdish' },
+  { code: 'ky', name: 'Kyrgyz' },
+  { code: 'lo', name: 'Lao' },
+  { code: 'la', name: 'Latin' },
+  { code: 'lv', name: 'Latvian' },
+  { code: 'lt', name: 'Lithuanian' },
+  { code: 'lb', name: 'Luxembourgish' },
+  { code: 'mk', name: 'Macedonian' },
+  { code: 'mg', name: 'Malagasy' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'mt', name: 'Maltese' },
+  { code: 'mi', name: 'Maori' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'mn', name: 'Mongolian' },
+  { code: 'my', name: 'Burmese' },
+  { code: 'ne', name: 'Nepali' },
+  { code: 'no', name: 'Norwegian' },
+  { code: 'or', name: 'Odia' },
+  { code: 'ps', name: 'Pashto' },
+  { code: 'fa', name: 'Persian' },
+  { code: 'pl', name: 'Polish' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'ro', name: 'Romanian' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'sm', name: 'Samoan' },
+  { code: 'gd', name: 'Scots Gaelic' },
+  { code: 'sr', name: 'Serbian' },
+  { code: 'st', name: 'Sesotho' },
+  { code: 'sn', name: 'Shona' },
+  { code: 'sd', name: 'Sindhi' },
+  { code: 'si', name: 'Sinhala' },
+  { code: 'sk', name: 'Slovak' },
+  { code: 'sl', name: 'Slovenian' },
+  { code: 'so', name: 'Somali' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'su', name: 'Sundanese' },
+  { code: 'sw', name: 'Swahili' },
+  { code: 'sv', name: 'Swedish' },
+  { code: 'tg', name: 'Tajik' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'tt', name: 'Tatar' },
+  { code: 'te', name: 'Telugu' },
   { code: 'th', name: 'Thai' },
   { code: 'tr', name: 'Turkish' },
+  { code: 'tk', name: 'Turkmen' },
+  { code: 'uk', name: 'Ukrainian' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'ug', name: 'Uyghur' },
+  { code: 'uz', name: 'Uzbek' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'cy', name: 'Welsh' },
+  { code: 'xh', name: 'Xhosa' },
+  { code: 'yi', name: 'Yiddish' },
+  { code: 'yo', name: 'Yoruba' },
+  { code: 'zu', name: 'Zulu' }
 ];
 
+/* ─── Icons ─── */
+
+const IconGlobe = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="2" y1="12" x2="22" y2="12"/>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+  </svg>
+);
+
+const IconLanguages = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 8l6 6"/>
+    <path d="M4 14l6-6 2-3"/>
+    <path d="M2 5h12"/>
+    <path d="M7 2h1"/>
+    <path d="M22 22l-5-10-5 10"/>
+    <path d="M14 18h6"/>
+  </svg>
+);
+
+const IconVideo = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="23 7 16 12 23 17 23 7"/>
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+  </svg>
+);
+
+const IconPalette = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <circle cx="13.5" cy="6.5" r="1" fill="currentColor"/>
+    <circle cx="17.5" cy="10.5" r="1" fill="currentColor"/>
+    <circle cx="8.5" cy="7.5" r="1" fill="currentColor"/>
+    <circle cx="6.5" cy="12.5" r="1" fill="currentColor"/>
+    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+  </svg>
+);
+
+const IconSparkles = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l1.912 5.813L19 12l-5.088 3.187L12 21l-1.912-5.813L5 12l5.088-3.187L12 3z"/>
+  </svg>
+);
+
+/* ─── Switch ─── */
 function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="ipa-switch">
@@ -84,10 +224,20 @@ const Popup = () => {
 
   return (
     <div className="ipa-popup">
+
+      {/* ── Header ── */}
       <div className="ipa-header">
         <div className="ipa-brand">
-          IPA Stylizer
-          <small>{settings.enabled ? 'Active' : 'Disabled'}</small>
+          <div className="ipa-brand-icon">
+            <img src={chrome.runtime.getURL('icon-128.png')} alt="Logo" style={{ width: 18, height: 18, borderRadius: 4, display: 'block' }} />
+          </div>
+          <div className="ipa-brand-text">
+            <span className="ipa-brand-name">Lumen</span>
+            <span className="ipa-brand-status">
+              <span className={`ipa-status-dot ${settings.enabled ? 'on' : ''}`} />
+              {settings.enabled ? 'Active' : 'Disabled'}
+            </span>
+          </div>
         </div>
         <div className="ipa-header-right">
           {auth.isLoggedIn && auth.user && (
@@ -103,12 +253,13 @@ const Popup = () => {
         </div>
       </div>
 
+      {/* ── This Site ── */}
       {!domainLoading && currentHost && (
         <div className="ipa-section">
-          <div className="ipa-section-title">This Site</div>
+          <div className="ipa-section-title"><IconGlobe />This Site</div>
           <div className="ipa-domain">{currentHost}</div>
           <div className="ipa-row">
-            <span>Enable on this domain</span>
+            <div className="ipa-row-label"><span>Enable on this domain</span></div>
             <Switch
               checked={!isBlacklisted}
               onChange={v => v
@@ -120,11 +271,11 @@ const Popup = () => {
         </div>
       )}
 
-      {/* Translation */}
+      {/* ── Translation ── */}
       <div className="ipa-section">
-        <div className="ipa-section-title">Translation</div>
+        <div className="ipa-section-title"><IconLanguages />Translation</div>
         <div className="ipa-row">
-          <span>Translate language</span>
+          <div className="ipa-row-label"><span>Language</span></div>
           <select
             className="ipa-select"
             value={settings.targetLanguage ?? 'none'}
@@ -136,7 +287,7 @@ const Popup = () => {
           </select>
         </div>
         <div className="ipa-row">
-          <span>Per-sentence (select text)</span>
+          <div className="ipa-row-label"><span>Per-sentence <small>(text select)</small></span></div>
           <Switch
             checked={settings.translatePerSentence ?? true}
             onChange={v => ipaSettingsStorage.setTranslatePerSentence(v)}
@@ -144,16 +295,16 @@ const Popup = () => {
         </div>
         {(settings.targetLanguage && settings.targetLanguage !== 'none') && (
           <div className="ipa-hint">
-            Hover word = per-word translation.
-            {settings.translatePerSentence && ' Select text = sentence translation.'}
+            Hover = word translation.{settings.translatePerSentence && ' Select text = sentence.'}
           </div>
         )}
       </div>
 
+      {/* ── Video ── */}
       <div className="ipa-section">
-        <div className="ipa-section-title">Video</div>
+        <div className="ipa-section-title"><IconVideo />Video</div>
         <div className="ipa-row">
-          <span>Pause video on hover <small>(CC words)</small></span>
+          <div className="ipa-row-label"><span>Pause on hover <small>(CC words)</small></span></div>
           <Switch
             checked={settings.pauseOnHover ?? false}
             onChange={v => ipaSettingsStorage.setPauseOnHover(v)}
@@ -161,14 +312,18 @@ const Popup = () => {
         </div>
       </div>
 
+      {/* ── Visuals & Colors ── */}
       <div className="ipa-section">
-        <div className="ipa-section-title">Visuals &amp; Colors</div>
+        <div className="ipa-section-title"><IconPalette />Visuals &amp; Colors</div>
         {VISUAL_ROWS.map(row => (
           <div key={row.id} className="ipa-row">
-            <span>
-              {row.label}{' '}
-              <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
-            </span>
+            <div className="ipa-row-label">
+              {row.swatch && <span className="ipa-swatch" style={{ background: row.swatch }} />}
+              <span>
+                {row.label}{' '}
+                <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
+              </span>
+            </div>
             <Switch
               checked={settings.opts[row.id]}
               onChange={v => ipaSettingsStorage.setOpt(row.id, v)}
@@ -177,14 +332,17 @@ const Popup = () => {
         ))}
       </div>
 
+      {/* ── Modifications ── */}
       <div className="ipa-section">
-        <div className="ipa-section-title">Modifications</div>
+        <div className="ipa-section-title"><IconSparkles />Modifications</div>
         {MOD_ROWS.map(row => (
           <div key={row.id} className="ipa-row">
-            <span>
-              {row.label}{' '}
-              <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
-            </span>
+            <div className="ipa-row-label">
+              <span>
+                {row.label}{' '}
+                <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
+              </span>
+            </div>
             <Switch
               checked={settings.opts[row.id]}
               onChange={v => ipaSettingsStorage.setOpt(row.id, v)}
@@ -193,6 +351,7 @@ const Popup = () => {
         ))}
       </div>
 
+      {/* ── Footer / Auth ── */}
       <div className="ipa-footer">
         <button className="ipa-options-link" onClick={() => chrome.runtime.openOptionsPage()}>
           All Settings →
