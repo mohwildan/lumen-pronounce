@@ -1018,10 +1018,40 @@ async function checkActivation(): Promise<void> {
   syncBodyClasses();
 }
 
+// ── DOM mutation handler (shared) ────────────────────────────────
+
+function handleMutations(mutations: MutationRecord[]): void {
+  for (const m of mutations) {
+    for (const node of m.addedNodes) {
+      if (!dict) continue;
+      const el = node as Element;
+      if (el.getAttribute?.('data-ipa-ui')) continue;
+      if (el.id && IPA_ROOT_IDS.has(el.id)) continue;
+      if ((node as Node).parentElement?.closest?.('[data-ipa-ui]')) continue;
+      if (node.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(el.tagName)) walk(node);
+      else if (node.nodeType === Node.TEXT_NODE) processTextNode(node as Text);
+    }
+  }
+}
+
 async function init(): Promise<void> {
   if (hasProcessed) return;
-  // In sub-frames, only run if the frame actually contains a video player
-  if (window !== window.top && !document.querySelector('video, [class*="caption"], [class*="subtitle"], [class*="transcript"]')) return;
+
+  // In sub-frames without relevant elements: wait for them instead of returning
+  if (window !== window.top) {
+    const SELECTOR = 'video, [class*="caption"], [class*="subtitle"], [class*="transcript"]';
+    if (!document.querySelector(SELECTOR)) {
+      const waiter = new MutationObserver(() => {
+        if (document.querySelector(SELECTOR)) {
+          waiter.disconnect();
+          void init();
+        }
+      });
+      waiter.observe(document.documentElement ?? document.body ?? document, { childList: true, subtree: true });
+      return;
+    }
+  }
+
   if (!document.body) return;
 
   const stored = await chrome.storage.sync.get(['ipa-settings']);
@@ -1035,21 +1065,34 @@ async function init(): Promise<void> {
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
   syncBodyClasses();
+
+  // Observer starts BEFORE dict fetch so mutations during loading are queued
+  new MutationObserver(handleMutations).observe(document.body, { childList: true, subtree: true });
+
   try {
     const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
     dict = await r.json() as Record<string, string>;
     walk(document.body);
-    new MutationObserver(mutations => {
-      for (const m of mutations) for (const node of m.addedNodes) {
-        const el = node as Element;
-        if (el.getAttribute?.('data-ipa-ui')) continue;
-        if (el.id && IPA_ROOT_IDS.has(el.id)) continue;
-        if ((node as Node).parentElement?.closest?.('[data-ipa-ui]')) continue;
-        if (node.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(el.tagName)) walk(node);
-        else if (node.nodeType === Node.TEXT_NODE) processTextNode(node as Text);
-      }
-    }).observe(document.body, { childList: true, subtree: true });
   } catch (e) { console.error('[IPA Stylizer]', e); }
 }
+
+// ── SPA navigation re-walk ────────────────────────────────────────
+
+function reprocess(): void {
+  if (!dict || !hasProcessed) return;
+  walk(document.body);
+}
+
+// YouTube-specific SPA event
+document.addEventListener('yt-navigate-finish', () => { setTimeout(reprocess, 300); });
+
+// Generic SPA: detect URL change via polling (avoids heavy URL-observer overhead)
+let _lastHref = location.href;
+setInterval(() => {
+  if (location.href !== _lastHref) {
+    _lastHref = location.href;
+    setTimeout(reprocess, 400);
+  }
+}, 1000);
 
 void init();

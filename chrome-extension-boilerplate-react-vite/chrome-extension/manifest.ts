@@ -54,6 +54,11 @@ const manifest = {
       matches: ['*://*/*'],
     },
   ],
+  browser_specific_settings: {
+    gecko: {
+      id: 'lumen-pronounce@wildanmhd.dev',
+    },
+  },
 } satisfies ManifestType;
 
 export default manifest;
