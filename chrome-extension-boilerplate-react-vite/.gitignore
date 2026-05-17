@@ -23,3 +23,5 @@ tsconfig.tsbuildinfo
 
 # compiled
 **/tailwind-output.css
+
+source_code.zip

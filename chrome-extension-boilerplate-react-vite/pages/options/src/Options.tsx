@@ -258,7 +258,7 @@ function LoginTab() {
 
   if (!auth) return null;
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
     const res = await ipaAuthStorage.loginWithGoogle();
@@ -283,6 +283,9 @@ function LoginTab() {
             <div className="opt-profile-info">
               <strong>{auth.user.name}</strong>
               <span>{auth.user.email}</span>
+              <span style={{ fontSize: '.72rem', color: 'var(--primary-lt)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                {auth.user.tier ?? 'free'}
+              </span>
             </div>
             <button className="opt-btn-outline" onClick={handleLogout} disabled={loading}>
               {loading ? 'Signing out…' : 'Sign Out'}
@@ -293,9 +296,9 @@ function LoginTab() {
         <div className="opt-login">
           <div className="opt-login-icon"><IconLock /></div>
           <h2>Sign In to Sync</h2>
-          <p>Sign in with Google to sync your settings across devices and unlock future premium features.</p>
+          <p>Sign in with Google to sync your settings across devices and unlock premium features.</p>
           {error && <div className="opt-error">{error}</div>}
-          <button className="opt-btn-google" onClick={handleLogin} disabled={loading}>
+          <button className="opt-btn-google" onClick={handleGoogleLogin} disabled={loading}>
             {loading ? 'Signing in…' : (
               <>
                 <svg width="18" height="18" viewBox="0 0 48 48">
@@ -308,6 +311,7 @@ function LoginTab() {
               </>
             )}
           </button>
+
         </div>
       )}
     </div>

@@ -524,3 +524,53 @@ body {
 
 .opt-btn-trans:hover { opacity: .88; }
 .opt-btn-trans:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ─── Supabase redirect URL helper ─── */
+.opt-redirect-box {
+  margin-top: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-lt);
+  border-radius: 10px;
+  padding: 12px 14px;
+  width: 100%;
+  max-width: 400px;
+  text-align: left;
+}
+
+.opt-redirect-label {
+  font-size: .72rem;
+  color: var(--text-3);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.opt-redirect-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opt-redirect-url {
+  flex: 1;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: .7rem;
+  color: var(--primary-lt);
+  word-break: break-all;
+  min-width: 0;
+}
+
+.opt-redirect-copy {
+  background: var(--primary-dim);
+  border: none;
+  color: var(--primary-lt);
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+  white-space: nowrap;
+}
+
+.opt-redirect-copy:hover { background: var(--primary); color: #fff; }

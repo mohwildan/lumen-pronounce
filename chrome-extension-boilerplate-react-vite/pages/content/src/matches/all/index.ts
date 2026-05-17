@@ -53,6 +53,18 @@ type IpaOpts = {
 };
 
 let dict: Record<string, string> | null = null;
+let mainObserver: MutationObserver | null = null;
+let spaInterval: ReturnType<typeof setInterval> | null = null;
+
+function isContextValid(): boolean {
+  try { return !!chrome.runtime?.id; } catch { return false; }
+}
+
+function teardown(): void {
+  if (spaInterval) { clearInterval(spaInterval); spaInterval = null; }
+  if (mainObserver) { mainObserver.disconnect(); mainObserver = null; }
+}
+
 let opts: IpaOpts = {
   silent: true, color_e: true, color_i: true, color_u_alt: true, color_a: true,
   color_u: true, color_o: true, stress: true, tmark: true, th_t: true,
@@ -420,6 +432,7 @@ async function playPronunciation(word: string): Promise<void> {
 
   if (btn) { btn.style.color = '#e8a351'; btn.style.transform = 'scale(1.15)'; btn.style.opacity = '0.6'; }
 
+  if (!isContextValid()) { if (btn) { btn.style.color = '#8c887a'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; } return; }
   chrome.runtime.sendMessage({ type: 'TTS_FETCH', word }, (response: { base64?: string; mimeType?: string; error?: string } | undefined) => {
     if (!response?.base64) {
       if (btn) { btn.style.color = '#8c887a'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
@@ -994,10 +1007,16 @@ function syncBodyClasses(): void {
   for (const [key, cls] of map) b.classList.toggle(cls, enabled && opts[key]);
 }
 
-chrome.storage.onChanged.addListener(() => { void checkActivation(); });
+chrome.storage.onChanged.addListener(() => {
+  if (!isContextValid()) { teardown(); return; }
+  void checkActivation();
+});
 
 async function checkActivation(): Promise<void> {
-  const stored = await chrome.storage.sync.get(['ipa-settings']);
+  if (!isContextValid()) { teardown(); return; }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let stored: Record<string, any>;
+  try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { teardown(); return; }
   const s = stored['ipa-settings'];
 
   if (s?.opts) opts = { ...opts, ...s.opts };
@@ -1021,6 +1040,7 @@ async function checkActivation(): Promise<void> {
 // ── DOM mutation handler (shared) ────────────────────────────────
 
 function handleMutations(mutations: MutationRecord[]): void {
+  if (!isContextValid()) { teardown(); return; }
   for (const m of mutations) {
     for (const node of m.addedNodes) {
       if (!dict) continue;
@@ -1053,8 +1073,10 @@ async function init(): Promise<void> {
   }
 
   if (!document.body) return;
+  if (!isContextValid()) return;
 
-  const stored = await chrome.storage.sync.get(['ipa-settings']);
+  let stored: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { return; }
   const s = stored['ipa-settings'];
   if (s?.enabled === false || (s?.blacklist ?? []).includes(window.location.hostname)) {
     document.body.classList.add('ipa-disabled'); return;
@@ -1067,9 +1089,11 @@ async function init(): Promise<void> {
   syncBodyClasses();
 
   // Observer starts BEFORE dict fetch so mutations during loading are queued
-  new MutationObserver(handleMutations).observe(document.body, { childList: true, subtree: true });
+  mainObserver = new MutationObserver(handleMutations);
+  mainObserver.observe(document.body, { childList: true, subtree: true });
 
   try {
+    if (!isContextValid()) return;
     const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
     dict = await r.json() as Record<string, string>;
     walk(document.body);
@@ -1084,15 +1108,19 @@ function reprocess(): void {
 }
 
 // YouTube-specific SPA event
-document.addEventListener('yt-navigate-finish', () => { setTimeout(reprocess, 300); });
+document.addEventListener('yt-navigate-finish', () => {
+  if (!isContextValid()) { teardown(); return; }
+  setTimeout(reprocess, 300);
+});
 
 // Generic SPA: detect URL change via polling (avoids heavy URL-observer overhead)
 let _lastHref = location.href;
-setInterval(() => {
+spaInterval = setInterval(() => {
+  if (!isContextValid()) { teardown(); return; }
   if (location.href !== _lastHref) {
     _lastHref = location.href;
     setTimeout(reprocess, 400);
   }
 }, 1000);
 
-void init();
+if (isContextValid()) void init();

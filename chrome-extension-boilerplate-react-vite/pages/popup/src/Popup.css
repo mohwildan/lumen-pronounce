@@ -475,3 +475,55 @@ body {
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* ─── Auth divider ─── */
+.ipa-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.ipa-auth-divider::before,
+.ipa-auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-lt);
+}
+
+/* ─── Google button ─── */
+.ipa-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  border: none;
+  color: #1a1a1a;
+  font-size: .8rem;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  transition: background .15s, box-shadow .15s, transform .1s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  letter-spacing: .01em;
+}
+
+.ipa-google-btn:hover {
+  background: #f5f3ff;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  transform: translateY(-1px);
+}
+
+.ipa-google-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+}
