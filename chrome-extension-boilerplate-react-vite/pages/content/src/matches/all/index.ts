@@ -136,66 +136,67 @@ function renderWordFrag(word: string, arpa: string): HTMLElement {
   const wEl = document.createElement('rp-w');
   wEl.setAttribute('data-word', word);
   wEl.setAttribute('data-arpa', arpa);
-  wEl.style.cursor = 'pointer';
 
   const aligned = alignWord(word, arpa);
   for (let i = 0; i < aligned.length; i++) {
     const { char, base, silent, stress, ghost } = aligned[i];
 
     if (ghost) {
-      if (opts.phonemes && base && ARPA_IPA[base]) {
+      if (base && ARPA_IPA[base]) {
         const sup = document.createElement('rp-sup');
         sup.textContent = ARPA_IPA[base];
+        sup.setAttribute('data-ghost', '1');
         const vColor = VOWEL_COLORS[base];
-        if (vColor && opts[vColor.t as keyof IpaOpts]) sup.style.color = vColor.c;
-        else if (!vColor) sup.style.color = 'var(--accent,#ff3e88)';
+        if (vColor) sup.setAttribute('data-gvc', vColor.t);
         wEl.appendChild(sup);
       }
       continue;
     }
 
     const sEl = document.createElement('rp-s');
-    let display = char;
-    let after: DocumentFragment | null = null;
     const isFirst = i === 0 || aligned[i - 1]?.base !== base;
     const isLast = i === aligned.length - 1 || aligned[i + 1]?.base !== base;
 
-    if (silent && opts.silent) {
-      sEl.style.opacity = '0.25';
+    if (silent) {
+      sEl.setAttribute('data-silent', '1');
     } else if (base) {
       const vColor = VOWEL_COLORS[base];
-      if (vColor && opts[vColor.t as keyof IpaOpts]) {
-        sEl.style.color = vColor.c;
-        if (opts.stress && stress === 1 && isFirst && char && ACUTE[char]) display = ACUTE[char];
+      if (vColor) {
+        sEl.setAttribute('data-vc', vColor.t);
+        if (stress === 1 && isFirst && char && ACUTE[char]) sEl.setAttribute('data-st', '1');
         if (isLast) {
-          if (opts.length && LONG_VOWELS.has(base)) {
-            const c = document.createElement('rp-c'); c.textContent = ':';
-            after = after ?? document.createDocumentFragment(); after.appendChild(c);
+          if (LONG_VOWELS.has(base)) {
+            const c = document.createElement('rp-c');
+            c.textContent = ':';
+            c.setAttribute('data-type', 'length');
+            sEl.appendChild(c);
           }
           if (DIPH_SUPER[base]) {
-            let show = (base === 'AY' && opts.diph_ai) || ((base === 'EY' || base === 'OY') && opts.diph_ei_oi) || ((base === 'OW' || base === 'AW') && opts.diph_ou_au);
-            if (show) {
-              const c = document.createElement('rp-sup'); c.textContent = DIPH_SUPER[base];
-              after = after ?? document.createDocumentFragment(); after.appendChild(c);
-            }
+            const c = document.createElement('rp-sup');
+            c.textContent = DIPH_SUPER[base];
+            c.setAttribute('data-type', base);
+            sEl.appendChild(c);
           }
         }
       }
       if (isLast) {
-        if (TH_SUPER[base] && ((base === 'TH' && opts.th_t) || (base === 'DH' && opts.th_d))) {
-          const c = document.createElement('rp-sup'); c.textContent = TH_SUPER[base];
-          after = after ?? document.createDocumentFragment(); after.appendChild(c);
-        } else if (opts.tmark && base === 'T' && char && !['t', 'T'].includes(char)) {
-          const s = document.createElement('rp-sup'); s.textContent = 'ᵗ';
-          after = after ?? document.createDocumentFragment(); after.appendChild(s);
+        if (TH_SUPER[base]) {
+          const c = document.createElement('rp-sup');
+          c.textContent = TH_SUPER[base];
+          c.setAttribute('data-type', base);
+          sEl.appendChild(c);
+        } else if (base === 'T' && char && !['t', 'T'].includes(char)) {
+          const s = document.createElement('rp-sup');
+          s.textContent = 'ᵗ';
+          s.setAttribute('data-type', 'tmark');
+          sEl.appendChild(s);
         }
       }
-      if (opts.zmark && (base === 'Z' || base === 'ZH')) {
-        sEl.style.textDecoration = 'underline dotted'; sEl.style.textUnderlineOffset = '2px';
-      }
+      if (base === 'Z' || base === 'ZH') sEl.setAttribute('data-zm', '1');
     }
-    sEl.textContent = display;
-    if (after) sEl.appendChild(after);
+
+    // Prepend the display char as text node so appended children follow it
+    sEl.insertBefore(document.createTextNode(char ?? ''), sEl.firstChild);
     wEl.appendChild(sEl);
   }
   return wEl;
@@ -801,6 +802,14 @@ function processTextNode(node: Text): void {
   if (changed && node.parentNode) node.parentNode.replaceChild(frag, node);
 }
 
+function unwalkAll(): void {
+  for (const rpw of [...document.querySelectorAll('rp-w')]) {
+    const text = rpw.getAttribute('data-word') ?? rpw.textContent ?? '';
+    if (rpw.parentNode) rpw.parentNode.replaceChild(document.createTextNode(text), rpw);
+  }
+  document.body.normalize();
+}
+
 function walk(node: Node): void {
   if (node.nodeType === Node.TEXT_NODE) { processTextNode(node as Text); return; }
   if (node.nodeType !== Node.ELEMENT_NODE) return;
@@ -911,22 +920,53 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip();
 
 // ── Activation ───────────────────────────────────────────────────
 
+function syncBodyClasses(): void {
+  const b = document.body;
+  const enabled = !b.classList.contains('ipa-disabled');
+  const map: [keyof IpaOpts, string][] = [
+    ['silent',      'ipa-silent'],
+    ['color_e',     'ipa-color-e'],
+    ['color_i',     'ipa-color-i'],
+    ['color_u_alt', 'ipa-color-u-alt'],
+    ['color_a',     'ipa-color-a'],
+    ['color_u',     'ipa-color-u'],
+    ['color_o',     'ipa-color-o'],
+    ['stress',      'ipa-st'],
+    ['length',      'ipa-length'],
+    ['diph_ai',     'ipa-diph-ai'],
+    ['diph_ei_oi',  'ipa-diph-ei-oi'],
+    ['diph_ou_au',  'ipa-diph-ou-au'],
+    ['th_t',        'ipa-th-t'],
+    ['th_d',        'ipa-th-d'],
+    ['tmark',       'ipa-tmark'],
+    ['zmark',       'ipa-zmark'],
+    ['phonemes',    'ipa-phonemes'],
+  ];
+  for (const [key, cls] of map) b.classList.toggle(cls, enabled && opts[key]);
+}
+
 chrome.storage.onChanged.addListener(() => { void checkActivation(); });
 
 async function checkActivation(): Promise<void> {
   const stored = await chrome.storage.sync.get(['ipa-settings']);
   const s = stored['ipa-settings'];
+
+  if (s?.opts) opts = { ...opts, ...s.opts };
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
+
   const isEnabled = s?.enabled !== false;
   const isBlacklisted = (s?.blacklist ?? []).includes(window.location.hostname);
+
   if (!isEnabled || isBlacklisted) {
     document.body.classList.add('ipa-disabled');
+    hideTip();
   } else {
     document.body.classList.remove('ipa-disabled');
     if (!hasProcessed) void init();
   }
+  syncBodyClasses();
 }
 
 async function init(): Promise<void> {
@@ -945,6 +985,7 @@ async function init(): Promise<void> {
   if (s?.targetLanguage) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
+  syncBodyClasses();
   try {
     const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
     dict = await r.json() as Record<string, string>;

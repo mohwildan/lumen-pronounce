@@ -20,7 +20,7 @@
   }
 }
 
-rp-w   { display: inline !important; float: none !important; pointer-events: auto !important; cursor: default; }
+rp-w   { display: inline !important; float: none !important; pointer-events: auto !important; cursor: pointer !important; }
 rp-s   { display: inline !important; float: none !important; transition: color 0.2s, opacity 0.2s; }
 rp-c   { display: inline !important; opacity: .6 !important; margin-left: 1px !important; color: var(--ipa-sup) !important; }
 rp-sup {
@@ -33,13 +33,54 @@ rp-sup {
   color: var(--ipa-sup) !important;
 }
 
-body.ipa-disabled rp-s {
-  color: inherit !important;
-  opacity: 1 !important;
-  text-decoration: none !important;
-}
+/* Decorative elements hidden by default; body classes reveal them */
+rp-sup[data-type], rp-sup[data-ghost], rp-c[data-type] { display: none !important; }
 
-body.ipa-disabled rp-sup,
-body.ipa-disabled rp-c {
-  display: none !important;
-}
+/* ── Global disable ── */
+body.ipa-disabled rp-w   { pointer-events: none !important; cursor: auto !important; }
+body.ipa-disabled rp-s   { color: inherit !important; opacity: 1 !important; text-decoration: none !important; }
+body.ipa-disabled rp-s::after { content: none !important; }
+body.ipa-disabled rp-sup, body.ipa-disabled rp-c { display: none !important; }
+
+/* ── Per-opt body classes ── */
+
+/* silent letters */
+body.ipa-silent   rp-s[data-silent] { opacity: 0.25 !important; }
+
+/* vowel colors */
+body.ipa-color-e     rp-s[data-vc="color_e"]     { color: var(--ipa-red)    !important; }
+body.ipa-color-i     rp-s[data-vc="color_i"]     { color: var(--ipa-green)  !important; }
+body.ipa-color-u-alt rp-s[data-vc="color_u_alt"] { color: var(--ipa-purple) !important; }
+body.ipa-color-a     rp-s[data-vc="color_a"]     { color: var(--ipa-pink)   !important; }
+body.ipa-color-u     rp-s[data-vc="color_u"]     { color: var(--ipa-teal)   !important; }
+body.ipa-color-o     rp-s[data-vc="color_o"]     { color: var(--ipa-orange) !important; }
+
+/* stress accent (combining acute U+0301 appended via ::after) */
+body.ipa-st rp-s[data-st]::after { content: "\0301"; }
+
+/* zmark underline */
+body.ipa-zmark rp-s[data-zm] { text-decoration: underline dotted !important; text-underline-offset: 2px !important; }
+
+/* length colon */
+body.ipa-length rp-c[data-type="length"] { display: inline !important; }
+
+/* diphthong superscripts */
+body.ipa-diph-ai    rp-sup[data-type="AY"]                          { display: inline !important; }
+body.ipa-diph-ei-oi rp-sup[data-type="EY"], body.ipa-diph-ei-oi rp-sup[data-type="OY"] { display: inline !important; }
+body.ipa-diph-ou-au rp-sup[data-type="OW"], body.ipa-diph-ou-au rp-sup[data-type="AW"] { display: inline !important; }
+
+/* TH / DH marks */
+body.ipa-th-t rp-sup[data-type="TH"] { display: inline !important; }
+body.ipa-th-d rp-sup[data-type="DH"] { display: inline !important; }
+
+/* T-sound morph */
+body.ipa-tmark rp-sup[data-type="tmark"] { display: inline !important; }
+
+/* hidden phonemes (ghost sups) */
+body.ipa-phonemes rp-sup[data-ghost] { display: inline !important; color: var(--accent, #ff3e88); }
+body.ipa-phonemes.ipa-color-e     rp-sup[data-ghost][data-gvc="color_e"]     { color: var(--ipa-red);    }
+body.ipa-phonemes.ipa-color-i     rp-sup[data-ghost][data-gvc="color_i"]     { color: var(--ipa-green);  }
+body.ipa-phonemes.ipa-color-u-alt rp-sup[data-ghost][data-gvc="color_u_alt"] { color: var(--ipa-purple); }
+body.ipa-phonemes.ipa-color-a     rp-sup[data-ghost][data-gvc="color_a"]     { color: var(--ipa-pink);   }
+body.ipa-phonemes.ipa-color-u     rp-sup[data-ghost][data-gvc="color_u"]     { color: var(--ipa-teal);   }
+body.ipa-phonemes.ipa-color-o     rp-sup[data-ghost][data-gvc="color_o"]     { color: var(--ipa-orange); }

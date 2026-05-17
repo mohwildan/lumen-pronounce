@@ -62,6 +62,11 @@ const Popup = () => {
   const auth = useStorage(ipaAuthStorage);
   const [currentHost, setCurrentHost] = useState('');
   const [domainLoading, setDomainLoading] = useState(true);
+  const [loginError, setLoginError] = useState('');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
@@ -193,11 +198,63 @@ const Popup = () => {
           All Settings →
         </button>
         {!auth.isLoggedIn ? (
-          <button className="ipa-login-btn" onClick={() => ipaAuthStorage.login()}>
-            Sign in
-          </button>
+          <div className="ipa-auth-form">
+            <div className="ipa-auth-tabs">
+              <button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setLoginError(''); }}>Sign In</button>
+              <button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setLoginError(''); }}>Sign Up</button>
+            </div>
+            <input
+              className="ipa-auth-input"
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && e.currentTarget.nextElementSibling instanceof HTMLElement && e.currentTarget.nextElementSibling.focus()}
+            />
+            <input
+              className="ipa-auth-input"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={async e => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                if (!email || !password || authLoading) return;
+                setAuthLoading(true); setLoginError('');
+                const res = authMode === 'signin'
+                  ? await ipaAuthStorage.signIn(email, password)
+                  : await ipaAuthStorage.signUp(email, password);
+                setAuthLoading(false);
+                if (res.error) setLoginError(res.error);
+              }}
+            />
+            {loginError && <span className="ipa-login-error">{loginError}</span>}
+            <button
+              className="ipa-login-btn"
+              disabled={authLoading || !email || !password}
+              onClick={async () => {
+                setAuthLoading(true); setLoginError('');
+                const res = authMode === 'signin'
+                  ? await ipaAuthStorage.signIn(email, password)
+                  : await ipaAuthStorage.signUp(email, password);
+                setAuthLoading(false);
+                if (res.error) setLoginError(res.error);
+              }}
+            >
+              {authLoading ? '…' : authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+            </button>
+          </div>
         ) : (
-          <span className="ipa-user-email">{auth.user?.email}</span>
+          <div className="ipa-auth-user">
+            <span className="ipa-user-email">
+              {auth.user?.email}
+              <span className={`ipa-tier-badge ipa-tier-${auth.user?.tier ?? 'free'}`}>
+                {(auth.user?.tier ?? 'free').toUpperCase()}
+              </span>
+            </span>
+            <button className="ipa-logout-btn" onClick={() => ipaAuthStorage.logout()}>Sign out</button>
+          </div>
         )}
       </div>
     </div>
