@@ -18,10 +18,15 @@ const manifest = {
   },
   action: {
     default_popup: 'popup/index.html',
-    default_icon: 'icon-34.png',
+    default_icon: 'icon-32.png',
   },
   icons: {
+    '16': 'icon-16.png',
+    '32': 'icon-32.png',
+    '64': 'icon-64.png',
     '128': 'icon-128.png',
+    '256': 'icon-256.png',
+    '512': 'icon-512.png',
   },
   content_scripts: [
     {
@@ -34,7 +39,18 @@ const manifest = {
   ],
   web_accessible_resources: [
     {
-      resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'icon-34.png', 'pronunciation.json'],
+      resources: [
+        '*.js',
+        '*.css',
+        '*.svg',
+        'icon-16.png',
+        'icon-32.png',
+        'icon-64.png',
+        'icon-128.png',
+        'icon-256.png',
+        'icon-512.png',
+        'pronunciation.json',
+      ],
       matches: ['*://*/*'],
     },
   ],
