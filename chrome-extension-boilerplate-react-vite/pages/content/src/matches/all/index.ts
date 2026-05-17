@@ -2,12 +2,12 @@
 
 const VOWEL_COLORS: Record<string, { c: string; t: string }> = {
   AH: { c: 'var(--ipa-purple)', t: 'color_u_alt' }, AA: { c: 'var(--ipa-purple)', t: 'color_u_alt' },
-  AE: { c: 'var(--ipa-pink)', t: 'color_a' },
-  EH: { c: 'var(--ipa-red)', t: 'color_e' }, ER: { c: 'var(--ipa-red)', t: 'color_e' },
-  IH: { c: 'var(--ipa-green)', t: 'color_i' }, IY: { c: 'var(--ipa-green)', t: 'color_i' },
-  UH: { c: 'var(--ipa-teal)', t: 'color_u' }, UW: { c: 'var(--ipa-teal)', t: 'color_u' },
+  AE: { c: 'var(--ipa-pink)',   t: 'color_a' },
+  EH: { c: 'var(--ipa-red)',    t: 'color_e' }, ER: { c: 'var(--ipa-red)',    t: 'color_e' },
+  IH: { c: 'var(--ipa-green)',  t: 'color_i' }, IY: { c: 'var(--ipa-green)',  t: 'color_i' },
+  UH: { c: 'var(--ipa-teal)',   t: 'color_u' }, UW: { c: 'var(--ipa-teal)',   t: 'color_u' },
   AO: { c: 'var(--ipa-orange)', t: 'color_o' },
-  AY: { c: 'var(--ipa-pink)', t: 'color_a' }, EY: { c: 'var(--ipa-red)', t: 'color_e' },
+  AY: { c: 'var(--ipa-pink)',   t: 'color_a' }, EY: { c: 'var(--ipa-red)',    t: 'color_e' },
   OY: { c: 'var(--ipa-orange)', t: 'color_o' }, OW: { c: 'var(--ipa-orange)', t: 'color_o' },
   AW: { c: 'var(--ipa-purple)', t: 'color_u_alt' }, AX: { c: 'var(--ipa-purple)', t: 'color_u_alt' },
 };
@@ -192,7 +192,9 @@ function renderWordFrag(word: string, arpa: string): HTMLElement {
           sEl.appendChild(s);
         }
       }
-      if (base === 'Z' || base === 'ZH') sEl.setAttribute('data-zm', '1');
+      if (base === 'Z' || base === 'ZH') {
+        sEl.setAttribute('data-zm', '1');
+      }
     }
 
     // Prepend the display char as text node so appended children follow it
@@ -750,7 +752,7 @@ const SUFFIXES = [
   { s: 'less', t: 'L EH0 S S' }, { s: 'tion', t: 'SH - AX0 N' },
   { s: 'able', t: 'AX0 B L -' }, { s: 'ible', t: 'IH0 B L -' },
   { s: "'s", t: '- Z' }, { s: "'ve", t: '- V' }, { s: "'re", t: '- ER0' },
-  { s: "'ll", t: '- L' }, { s: "'d", t: '- D' },
+  { s: "'ll", t: '- L' }, { s: "'d", t: '- D' }, { s: "'m", t: 'M' }, { s: "'t", t: 'T' },
 ];
 
 function guessPronunciation(word: string, depth = 0): string | null {
@@ -781,23 +783,69 @@ function guessPronunciation(word: string, depth = 0): string | null {
 function processTextNode(node: Text): void {
   const text = node.textContent;
   if (!text?.trim() || !/[a-zA-Z]/.test(text)) return;
-  const tokens = text.match(/[a-zA-Z']+|[^a-zA-Z']+/g) ?? [];
+  // Normalize curly apostrophes (U+2019) and modifier letter apostrophe (U+02BC) → straight
+  const norm = text.replace(/[’ʼ]/g, "'");
+  const tokens = norm.match(/[a-zA-Z']+|[^a-zA-Z']+/g) ?? [];
   const frag = document.createDocumentFragment();
   let changed = false;
+
   for (const token of tokens) {
-    if (/^[a-zA-Z']+$/i.test(token)) {
-      const clean = token.replace(/^'+|'+$/g, '');
-      let arpa = clean ? (dict?.[clean.toLowerCase()] ?? null) : null;
-      if (!arpa && clean && clean.length > 4) arpa = guessPronunciation(clean);
-      if (arpa) {
-        const pre = token.match(/^'+/)?.[0] ?? '';
+    if (!/^[a-zA-Z']+$/i.test(token)) { frag.appendChild(document.createTextNode(token)); continue; }
+
+    const clean = token.replace(/^'+|'+$/g, ''); // strip leading/trailing apostrophes
+    let arpa = clean ? (dict?.[clean.toLowerCase()] ?? null) : null;
+    if (!arpa && clean && (clean.length > 4 || clean.includes("'"))) arpa = guessPronunciation(clean);
+
+    // Helper: build rp-w for a contraction — base gets IPA, suffix appended as plain text INSIDE rp-w
+    const makeContractionEl = (base: string, baseArpa: string, suffix: string, fullWord: string): HTMLElement => {
+      const wEl = renderWordFrag(base || fullWord, baseArpa);
+      wEl.setAttribute('data-word', fullWord); // tooltip shows full word e.g. "I'M"
+      if (suffix) wEl.appendChild(document.createTextNode(suffix));
+      return wEl;
+    };
+
+    if (arpa) {
+      const pre = token.match(/^'+/)?.[0] ?? '';
+      if (pre) frag.appendChild(document.createTextNode(pre));
+
+      if (clean.includes("'")) {
+        // Contraction: IPA the base word only, suffix lives as text inside same rp-w
+        // → hover on "'m" / "'ve" etc. still triggers popup for the whole word
+        const apostIdx = clean.indexOf("'");
+        const base = clean.slice(0, apostIdx);
+        const suffix = clean.slice(apostIdx);
+        const baseArpa = (base && dict?.[base.toLowerCase()]) ?? arpa;
+        frag.appendChild(makeContractionEl(base, baseArpa, suffix, clean));
+      } else {
         const post = token.match(/'+$/)?.[0] ?? '';
-        if (pre) frag.appendChild(document.createTextNode(pre));
         frag.appendChild(renderWordFrag(clean, arpa));
         if (post) frag.appendChild(document.createTextNode(post));
-        changed = true;
-      } else { frag.appendChild(document.createTextNode(token)); }
-    } else { frag.appendChild(document.createTextNode(token)); }
+      }
+      changed = true;
+      continue;
+    }
+
+    // Contraction fallback (guessPronunciation also failed)
+    if (clean.includes("'")) {
+      const apostIdx = clean.indexOf("'");
+      const base = clean.slice(0, apostIdx);
+      const suffix = clean.slice(apostIdx);
+      if (base.length > 0) {
+        let baseArpa = dict?.[base.toLowerCase()] ?? null;
+        if (!baseArpa && base.length > 2 && base.endsWith('n')) {
+          baseArpa = dict?.[base.slice(0, -1).toLowerCase()] ?? null;
+        }
+        if (baseArpa) {
+          const pre = token.match(/^'+/)?.[0] ?? '';
+          if (pre) frag.appendChild(document.createTextNode(pre));
+          frag.appendChild(makeContractionEl(base, baseArpa, suffix, clean)); // suffix inside rp-w
+          changed = true;
+          continue;
+        }
+      }
+    }
+
+    frag.appendChild(document.createTextNode(token));
   }
   if (changed && node.parentNode) node.parentNode.replaceChild(frag, node);
 }
@@ -920,6 +968,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip();
 
 // ── Activation ───────────────────────────────────────────────────
 
+
 function syncBodyClasses(): void {
   const b = document.body;
   const enabled = !b.classList.contains('ipa-disabled');
@@ -964,7 +1013,7 @@ async function checkActivation(): Promise<void> {
     hideTip();
   } else {
     document.body.classList.remove('ipa-disabled');
-    if (!hasProcessed) void init();
+    if (!hasProcessed) { void init(); return; }
   }
   syncBodyClasses();
 }

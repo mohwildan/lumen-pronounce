@@ -36,12 +36,6 @@ rp-sup {
 /* Decorative elements hidden by default; body classes reveal them */
 rp-sup[data-type], rp-sup[data-ghost], rp-c[data-type] { display: none !important; }
 
-/* ── Global disable ── */
-body.ipa-disabled rp-w   { pointer-events: none !important; cursor: auto !important; }
-body.ipa-disabled rp-s   { color: inherit !important; opacity: 1 !important; text-decoration: none !important; }
-body.ipa-disabled rp-s::after { content: none !important; }
-body.ipa-disabled rp-sup, body.ipa-disabled rp-c { display: none !important; }
-
 /* ── Per-opt body classes ── */
 
 /* silent letters */
@@ -55,11 +49,19 @@ body.ipa-color-a     rp-s[data-vc="color_a"]     { color: var(--ipa-pink)   !imp
 body.ipa-color-u     rp-s[data-vc="color_u"]     { color: var(--ipa-teal)   !important; }
 body.ipa-color-o     rp-s[data-vc="color_o"]     { color: var(--ipa-orange) !important; }
 
+/* zmark underline */
+body.ipa-zmark rp-s[data-zm] { text-decoration: underline dotted !important; text-underline-offset: 2px !important; }
+
+/* ── Global disable ── */
+body.ipa-disabled rp-w   { pointer-events: none !important; cursor: auto !important; }
+body.ipa-disabled rp-s   { color: inherit !important; opacity: 1 !important; text-decoration: none !important; }
+body.ipa-disabled rp-s::after { content: none !important; }
+body.ipa-disabled rp-sup, body.ipa-disabled rp-c { display: none !important; }
+
 /* stress accent (combining acute U+0301 appended via ::after) */
 body.ipa-st rp-s[data-st]::after { content: "\0301"; }
 
-/* zmark underline */
-body.ipa-zmark rp-s[data-zm] { text-decoration: underline dotted !important; text-underline-offset: 2px !important; }
+/* zmark underline — inline style set in JS */
 
 /* length colon */
 body.ipa-length rp-c[data-type="length"] { display: inline !important; }
