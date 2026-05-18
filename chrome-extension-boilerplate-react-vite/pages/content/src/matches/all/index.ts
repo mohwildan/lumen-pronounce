@@ -1012,6 +1012,25 @@ chrome.storage.onChanged.addListener(() => {
   void checkActivation();
 });
 
+const PRO_OPTS = new Set([
+  'stress', 'length', 'diph_ai', 'diph_ei_oi', 'diph_ou_au',
+  'th_t', 'th_d', 'tmark', 'zmark', 'phonemes',
+]);
+
+async function getUserTier(): Promise<'free' | 'pro'> {
+  try {
+    const stored = await chrome.storage.local.get('ipa-auth');
+    return (stored['ipa-auth']?.user?.tier as 'free' | 'pro') ?? 'free';
+  } catch { return 'free'; }
+}
+
+function applyTierGating(rawOpts: Record<string, boolean>, tier: 'free' | 'pro'): Record<string, boolean> {
+  if (tier === 'pro') return rawOpts;
+  return Object.fromEntries(
+    Object.entries(rawOpts).map(([k, v]) => [k, PRO_OPTS.has(k) ? false : v]),
+  );
+}
+
 async function checkActivation(): Promise<void> {
   if (!isContextValid()) { teardown(); return; }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1019,7 +1038,10 @@ async function checkActivation(): Promise<void> {
   try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { teardown(); return; }
   const s = stored['ipa-settings'];
 
-  if (s?.opts) opts = { ...opts, ...s.opts };
+  if (s?.opts) {
+    const tier = await getUserTier();
+    opts = { ...opts, ...applyTierGating({ ...opts, ...s.opts }, tier) };
+  }
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
@@ -1082,7 +1104,10 @@ async function init(): Promise<void> {
     document.body.classList.add('ipa-disabled'); return;
   }
   hasProcessed = true;
-  if (s?.opts) opts = { ...opts, ...s.opts };
+  if (s?.opts) {
+    const tier = await getUserTier();
+    opts = { ...opts, ...applyTierGating({ ...opts, ...s.opts }, tier) };
+  }
   if (s?.targetLanguage) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;

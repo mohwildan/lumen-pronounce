@@ -1,0 +1,2 @@
+[functions.verify-checkout]
+verify_jwt = false

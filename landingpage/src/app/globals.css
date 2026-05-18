@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/typography";
+
+/* ── Design tokens as CSS custom properties ── */
+:root {
+  --cream:     #F4EEE1;
+  --paper:     #FBF7EC;
+  --card:      #FFFDF5;
+  --ink:       #1B1A17;
+  --ink-2:     #3B3832;
+  --ink-3:     #6B6659;
+  --ink-4:     #A39D8C;
+  --line:      #E4DDCB;
+  --line-2:    #D7CFB9;
+  --moss:      #5B7A4B;
+  --moss-2:    #466239;
+  --moss-soft: #C6D4B3;
+  --moss-tint: #E6ECDA;
+  --amber:     #C97A1E;
+  --sun:       #E8B560;
+  --berry:     #A34A52;
+}
+
+/* ── Font variable mapping ── */
+@theme inline {
+  --font-sans:      var(--font-inter);
+  --font-fraunces:  var(--font-fraunces);
+  --font-mono:      var(--font-jetbrains);
+}
+
+/* ── Tailwind color + z-index tokens ── */
+@theme {
+  --color-paper:     #FBF7EC;
+  --color-cream:     #F4EEE1;
+  --color-card:      #FFFDF5;
+  --color-ink:       #1B1A17;
+  --color-ink2:      #3B3832;
+  --color-ink3:      #6B6659;
+  --color-ink4:      #A39D8C;
+  --color-line:      #E4DDCB;
+  --color-line2:     #D7CFB9;
+  --color-moss:      #5B7A4B;
+  --color-moss2:     #466239;
+  --color-mosssoft:  #C6D4B3;
+  --color-mosstint:  #E6ECDA;
+  --color-amber:     #C97A1E;
+  --color-sun:       #E8B560;
+  --color-berry:     #A34A52;
+
+  --z-index-1: 1;
+  --z-index-2: 2;
+  --z-index-3: 3;
+  --z-index-4: 4;
+  --z-index-5: 5;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

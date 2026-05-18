@@ -1,3 +1,180 @@
+# Lumen Pronunciation — Developer Guide
+
+Chrome extension yang menampilkan fonetik IPA, warna vokal, dan terjemahan di atas teks Inggris. Stack: React + TypeScript + Vite + Supabase + Stripe.
+
+---
+
+## Prerequisites
+
+| Tool | Install |
+|------|---------|
+| Node >= 20 | `nvm install 20` |
+| pnpm | `npm i -g pnpm` |
+| Supabase CLI | `brew install supabase/tap/supabase` |
+
+---
+
+## 1. Clone & Install
+
+```bash
+git clone <repo-url>
+cd chrome-extension-boilerplate-react-vite
+pnpm install
+```
+
+---
+
+## 2. Environment Variables
+
+Buat file `.env` di root project:
+
+```bash
+cp .env.example .env 2>/dev/null || touch .env
+```
+
+Isi `.env`:
+
+```env
+CEB_SUPABASE_URL=https://sxqojqgmswxlmsjtzyce.supabase.co
+CEB_SUPABASE_ANON_KEY=<anon key dari Supabase Dashboard → Settings → API>
+```
+
+> Secret key Stripe dan Supabase service role **tidak boleh** ada di `.env` — hanya di Supabase secrets.
+
+---
+
+## 3. Development (Extension)
+
+```bash
+pnpm dev
+```
+
+Lalu load di Chrome:
+1. Buka `chrome://extensions`
+2. Aktifkan **Developer mode**
+3. Klik **Load unpacked** → pilih folder `dist`
+
+Extension otomatis hot-reload saat kode berubah.
+
+---
+
+## 4. Build Production
+
+```bash
+pnpm build        # Chrome
+pnpm build:firefox # Firefox
+pnpm zip          # Buat .zip siap upload ke Chrome Web Store
+```
+
+---
+
+## 5. Supabase Setup
+
+### Link project
+
+```bash
+supabase login
+supabase link --project-ref sxqojqgmswxlmsjtzyce
+```
+
+### Set secrets (Stripe + service role)
+
+```bash
+supabase secrets set STRIPE_SECRET_KEY=sk_test_...
+supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
+supabase secrets set STRIPE_PRICE_MONTHLY=price_...
+supabase secrets set STRIPE_PRICE_YEARLY=price_...
+supabase secrets set SERVICE_ROLE_KEY=eyJ...
+```
+
+### Database migration
+
+Jalankan SQL di Supabase Dashboard → SQL Editor:
+
+```sql
+alter table public.profiles
+  add column if not exists stripe_customer_id text unique,
+  add column if not exists subscription_id text,
+  add column if not exists subscription_status text default 'inactive';
+```
+
+### Deploy Edge Functions
+
+```bash
+supabase functions deploy create-checkout-session
+supabase functions deploy create-portal-session
+supabase functions deploy stripe-webhook
+```
+
+---
+
+## 6. Supabase Storage (Halaman Sukses Stripe)
+
+Upload halaman redirect setelah checkout berhasil:
+
+```bash
+# Edit dulu supabase/storage/upload.sh — isi SERVICE_ROLE_KEY dengan key kamu
+# (file ini sudah di .gitignore — jangan commit)
+bash supabase/storage/upload.sh
+```
+
+Script ini:
+1. Membuat bucket `pages` (public) di Supabase Storage
+2. Upload `supabase/storage/pro-activated.html`
+3. Re-deploy `create-checkout-session`
+
+---
+
+## 7. Stripe Setup
+
+1. Buka [Stripe Dashboard (test mode)](https://dashboard.stripe.com/test)
+2. Products → **New product** → "Lumen Pro"
+   - Price 1: $4 / month → catat `price_id` → set sebagai `STRIPE_PRICE_MONTHLY`
+   - Price 2: $36 / year → catat `price_id` → set sebagai `STRIPE_PRICE_YEARLY`
+3. Developers → Webhooks → **Add endpoint**:
+   - URL: `https://sxqojqgmswxlmsjtzyce.supabase.co/functions/v1/stripe-webhook`
+   - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+   - Catat webhook secret → set sebagai `STRIPE_WEBHOOK_SECRET`
+
+---
+
+## 8. Test Pembayaran
+
+Gunakan kartu test Stripe:
+
+| Field | Value |
+|-------|-------|
+| Card number | `4242 4242 4242 4242` |
+| Expiry | Tanggal mana saja di masa depan |
+| CVC | `123` |
+
+Setelah checkout → cek tabel `profiles` di Supabase → `tier` harus jadi `pro`.
+
+---
+
+## 9. Type Check
+
+```bash
+pnpm type-check
+```
+
+---
+
+## Struktur Penting
+
+```
+chrome-extension/src/background/  — service worker (Stripe + auth message handlers)
+pages/popup/src/Popup.tsx          — popup UI (upgrade button, locked opts)
+pages/options/src/Options.tsx      — options page (account, billing, settings)
+pages/content/src/matches/all/    — content script (feature gating per tier)
+packages/storage/lib/impl/         — ipa-auth-storage, ipa-settings-storage
+supabase/functions/                — edge functions (Deno)
+supabase/migrations/               — SQL migrations
+supabase/storage/                  — static pages (pro-activated.html)
+```
+
+---
+
 <div align="center">
 
 <picture>

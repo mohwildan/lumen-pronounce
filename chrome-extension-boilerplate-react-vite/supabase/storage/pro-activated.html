@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pro Activated · Lumen</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1915;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    color: #fdfbf6;
+    text-align: center;
+    padding: 24px;
+  }
+  .card {
+    padding: 48px 40px;
+    background: #22211c;
+    border: 1px solid #3e3c33;
+    border-radius: 20px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 24px 64px rgba(0,0,0,.4);
+  }
+  .emoji { font-size: 3rem; margin-bottom: 20px; }
+  h1 { font-size: 2rem; font-weight: 900; color: #da892b; margin-bottom: 12px; letter-spacing: -.02em; }
+  .sub { color: #c7c3b5; line-height: 1.7; margin-bottom: 28px; font-size: .95rem; }
+  .features {
+    list-style: none;
+    text-align: left;
+    background: rgba(218,137,43,.06);
+    border: 1px solid rgba(218,137,43,.18);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .features li { font-size: .85rem; color: #c7c3b5; display: flex; align-items: center; gap: 10px; }
+  .features li::before { content: '✓'; color: #da892b; font-weight: 800; flex-shrink: 0; }
+  .note {
+    font-size: .78rem;
+    color: #8c887a;
+    line-height: 1.6;
+    padding: 12px 16px;
+    background: rgba(255,255,255,.03);
+    border-radius: 8px;
+  }
+  .note strong { color: #c7c3b5; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🎉</div>
+    <h1>You're Pro!</h1>
+    <p class="sub">Your Lumen Pro subscription is now active. All phoneme markers are unlocked.</p>
+    <ul class="features">
+      <li>Stress accents on vowels</li>
+      <li>Diphthong markers /aɪ, eɪ, ɔɪ, oʊ, aʊ/</li>
+      <li>Long vowel markers (:)</li>
+      <li>TH / DH sound marks</li>
+      <li>T-sound morph &amp; Z-underline</li>
+      <li>Hidden phoneme superscripts</li>
+    </ul>
+    <p class="note">
+      <strong>Close this tab</strong> and return to the extension.<br>
+      Tier syncs automatically — may take up to 5 minutes.
+    </p>
+  </div>
+</body>
+</html>

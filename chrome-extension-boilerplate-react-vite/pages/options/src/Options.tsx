@@ -120,6 +120,11 @@ const LANGUAGES = [
   { code: 'zu', name: 'Zulu' }
 ];
 
+const PRO_OPT_IDS = new Set<keyof IpaOpts>([
+  'stress', 'length', 'diph_ai', 'diph_ei_oi', 'diph_ou_au',
+  'th_t', 'th_d', 'tmark', 'zmark', 'phonemes',
+]);
+
 type SettingRow = { id: keyof IpaOpts; label: string; desc: string };
 
 const ALL_OPTS: SettingRow[] = [
@@ -193,7 +198,10 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 /* ─── Tabs ─── */
 function SettingsTab() {
   const settings = useStorage(ipaSettingsStorage);
-  if (!settings) return null;
+  const auth = useStorage(ipaAuthStorage);
+  if (!settings || !auth) return null;
+
+  const tier = auth.user?.tier ?? 'free';
 
   const handleOpt = async (key: keyof IpaOpts, val: boolean) => {
     await ipaSettingsStorage.setOpt(key, val);
@@ -233,15 +241,35 @@ function SettingsTab() {
 
       <div className="opt-opts">
         <h3>Feature Toggles</h3>
-        {ALL_OPTS.map(row => (
-          <div key={row.id} className="opt-row">
-            <div className="opt-row-text">
-              <span>{row.label}</span>
-              <small>{row.desc}</small>
+        {ALL_OPTS.map(row => {
+          const locked = PRO_OPT_IDS.has(row.id) && tier !== 'pro';
+          return (
+            <div key={row.id} className={`opt-row${locked ? ' opt-row-locked' : ''}`}>
+              <div className="opt-row-text">
+                <span>
+                  {row.label}
+                  {PRO_OPT_IDS.has(row.id) && (
+                    <span className="opt-pro-badge">Pro</span>
+                  )}
+                </span>
+                <small>{row.desc}</small>
+                {locked && (
+                  <button
+                    className="opt-unlock-btn"
+                    onClick={() => ipaAuthStorage.openCheckout('year')}
+                  >
+                    Upgrade to unlock ↗
+                  </button>
+                )}
+              </div>
+              {locked ? (
+                <span className="opt-lock-icon">🔒</span>
+              ) : (
+                <Switch checked={settings.opts[row.id]} onChange={v => handleOpt(row.id, v)} />
+              )}
             </div>
-            <Switch checked={settings.opts[row.id]} onChange={v => handleOpt(row.id, v)} />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="opt-actions">
@@ -254,9 +282,13 @@ function SettingsTab() {
 function LoginTab() {
   const auth = useStorage(ipaAuthStorage);
   const [loading, setLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [interval, setInterval] = useState<'month' | 'year'>('year');
   const [error, setError] = useState('');
 
   if (!auth) return null;
+
+  const tier = auth.user?.tier ?? 'free';
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -272,25 +304,90 @@ function LoginTab() {
     setLoading(false);
   };
 
+  const handleUpgrade = async () => {
+    setBillingLoading(true);
+    await ipaAuthStorage.openCheckout(interval);
+    setBillingLoading(false);
+  };
+
+  const handleManageBilling = async () => {
+    setBillingLoading(true);
+    await ipaAuthStorage.openPortal();
+    setBillingLoading(false);
+  };
+
+  const PRO_FEATURES = [
+    'Stress accents on vowels',
+    'Diphthong markers /aɪ, eɪ, ɔɪ, oʊ, aʊ/',
+    'Long vowel markers (:)',
+    'TH / DH sound marks',
+    'T-sound morph & Z-underline',
+    'Hidden phoneme superscripts',
+  ];
+
   return (
     <div className="opt-section">
       {auth.isLoggedIn && auth.user ? (
         <>
           <h2>Account</h2>
           <p className="opt-section-desc">Your settings sync across devices while signed in.</p>
+
           <div className="opt-profile">
             <img src={auth.user.picture} alt={auth.user.name} className="opt-profile-img" />
             <div className="opt-profile-info">
               <strong>{auth.user.name}</strong>
               <span>{auth.user.email}</span>
-              <span style={{ fontSize: '.72rem', color: 'var(--primary-lt)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                {auth.user.tier ?? 'free'}
-              </span>
+              <span className={`opt-tier-badge opt-tier-${tier}`}>{tier === 'pro' ? 'Pro · Active' : 'Free Plan'}</span>
             </div>
             <button className="opt-btn-outline" onClick={handleLogout} disabled={loading}>
               {loading ? 'Signing out…' : 'Sign Out'}
             </button>
           </div>
+
+          {tier === 'pro' ? (
+            <div className="opt-billing-card opt-billing-pro">
+              <div className="opt-billing-header">
+                <span className="opt-billing-status-dot" />
+                <strong>Pro subscription active</strong>
+              </div>
+              <p className="opt-billing-desc">All phoneme markers are unlocked. Manage or cancel your subscription below.</p>
+              <button className="opt-btn-manage" onClick={handleManageBilling} disabled={billingLoading}>
+                {billingLoading ? 'Opening…' : 'Manage Billing ↗'}
+              </button>
+            </div>
+          ) : (
+            <div className="opt-billing-card opt-billing-free">
+              <div className="opt-billing-header">
+                <strong>Upgrade to Pro</strong>
+                <span className="opt-billing-trial">14-day free trial</span>
+              </div>
+              <p className="opt-billing-desc">Unlock all phoneme markers to see every sound pattern in English text.</p>
+              <ul className="opt-pro-feature-list">
+                {PRO_FEATURES.map(f => (
+                  <li key={f}>
+                    <span className="opt-pro-check">✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+              <div className="opt-interval-toggle">
+                <button
+                  className={`opt-interval-btn${interval === 'month' ? ' active' : ''}`}
+                  onClick={() => setInterval('month')}
+                >
+                  Monthly · $4
+                </button>
+                <button
+                  className={`opt-interval-btn${interval === 'year' ? ' active' : ''}`}
+                  onClick={() => setInterval('year')}
+                >
+                  Yearly · $36 <span className="opt-save-badge">save 25%</span>
+                </button>
+              </div>
+              <button className="opt-btn-upgrade" onClick={handleUpgrade} disabled={billingLoading}>
+                {billingLoading ? 'Opening checkout…' : `Start free trial →`}
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <div className="opt-login">
@@ -311,7 +408,6 @@ function LoginTab() {
               </>
             )}
           </button>
-
         </div>
       )}
     </div>

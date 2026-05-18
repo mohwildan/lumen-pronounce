@@ -34,24 +34,24 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 type Profile = { id: string; email: string; name: string; avatar_url: string; tier: 'free' | 'pro' };
 
 async function upsertProfile(user: User): Promise<Profile> {
+  // Always fetch fresh from DB to get latest tier
+  const { data: existing } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  if (existing) return existing as Profile;
+
+  // First time — insert new profile
   const { data } = await supabase
     .from('profiles')
-    .upsert(
-      {
-        id: user.id,
-        email: user.email ?? '',
-        name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? '',
-        avatar_url: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? '',
-      },
-      { onConflict: 'id', ignoreDuplicates: true },
-    )
+    .insert({
+      id: user.id,
+      email: user.email ?? '',
+      name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? '',
+      avatar_url: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? '',
+      tier: 'free',
+    })
     .select()
     .single();
 
-  if (data) return data as Profile;
-
-  const { data: existing } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-  return (existing as Profile) ?? {
+  return (data as Profile) ?? {
     id: user.id,
     email: user.email ?? '',
     name: user.user_metadata?.full_name ?? '',
@@ -178,6 +178,66 @@ async function handleGetSession(sendResponse: (r: object) => void): Promise<void
   }
 }
 
+// ── Stripe handlers ──────────────────────────────────────────────
+
+const SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+
+async function syncTierFromDb(userId: string): Promise<'free' | 'pro'> {
+  const { data } = await supabase.from('profiles').select('tier').eq('id', userId).single();
+  return (data?.tier as 'free' | 'pro') ?? 'free';
+}
+
+async function handleSyncTier(sendResponse: (r: object) => void): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ tier: 'free' }); return; }
+    // Use upsertProfile + saveAuthState — same path as login, triggers storage listeners correctly
+    const profile = await upsertProfile(session.user);
+    await saveAuthState(session.user, profile);
+    sendResponse({ tier: profile.tier });
+  } catch (e) { sendResponse({ error: String(e) }); }
+}
+
+async function handleOpenCheckout(
+  msg: { interval: 'month' | 'year' },
+  sendResponse: (r: object) => void,
+): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ error: 'Not logged in' }); return; }
+    const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ interval: msg.interval }),
+    });
+    const data = await res.json() as { url?: string; error?: string };
+    if (!data.url) { sendResponse({ error: data.error ?? 'No checkout URL' }); return; }
+    await chrome.tabs.create({ url: data.url });
+    sendResponse({ ok: true });
+  } catch (e) { sendResponse({ error: String(e) }); }
+}
+
+async function handleOpenPortal(sendResponse: (r: object) => void): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ error: 'Not logged in' }); return; }
+    const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/create-portal-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+    const data = await res.json() as { url?: string; error?: string };
+    if (!data.url) { sendResponse({ error: data.error ?? 'No portal URL' }); return; }
+    await chrome.tabs.create({ url: data.url });
+    sendResponse({ ok: true });
+  } catch (e) { sendResponse({ error: String(e) }); }
+}
+
 // ── Message router ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -188,6 +248,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'SUPABASE_LOGOUT') { void handleLogout(sendResponse); return true; }
   if (msg.type === 'SUPABASE_GET_SESSION') { void handleGetSession(sendResponse); return true; }
   if (msg.type === 'TTS_FETCH') { void handleTts(msg.word as string, sendResponse); return true; }
+  if (msg.type === 'SYNC_TIER') { void handleSyncTier(sendResponse); return true; }
+  if (msg.type === 'STRIPE_OPEN_CHECKOUT') { void handleOpenCheckout(msg as { interval: 'month' | 'year' }, sendResponse); return true; }
+  if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
   return false;
 });
 
@@ -217,4 +280,47 @@ async function handleTts(word: string, sendResponse: (r: object) => void): Promi
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[IPA Stylizer] Extension installed');
+});
+
+// Sync tier from DB on service worker startup
+(async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const profile = await upsertProfile(session.user);
+    await saveAuthState(session.user, profile);
+  } catch { /* silent */ }
+})();
+
+// Refresh tier from DB every 5 minutes
+setInterval(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  const tier = await syncTierFromDb(session.user.id);
+  const stored = await chrome.storage.local.get('ipa-auth');
+  const auth = stored['ipa-auth'];
+  if (auth?.user && auth.user.tier !== tier) {
+    auth.user.tier = tier;
+    await chrome.storage.local.set({ 'ipa-auth': auth });
+  }
+}, 5 * 60 * 1000);
+
+// Immediately sync tier when user lands on success page after checkout
+const SUCCESS_URL_PATTERNS = ['localhost:3000/pro-activated', 'lumenpronunciation.com/pro-activated'];
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return;
+  const url = tab.url ?? '';
+  if (!SUCCESS_URL_PATTERNS.some(p => url.includes(p))) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+
+  const tier = await syncTierFromDb(session.user.id);
+  const stored = await chrome.storage.local.get('ipa-auth');
+  const auth = stored['ipa-auth'];
+  if (auth?.user) {
+    auth.user.tier = tier;
+    await chrome.storage.local.set({ 'ipa-auth': auth });
+  }
 });

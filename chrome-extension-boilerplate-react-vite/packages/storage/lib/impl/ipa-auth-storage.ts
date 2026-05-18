@@ -26,6 +26,9 @@ export type IpaAuthStorageType = BaseStorageType<IpaAuthState> & {
   signUp: (email: string, password: string, name?: string) => Promise<{ user?: IpaUser; error?: string }>;
   loginWithGoogle: () => Promise<{ user?: IpaUser; error?: string }>;
   logout: () => Promise<void>;
+  openCheckout: (interval: 'month' | 'year') => Promise<{ ok?: boolean; error?: string }>;
+  openPortal: () => Promise<{ ok?: boolean; error?: string }>;
+  syncTier: () => Promise<{ tier?: 'free' | 'pro'; error?: string }>;
 };
 
 const storage = createStorage<IpaAuthState>('ipa-auth', DEFAULT_AUTH, {
@@ -96,4 +99,19 @@ export const ipaAuthStorage: IpaAuthStorageType = {
     new Promise<void>(resolve => {
       chrome.runtime.sendMessage({ type: 'SUPABASE_LOGOUT' }, () => resolve());
     }),
+
+  openCheckout: async (interval) => {
+    const res = await msg<{ ok?: boolean; error?: string }>('STRIPE_OPEN_CHECKOUT', { interval });
+    return res ?? { error: 'No response from background' };
+  },
+
+  openPortal: async () => {
+    const res = await msg<{ ok?: boolean; error?: string }>('STRIPE_OPEN_PORTAL');
+    return res ?? { error: 'No response from background' };
+  },
+
+  syncTier: async () => {
+    const res = await msg<{ tier?: 'free' | 'pro'; error?: string }>('SYNC_TIER');
+    return res ?? { error: 'No response from background' };
+  },
 };

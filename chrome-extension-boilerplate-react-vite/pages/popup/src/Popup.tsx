@@ -197,6 +197,11 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
+const PRO_OPT_IDS = new Set<keyof IpaOpts>([
+  'stress', 'length', 'diph_ai', 'diph_ei_oi', 'diph_ou_au',
+  'th_t', 'th_d', 'tmark', 'zmark', 'phonemes',
+]);
+
 const Popup = () => {
   const settings = useStorage(ipaSettingsStorage);
   const auth = useStorage(ipaAuthStorage);
@@ -207,6 +212,8 @@ const Popup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [interval, setInterval] = useState<'month' | 'year'>('year');
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
@@ -216,6 +223,8 @@ const Popup = () => {
       }
       setDomainLoading(false);
     });
+    // Sync tier from DB every time popup opens
+    ipaAuthStorage.syncTier().catch(() => {});
   }, []);
 
   if (!settings || !auth) return null;
@@ -335,20 +344,40 @@ const Popup = () => {
       {/* ── Modifications ── */}
       <div className="ipa-section">
         <div className="ipa-section-title"><IconSparkles />Modifications</div>
-        {MOD_ROWS.map(row => (
-          <div key={row.id} className="ipa-row">
-            <div className="ipa-row-label">
-              <span>
-                {row.label}{' '}
-                <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
-              </span>
+        {MOD_ROWS.map(row => {
+          const isPro = PRO_OPT_IDS.has(row.id);
+          const tier = auth.user?.tier ?? 'free';
+          const locked = isPro && tier !== 'pro';
+          return (
+            <div key={row.id} className={`ipa-row${locked ? ' ipa-row-locked' : ''}`}>
+              <div className="ipa-row-label">
+                <span>
+                  {row.label}{' '}
+                  <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
+                </span>
+                {locked && <span className="ipa-pro-badge">Pro</span>}
+              </div>
+              {locked ? (
+                <button
+                  className="ipa-lock-btn"
+                  onClick={async () => {
+                    setUpgradeLoading(true);
+                    await ipaAuthStorage.openCheckout(interval);
+                    setUpgradeLoading(false);
+                  }}
+                  title="Upgrade to Pro"
+                >
+                  🔒
+                </button>
+              ) : (
+                <Switch
+                  checked={settings.opts[row.id]}
+                  onChange={v => ipaSettingsStorage.setOpt(row.id, v)}
+                />
+              )}
             </div>
-            <Switch
-              checked={settings.opts[row.id]}
-              onChange={v => ipaSettingsStorage.setOpt(row.id, v)}
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Footer / Auth ── */}
@@ -431,6 +460,42 @@ const Popup = () => {
                 {(auth.user?.tier ?? 'free').toUpperCase()}
               </span>
             </span>
+
+            {auth.user?.tier !== 'pro' ? (
+              <div className="ipa-upgrade-block">
+                <div className="ipa-interval-toggle">
+                  <button
+                    className={interval === 'month' ? 'active' : ''}
+                    onClick={() => setInterval('month')}
+                  >Monthly · $4</button>
+                  <button
+                    className={interval === 'year' ? 'active' : ''}
+                    onClick={() => setInterval('year')}
+                  >Yearly · $3<small>/mo</small></button>
+                </div>
+                <button
+                  className="ipa-upgrade-btn"
+                  disabled={upgradeLoading}
+                  onClick={async () => {
+                    setUpgradeLoading(true);
+                    await ipaAuthStorage.openCheckout(interval);
+                    setUpgradeLoading(false);
+                  }}
+                >
+                  {upgradeLoading ? '…' : '⬆ Upgrade to Pro'}
+                </button>
+              </div>
+            ) : (
+              <button
+                className="ipa-manage-btn"
+                onClick={async () => {
+                  await ipaAuthStorage.openPortal();
+                }}
+              >
+                Manage subscription
+              </button>
+            )}
+
             <button className="ipa-logout-btn" onClick={() => ipaAuthStorage.logout()}>Sign out</button>
           </div>
         )}
