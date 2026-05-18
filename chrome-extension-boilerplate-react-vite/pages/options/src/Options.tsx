@@ -5,119 +5,39 @@ import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
 import type { IpaOpts } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
-type Tab = 'settings' | 'translation' | 'login' | 'dictionary';
+type Tab = 'settings' | 'translation' | 'account' | 'dictionary';
 
 const LANGUAGES = [
   { code: 'none', name: 'Off' },
-  { code: 'af', name: 'Afrikaans' },
-  { code: 'sq', name: 'Albanian' },
-  { code: 'am', name: 'Amharic' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'hy', name: 'Armenian' },
-  { code: 'az', name: 'Azerbaijani' },
-  { code: 'eu', name: 'Basque' },
-  { code: 'be', name: 'Belarusian' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'bs', name: 'Bosnian' },
-  { code: 'bg', name: 'Bulgarian' },
-  { code: 'ca', name: 'Catalan' },
-  { code: 'ceb', name: 'Cebuano' },
-  { code: 'ny', name: 'Chichewa' },
-  { code: 'zh-CN', name: 'Chinese (S)' },
-  { code: 'zh-TW', name: 'Chinese (T)' },
-  { code: 'co', name: 'Corsican' },
-  { code: 'hr', name: 'Croatian' },
-  { code: 'cs', name: 'Czech' },
-  { code: 'da', name: 'Danish' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'en', name: 'English' },
-  { code: 'eo', name: 'Esperanto' },
-  { code: 'et', name: 'Estonian' },
-  { code: 'tl', name: 'Filipino' },
-  { code: 'fi', name: 'Finnish' },
-  { code: 'fr', name: 'French' },
-  { code: 'fy', name: 'Frisian' },
-  { code: 'gl', name: 'Galician' },
-  { code: 'ka', name: 'Georgian' },
-  { code: 'de', name: 'German' },
-  { code: 'el', name: 'Greek' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'ht', name: 'Haitian Creole' },
-  { code: 'ha', name: 'Hausa' },
-  { code: 'haw', name: 'Hawaiian' },
-  { code: 'iw', name: 'Hebrew' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'hmn', name: 'Hmong' },
-  { code: 'hu', name: 'Hungarian' },
-  { code: 'is', name: 'Icelandic' },
-  { code: 'ig', name: 'Igbo' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'ga', name: 'Irish' },
-  { code: 'it', name: 'Italian' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'jw', name: 'Javanese' },
-  { code: 'kn', name: 'Kannada' },
-  { code: 'kk', name: 'Kazakh' },
-  { code: 'km', name: 'Khmer' },
-  { code: 'rw', name: 'Kinyarwanda' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'ku', name: 'Kurdish' },
-  { code: 'ky', name: 'Kyrgyz' },
-  { code: 'lo', name: 'Lao' },
-  { code: 'la', name: 'Latin' },
-  { code: 'lv', name: 'Latvian' },
-  { code: 'lt', name: 'Lithuanian' },
-  { code: 'lb', name: 'Luxembourgish' },
-  { code: 'mk', name: 'Macedonian' },
-  { code: 'mg', name: 'Malagasy' },
-  { code: 'ms', name: 'Malay' },
-  { code: 'ml', name: 'Malayalam' },
-  { code: 'mt', name: 'Maltese' },
-  { code: 'mi', name: 'Maori' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'mn', name: 'Mongolian' },
-  { code: 'my', name: 'Burmese' },
-  { code: 'ne', name: 'Nepali' },
-  { code: 'no', name: 'Norwegian' },
-  { code: 'or', name: 'Odia' },
-  { code: 'ps', name: 'Pashto' },
-  { code: 'fa', name: 'Persian' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'pa', name: 'Punjabi' },
-  { code: 'ro', name: 'Romanian' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'sm', name: 'Samoan' },
-  { code: 'gd', name: 'Scots Gaelic' },
-  { code: 'sr', name: 'Serbian' },
-  { code: 'st', name: 'Sesotho' },
-  { code: 'sn', name: 'Shona' },
-  { code: 'sd', name: 'Sindhi' },
-  { code: 'si', name: 'Sinhala' },
-  { code: 'sk', name: 'Slovak' },
-  { code: 'sl', name: 'Slovenian' },
-  { code: 'so', name: 'Somali' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'su', name: 'Sundanese' },
-  { code: 'sw', name: 'Swahili' },
-  { code: 'sv', name: 'Swedish' },
-  { code: 'tg', name: 'Tajik' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'tt', name: 'Tatar' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'th', name: 'Thai' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'tk', name: 'Turkmen' },
-  { code: 'uk', name: 'Ukrainian' },
-  { code: 'ur', name: 'Urdu' },
-  { code: 'ug', name: 'Uyghur' },
-  { code: 'uz', name: 'Uzbek' },
-  { code: 'vi', name: 'Vietnamese' },
-  { code: 'cy', name: 'Welsh' },
-  { code: 'xh', name: 'Xhosa' },
-  { code: 'yi', name: 'Yiddish' },
-  { code: 'yo', name: 'Yoruba' },
-  { code: 'zu', name: 'Zulu' }
+  { code: 'af', name: 'Afrikaans' }, { code: 'sq', name: 'Albanian' }, { code: 'am', name: 'Amharic' },
+  { code: 'ar', name: 'Arabic' }, { code: 'hy', name: 'Armenian' }, { code: 'az', name: 'Azerbaijani' },
+  { code: 'eu', name: 'Basque' }, { code: 'be', name: 'Belarusian' }, { code: 'bn', name: 'Bengali' },
+  { code: 'bs', name: 'Bosnian' }, { code: 'bg', name: 'Bulgarian' }, { code: 'ca', name: 'Catalan' },
+  { code: 'ceb', name: 'Cebuano' }, { code: 'zh-CN', name: 'Chinese (S)' }, { code: 'zh-TW', name: 'Chinese (T)' },
+  { code: 'hr', name: 'Croatian' }, { code: 'cs', name: 'Czech' }, { code: 'da', name: 'Danish' },
+  { code: 'nl', name: 'Dutch' }, { code: 'en', name: 'English' }, { code: 'eo', name: 'Esperanto' },
+  { code: 'et', name: 'Estonian' }, { code: 'tl', name: 'Filipino' }, { code: 'fi', name: 'Finnish' },
+  { code: 'fr', name: 'French' }, { code: 'gl', name: 'Galician' }, { code: 'ka', name: 'Georgian' },
+  { code: 'de', name: 'German' }, { code: 'el', name: 'Greek' }, { code: 'gu', name: 'Gujarati' },
+  { code: 'ht', name: 'Haitian Creole' }, { code: 'ha', name: 'Hausa' }, { code: 'haw', name: 'Hawaiian' },
+  { code: 'iw', name: 'Hebrew' }, { code: 'hi', name: 'Hindi' }, { code: 'hu', name: 'Hungarian' },
+  { code: 'is', name: 'Icelandic' }, { code: 'id', name: 'Indonesian' }, { code: 'ga', name: 'Irish' },
+  { code: 'it', name: 'Italian' }, { code: 'ja', name: 'Japanese' }, { code: 'jw', name: 'Javanese' },
+  { code: 'kn', name: 'Kannada' }, { code: 'kk', name: 'Kazakh' }, { code: 'km', name: 'Khmer' },
+  { code: 'ko', name: 'Korean' }, { code: 'ku', name: 'Kurdish' }, { code: 'lo', name: 'Lao' },
+  { code: 'la', name: 'Latin' }, { code: 'lv', name: 'Latvian' }, { code: 'lt', name: 'Lithuanian' },
+  { code: 'mk', name: 'Macedonian' }, { code: 'ms', name: 'Malay' }, { code: 'ml', name: 'Malayalam' },
+  { code: 'mt', name: 'Maltese' }, { code: 'mi', name: 'Maori' }, { code: 'mr', name: 'Marathi' },
+  { code: 'mn', name: 'Mongolian' }, { code: 'my', name: 'Burmese' }, { code: 'ne', name: 'Nepali' },
+  { code: 'no', name: 'Norwegian' }, { code: 'fa', name: 'Persian' }, { code: 'pl', name: 'Polish' },
+  { code: 'pt', name: 'Portuguese' }, { code: 'pa', name: 'Punjabi' }, { code: 'ro', name: 'Romanian' },
+  { code: 'ru', name: 'Russian' }, { code: 'sr', name: 'Serbian' }, { code: 'si', name: 'Sinhala' },
+  { code: 'sk', name: 'Slovak' }, { code: 'sl', name: 'Slovenian' }, { code: 'so', name: 'Somali' },
+  { code: 'es', name: 'Spanish' }, { code: 'sw', name: 'Swahili' }, { code: 'sv', name: 'Swedish' },
+  { code: 'ta', name: 'Tamil' }, { code: 'te', name: 'Telugu' }, { code: 'th', name: 'Thai' },
+  { code: 'tr', name: 'Turkish' }, { code: 'uk', name: 'Ukrainian' }, { code: 'ur', name: 'Urdu' },
+  { code: 'uz', name: 'Uzbek' }, { code: 'vi', name: 'Vietnamese' }, { code: 'cy', name: 'Welsh' },
+  { code: 'yi', name: 'Yiddish' }, { code: 'yo', name: 'Yoruba' }, { code: 'zu', name: 'Zulu' },
 ];
 
 const PRO_OPT_IDS = new Set<keyof IpaOpts>([
@@ -125,26 +45,29 @@ const PRO_OPT_IDS = new Set<keyof IpaOpts>([
   'th_t', 'th_d', 'tmark', 'zmark', 'phonemes',
 ]);
 
-type SettingRow = { id: keyof IpaOpts; label: string; desc: string };
+type SettingRow = { id: keyof IpaOpts; label: string; desc: string; swatch?: string };
 
-const ALL_OPTS: SettingRow[] = [
-  { id: 'silent',     label: 'Ghost Letters',       desc: 'Fade silent letters to show which characters make no sound' },
-  { id: 'color_e',    label: 'Color /ɛ/ Red',       desc: 'Color the "e" vowel sound red (bed, head, said)' },
-  { id: 'color_i',    label: 'Color /i/ Green',     desc: 'Color the long "ee" vowel sound green (receipt, ski)' },
-  { id: 'color_u_alt',label: 'Color /ʌ/ Purple',    desc: 'Color the "uh" vowel sound purple (some, blood, love)' },
-  { id: 'color_a',    label: 'Color /æ/ Pink',      desc: 'Color the "a" vowel sound pink (cat, trap, hand)' },
-  { id: 'color_u',    label: 'Color /u/ Teal',      desc: 'Color the long "oo" vowel sound teal (tomb, blue, shoe)' },
-  { id: 'color_o',    label: 'Color /ɔ/ Amber',     desc: 'Color the "aw" vowel sound amber (quarter, law, thought)' },
-  { id: 'stress',     label: 'Stress Accents',      desc: 'Add accent marks on stressed vowels (updáte, éven)' },
-  { id: 'length',     label: 'Long Vowels (:)',      desc: 'Show colon after long vowels (sŏn:, tō:mb)' },
-  { id: 'diph_ai',   label: 'Diphthong /aɪ/',      desc: 'Show superscript on the /aɪ/ diphthong (item, ice)' },
-  { id: 'diph_ei_oi',label: 'Diphthongs /eɪ, ɔɪ/', desc: 'Show superscript on /eɪ/ and /ɔɪ/ diphthongs (great, boy)' },
-  { id: 'diph_ou_au',label: 'Diphthongs /oʊ, aʊ/', desc: 'Show superscript on /oʊ/ and /aʊ/ diphthongs (road, out)' },
-  { id: 'th_t',      label: 'TH Mark /θ/',          desc: 'Mark voiceless TH with superscript ᵗ (thin, think)' },
-  { id: 'th_d',      label: 'DH Mark /ð/',          desc: 'Mark voiced TH with superscript ᵈ (this, there)' },
-  { id: 'tmark',     label: 'T-Sound Morph',        desc: 'Show ᵗ when T is spelled differently (asked, debt)' },
-  { id: 'zmark',     label: 'Z-Sound Lines',        desc: 'Underline letters that make a Z sound (visit, dogs)' },
-  { id: 'phonemes',  label: 'Hidden Phonemes',      desc: 'Show superscript for ghost phonemes that have no letter (one → wone)' },
+const COLOR_OPTS: SettingRow[] = [
+  { id: 'silent',      label: 'Ghost Letters',  desc: 'Fade silent letters to show which characters are unpronounced' },
+  { id: 'color_e',     label: '/ɛ/ Red',         desc: 'bed, head, said — short e sound',     swatch: '#e53935' },
+  { id: 'color_i',     label: '/i/ Green',       desc: 'receipt, ski — long ee sound',         swatch: '#2e7d32' },
+  { id: 'color_u_alt', label: '/ʌ/ Purple',      desc: 'some, blood, love — uh vowel',         swatch: '#8e24aa' },
+  { id: 'color_a',     label: '/æ/ Pink',         desc: 'cat, trap, hand — short a sound',     swatch: '#d81b60' },
+  { id: 'color_u',     label: '/u/ Teal',         desc: 'tomb, blue, shoe — long oo sound',    swatch: '#00838f' },
+  { id: 'color_o',     label: '/ɔ/ Amber',        desc: 'quarter, law, thought — aw sound',    swatch: '#e65100' },
+];
+
+const PHONETIC_OPTS: SettingRow[] = [
+  { id: 'stress',      label: 'Stress Accents',       desc: 'Accent mark on stressed vowels — updáte, récord' },
+  { id: 'length',      label: 'Long Vowels (:)',       desc: 'Colon after long vowels — soon:, tomb:' },
+  { id: 'diph_ai',    label: 'Diphthong /aɪ/',        desc: 'Superscript on /aɪ/ — item, ice, eye' },
+  { id: 'diph_ei_oi', label: 'Diphthongs /eɪ, ɔɪ/',  desc: 'Superscript on /eɪ/ and /ɔɪ/ — great, boy' },
+  { id: 'diph_ou_au', label: 'Diphthongs /oʊ, aʊ/',  desc: 'Superscript on /oʊ/ and /aʊ/ — road, out' },
+  { id: 'th_t',       label: 'TH Mark /θ/',            desc: 'Voiceless TH superscript — thin, think, through' },
+  { id: 'th_d',       label: 'DH Mark /ð/',            desc: 'Voiced TH superscript — this, there, that' },
+  { id: 'tmark',      label: 'T-Sound Morph',          desc: 'Show ᵗ when T is spelled differently — asked, debt' },
+  { id: 'zmark',      label: 'Z-Sound Lines',          desc: 'Underline letters that make a Z sound — visit, dogs' },
+  { id: 'phonemes',   label: 'Hidden Phonemes',        desc: 'Superscript for unpronounced letters — one → ʷone' },
 ];
 
 /* ─── Icons ─── */
@@ -178,244 +101,180 @@ const IconBook = () => (
   </svg>
 );
 
-const IconLock = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
 /* ─── Switch ─── */
-function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <label className="opt-switch">
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+    <label className={`opt-switch${disabled ? ' opt-switch-disabled' : ''}`}>
+      <input type="checkbox" checked={checked} onChange={e => !disabled && onChange(e.target.checked)} disabled={disabled} />
       <span className="opt-slider" />
     </label>
   );
 }
 
-/* ─── Tabs ─── */
+/* ─── Section label ─── */
+function SectionLabel({ children }: { children: ReactNode }) {
+  return <div className="opt-group-label">{children}</div>;
+}
+
+/* ─── Settings Tab ─── */
 function SettingsTab() {
   const settings = useStorage(ipaSettingsStorage);
   const auth = useStorage(ipaAuthStorage);
-  if (!settings || !auth) return null;
+  const [confirmReset, setConfirmReset] = useState(false);
 
+  if (!settings || !auth) return null;
   const tier = auth.user?.tier ?? 'free';
 
-  const handleOpt = async (key: keyof IpaOpts, val: boolean) => {
-    await ipaSettingsStorage.setOpt(key, val);
-  };
-
-  const handleReset = async () => {
-    if (confirm('Reset all settings to defaults?')) {
-      await ipaSettingsStorage.reset();
-    }
-  };
+  const siteOverrideEntries = Object.entries(settings.siteOverrides ?? {});
 
   return (
     <div className="opt-section">
-      <h2>Extension Settings</h2>
-      <p className="opt-section-desc">Control which phonetic features are active across all websites.</p>
+      <div className="opt-page-header">
+        <h2>Settings</h2>
+        <p className="opt-section-desc">Control phonetic features and per-site behavior.</p>
+      </div>
 
-      <div className="opt-global-row">
-        <span>Global Enable</span>
+      {/* Global toggle */}
+      <div className={`opt-global-card${settings.enabled ? ' opt-global-on' : ' opt-global-off'}`}>
+        <div className="opt-global-info">
+          <span className="opt-global-name">Extension</span>
+          <span className="opt-global-status">
+            {settings.enabled ? 'Active — processing all pages' : 'Paused — no pages processed'}
+          </span>
+        </div>
         <Switch checked={settings.enabled} onChange={v => ipaSettingsStorage.setEnabled(v)} />
       </div>
 
-      <div className="opt-blacklist">
-        <h3>Site Overrides</h3>
-        {Object.keys(settings.siteOverrides ?? {}).length === 0 ? (
-          <p className="opt-empty">No site overrides — all sites follow global setting.</p>
-        ) : (
-          <ul>
-            {Object.entries(settings.siteOverrides ?? {}).map(([host, enabled]) => (
-              <li key={host}>
-                <span className={enabled ? 'opt-site-on' : 'opt-site-off'}>
-                  {enabled ? '✓' : '✕'} {host}
-                </span>
-                <button onClick={() => ipaSettingsStorage.clearSiteOverride(host)}>Remove</button>
-              </li>
+      {/* Site overrides — only shown when non-empty */}
+      {siteOverrideEntries.length > 0 && (
+        <div className="opt-overrides">
+          <SectionLabel>Site Overrides</SectionLabel>
+          <div className="opt-override-pills">
+            {siteOverrideEntries.map(([host, enabled]) => (
+              <div key={host} className={`opt-pill${enabled ? ' opt-pill-on' : ' opt-pill-off'}`}>
+                <span className="opt-pill-dot" />
+                <span>{host}</span>
+                <button
+                  className="opt-pill-remove"
+                  title="Remove override"
+                  onClick={() => ipaSettingsStorage.clearSiteOverride(host)}
+                >
+                  ×
+                </button>
+              </div>
             ))}
-          </ul>
-        )}
+          </div>
+          <p className="opt-overrides-hint">
+            Override set from the popup while browsing. Force a site on or off regardless of global setting.
+          </p>
+        </div>
+      )}
+
+      {/* Color Coding */}
+      <SectionLabel>Color Coding</SectionLabel>
+      <div className="opt-rows">
+        {COLOR_OPTS.map(row => (
+          <div key={row.id} className="opt-row">
+            <div className="opt-row-body">
+              {row.swatch
+                ? <span className="opt-swatch" style={{ background: row.swatch }} />
+                : <span className="opt-swatch opt-swatch-ghost" />
+              }
+              <div className="opt-row-text">
+                <span className="opt-row-name">{row.label}</span>
+                <small>{row.desc}</small>
+              </div>
+            </div>
+            <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
+          </div>
+        ))}
       </div>
 
-      <div className="opt-opts">
-        <h3>Feature Toggles</h3>
-        {ALL_OPTS.map(row => {
+      {/* Phonetic Markers */}
+      <SectionLabel>
+        Phonetic Markers
+        {tier !== 'pro' && (
+          <span className="opt-group-pro-note">Pro required for some</span>
+        )}
+      </SectionLabel>
+      <div className="opt-rows">
+        {PHONETIC_OPTS.map(row => {
           const locked = PRO_OPT_IDS.has(row.id) && tier !== 'pro';
           return (
-            <div key={row.id} className={`opt-row${locked ? ' opt-row-locked' : ''}`}>
-              <div className="opt-row-text">
-                <span>
-                  {row.label}
-                  {PRO_OPT_IDS.has(row.id) && (
-                    <span className="opt-pro-badge">Pro</span>
-                  )}
-                </span>
-                <small>{row.desc}</small>
-                {locked && (
-                  <button
-                    className="opt-unlock-btn"
-                    onClick={() => ipaAuthStorage.openCheckout('year')}
-                  >
-                    Upgrade to unlock ↗
-                  </button>
-                )}
+            <div
+              key={row.id}
+              className={`opt-row${locked ? ' opt-row-locked' : ''}`}
+              onClick={locked ? () => ipaAuthStorage.openCheckout('year') : undefined}
+            >
+              <div className="opt-row-body">
+                <span className="opt-swatch opt-swatch-ghost" />
+                <div className="opt-row-text">
+                  <div className="opt-row-name-wrap">
+                    <span className="opt-row-name">{row.label}</span>
+                    {PRO_OPT_IDS.has(row.id) && <span className="opt-pro-badge">Pro</span>}
+                  </div>
+                  <small>{row.desc}</small>
+                </div>
               </div>
               {locked ? (
-                <span className="opt-lock-icon">🔒</span>
+                <button
+                  className="opt-upgrade-inline"
+                  onClick={e => { e.stopPropagation(); void ipaAuthStorage.openCheckout('year'); }}
+                >
+                  Upgrade ↗
+                </button>
               ) : (
-                <Switch checked={settings.opts[row.id]} onChange={v => handleOpt(row.id, v)} />
+                <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
               )}
             </div>
           );
         })}
       </div>
 
+      {/* Behavior */}
+      <SectionLabel>Behavior</SectionLabel>
+      <div className="opt-rows">
+        <div className="opt-row">
+          <div className="opt-row-body">
+            <span className="opt-swatch opt-swatch-ghost" />
+            <div className="opt-row-text">
+              <span className="opt-row-name">Pause video on hover</span>
+              <small>Pause playing video when hovering over highlighted words</small>
+            </div>
+          </div>
+          <Switch
+            checked={settings.pauseOnHover ?? false}
+            onChange={v => ipaSettingsStorage.setPauseOnHover(v)}
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
       <div className="opt-actions">
-        <button className="opt-btn-danger" onClick={handleReset}>Reset to Defaults</button>
+        {confirmReset ? (
+          <div className="opt-confirm-row">
+            <span className="opt-confirm-text">Reset all settings to defaults?</span>
+            <button
+              className="opt-btn-confirm-yes"
+              onClick={async () => { await ipaSettingsStorage.reset(); setConfirmReset(false); }}
+            >
+              Yes, reset
+            </button>
+            <button className="opt-btn-confirm-no" onClick={() => setConfirmReset(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button className="opt-btn-reset" onClick={() => setConfirmReset(true)}>
+            Reset to Defaults
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function LoginTab() {
-  const auth = useStorage(ipaAuthStorage);
-  const [loading, setLoading] = useState(false);
-  const [billingLoading, setBillingLoading] = useState(false);
-  const [interval, setInterval] = useState<'month' | 'year'>('year');
-  const [error, setError] = useState('');
-
-  if (!auth) return null;
-
-  const tier = auth.user?.tier ?? 'free';
-
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError('');
-    const res = await ipaAuthStorage.loginWithGoogle();
-    if (res.error) setError(res.error || 'Sign in failed. Make sure pop-ups are allowed.');
-    setLoading(false);
-  };
-
-  const handleLogout = async () => {
-    setLoading(true);
-    await ipaAuthStorage.logout();
-    setLoading(false);
-  };
-
-  const handleUpgrade = async () => {
-    setBillingLoading(true);
-    await ipaAuthStorage.openCheckout(interval);
-    setBillingLoading(false);
-  };
-
-  const handleManageBilling = async () => {
-    setBillingLoading(true);
-    await ipaAuthStorage.openPortal();
-    setBillingLoading(false);
-  };
-
-  const PRO_FEATURES = [
-    'Stress accents on vowels',
-    'Diphthong markers /aɪ, eɪ, ɔɪ, oʊ, aʊ/',
-    'Long vowel markers (:)',
-    'TH / DH sound marks',
-    'T-sound morph & Z-underline',
-    'Hidden phoneme superscripts',
-  ];
-
-  return (
-    <div className="opt-section">
-      {auth.isLoggedIn && auth.user ? (
-        <>
-          <h2>Account</h2>
-          <p className="opt-section-desc">Your settings sync across devices while signed in.</p>
-
-          <div className="opt-profile">
-            <img src={auth.user.picture} alt={auth.user.name} className="opt-profile-img" />
-            <div className="opt-profile-info">
-              <strong>{auth.user.name}</strong>
-              <span>{auth.user.email}</span>
-              <span className={`opt-tier-badge opt-tier-${tier}`}>{tier === 'pro' ? 'Pro · Active' : 'Free Plan'}</span>
-            </div>
-            <button className="opt-btn-outline" onClick={handleLogout} disabled={loading}>
-              {loading ? 'Signing out…' : 'Sign Out'}
-            </button>
-          </div>
-
-          {tier === 'pro' ? (
-            <div className="opt-billing-card opt-billing-pro">
-              <div className="opt-billing-header">
-                <span className="opt-billing-status-dot" />
-                <strong>Pro subscription active</strong>
-              </div>
-              <p className="opt-billing-desc">All phoneme markers are unlocked. Manage or cancel your subscription below.</p>
-              <button className="opt-btn-manage" onClick={handleManageBilling} disabled={billingLoading}>
-                {billingLoading ? 'Opening…' : 'Manage Billing ↗'}
-              </button>
-            </div>
-          ) : (
-            <div className="opt-billing-card opt-billing-free">
-              <div className="opt-billing-header">
-                <strong>Upgrade to Pro</strong>
-                <span className="opt-billing-trial">14-day free trial</span>
-              </div>
-              <p className="opt-billing-desc">Unlock all phoneme markers to see every sound pattern in English text.</p>
-              <ul className="opt-pro-feature-list">
-                {PRO_FEATURES.map(f => (
-                  <li key={f}>
-                    <span className="opt-pro-check">✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="opt-interval-toggle">
-                <button
-                  className={`opt-interval-btn${interval === 'month' ? ' active' : ''}`}
-                  onClick={() => setInterval('month')}
-                >
-                  Monthly · $4
-                </button>
-                <button
-                  className={`opt-interval-btn${interval === 'year' ? ' active' : ''}`}
-                  onClick={() => setInterval('year')}
-                >
-                  Yearly · $36 <span className="opt-save-badge">save 25%</span>
-                </button>
-              </div>
-              <button className="opt-btn-upgrade" onClick={handleUpgrade} disabled={billingLoading}>
-                {billingLoading ? 'Opening checkout…' : `Start free trial →`}
-              </button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="opt-login">
-          <div className="opt-login-icon"><IconLock /></div>
-          <h2>Sign In to Sync</h2>
-          <p>Sign in with Google to sync your settings across devices and unlock premium features.</p>
-          {error && <div className="opt-error">{error}</div>}
-          <button className="opt-btn-google" onClick={handleGoogleLogin} disabled={loading}>
-            {loading ? 'Signing in…' : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                Continue with Google
-              </>
-            )}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
+/* ─── Translation Tab ─── */
 function TranslationTab() {
   const settings = useStorage(ipaSettingsStorage);
   const [testWord, setTestWord] = useState('');
@@ -425,7 +284,6 @@ function TranslationTab() {
   const [loading, setLoading] = useState<'word' | 'sentence' | null>(null);
 
   if (!settings) return null;
-
   const lang = settings.targetLanguage ?? 'none';
 
   const translateText = async (text: string, type: 'word' | 'sentence') => {
@@ -447,87 +305,82 @@ function TranslationTab() {
 
   return (
     <div className="opt-section">
-      <h2>Translation</h2>
-      <p className="opt-section-desc">Hover any highlighted word to see its translation. Select text for sentence translation.</p>
-
-      <div className="opt-trans-row">
-        <label className="opt-trans-label">Target Language</label>
-        <select
-          className="opt-trans-select"
-          value={lang}
-          onChange={e => ipaSettingsStorage.setLanguage(e.target.value)}
-        >
-          {LANGUAGES.map(l => (
-            <option key={l.code} value={l.code}>{l.name}</option>
-          ))}
-        </select>
+      <div className="opt-page-header">
+        <h2>Translation</h2>
+        <p className="opt-section-desc">Hover any highlighted word to see its translation in the tooltip.</p>
       </div>
 
-      <div className="opt-trans-row">
-        <label className="opt-trans-label">Per-Sentence (text selection)</label>
-        <label className="opt-switch">
-          <input
-            type="checkbox"
+      <div className="opt-card">
+        <div className="opt-card-row">
+          <label className="opt-card-label">Target language</label>
+          <select
+            className="opt-select"
+            value={lang}
+            onChange={e => ipaSettingsStorage.setLanguage(e.target.value)}
+          >
+            {LANGUAGES.map(l => (
+              <option key={l.code} value={l.code}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="opt-card-divider" />
+        <div className="opt-card-row">
+          <div>
+            <label className="opt-card-label">Text-select translation</label>
+            <p className="opt-card-sublabel">Select any text on the page to translate the whole sentence</p>
+          </div>
+          <Switch
             checked={settings.translatePerSentence ?? true}
-            onChange={e => ipaSettingsStorage.setTranslatePerSentence(e.target.checked)}
+            onChange={v => ipaSettingsStorage.setTranslatePerSentence(v)}
           />
-          <span className="opt-slider" />
-        </label>
+        </div>
       </div>
 
       {lang !== 'none' && (
         <>
-          <div className="opt-trans-info">
-            <div className="opt-trans-info-item">
-              <strong>Per-Word:</strong> Hover any highlighted word → translation appears in tooltip below the IPA.
-            </div>
-            {settings.translatePerSentence && (
-              <div className="opt-trans-info-item">
-                <strong>Per-Sentence:</strong> Select any text on the page → purple "Translate" button appears → click to see translation.
+          <SectionLabel>Test Translation</SectionLabel>
+          <div className="opt-rows">
+            <div className="opt-trans-test-card">
+              <label className="opt-trans-test-label">Word</label>
+              <div className="opt-trans-input-row">
+                <input
+                  className="opt-input"
+                  placeholder="e.g. pronunciation"
+                  value={testWord}
+                  onChange={e => { setTestWord(e.target.value); setWordResult(''); }}
+                  onKeyDown={e => e.key === 'Enter' && translateText(testWord.trim(), 'word')}
+                />
+                <button
+                  className="opt-btn-trans"
+                  disabled={!testWord.trim() || loading === 'word'}
+                  onClick={() => translateText(testWord.trim(), 'word')}
+                >
+                  {loading === 'word' ? '…' : 'Go'}
+                </button>
               </div>
-            )}
-          </div>
-
-          <h3>Test Translation</h3>
-
-          <div className="opt-trans-test">
-            <label>Word</label>
-            <div className="opt-trans-input-row">
-              <input
-                className="opt-input"
-                placeholder="e.g. pronunciation"
-                value={testWord}
-                onChange={e => { setTestWord(e.target.value); setWordResult(''); }}
-              />
-              <button
-                className="opt-btn-trans"
-                disabled={!testWord.trim() || loading === 'word'}
-                onClick={() => translateText(testWord.trim(), 'word')}
-              >
-                {loading === 'word' ? '…' : 'Go'}
-              </button>
+              {wordResult && <div className="opt-trans-result">{wordResult}</div>}
             </div>
-            {wordResult && <div className="opt-dict-result opt-dict-hit">{wordResult}</div>}
-          </div>
 
-          <div className="opt-trans-test" style={{ marginTop: 18 }}>
-            <label>Sentence</label>
-            <div className="opt-trans-input-row">
-              <input
-                className="opt-input"
-                placeholder="e.g. The quick brown fox"
-                value={testSentence}
-                onChange={e => { setTestSentence(e.target.value); setSentenceResult(''); }}
-              />
-              <button
-                className="opt-btn-trans"
-                disabled={!testSentence.trim() || loading === 'sentence'}
-                onClick={() => translateText(testSentence.trim(), 'sentence')}
-              >
-                {loading === 'sentence' ? '…' : 'Go'}
-              </button>
+            <div className="opt-trans-test-card">
+              <label className="opt-trans-test-label">Sentence</label>
+              <div className="opt-trans-input-row">
+                <input
+                  className="opt-input"
+                  placeholder="e.g. The quick brown fox"
+                  value={testSentence}
+                  onChange={e => { setTestSentence(e.target.value); setSentenceResult(''); }}
+                  onKeyDown={e => e.key === 'Enter' && translateText(testSentence.trim(), 'sentence')}
+                />
+                <button
+                  className="opt-btn-trans"
+                  disabled={!testSentence.trim() || loading === 'sentence'}
+                  onClick={() => translateText(testSentence.trim(), 'sentence')}
+                >
+                  {loading === 'sentence' ? '…' : 'Go'}
+                </button>
+              </div>
+              {sentenceResult && <div className="opt-trans-result">{sentenceResult}</div>}
             </div>
-            {sentenceResult && <div className="opt-dict-result opt-dict-hit">{sentenceResult}</div>}
           </div>
         </>
       )}
@@ -535,60 +388,223 @@ function TranslationTab() {
   );
 }
 
-function DictionaryTab() {
-  const [query, setQuery] = useState('');
-  const [result, setResult] = useState<string | null>(null);
-  const [dictReady, setDictReady] = useState(false);
-  const [dict, setDict] = useState<Record<string, string> | null>(null);
+/* ─── Account Tab ─── */
+function AccountTab() {
+  const auth = useStorage(ipaAuthStorage);
+  const [loading, setLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [interval, setInterval] = useState<'month' | 'year'>('year');
+  const [error, setError] = useState('');
 
-  const loadDict = async () => {
-    try {
-      const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
-      const data = await r.json() as Record<string, string>;
-      setDict(data);
-      setDictReady(true);
-    } catch {
-      setResult('Failed to load dictionary.');
-    }
+  if (!auth) return null;
+  const tier = auth.user?.tier ?? 'free';
+
+  const handleGoogleLogin = async () => {
+    setLoading(true); setError('');
+    const res = await ipaAuthStorage.loginWithGoogle();
+    if (res.error) setError(res.error || 'Sign-in failed. Make sure pop-ups are allowed.');
+    setLoading(false);
   };
 
-  const handleQuery = (val: string) => {
-    setQuery(val);
-    if (!val.trim()) { setResult(null); return; }
-    if (!dict) { setResult('Dictionary loading…'); loadDict(); return; }
-    const word = val.trim().toLowerCase();
-    const entry = dict[word];
-    setResult(entry ? `${word}: ${entry}` : `"${word}" not found.`);
+  const handleLogout = async () => { setLoading(true); await ipaAuthStorage.logout(); setLoading(false); };
+  const handleUpgrade = async () => { setBillingLoading(true); await ipaAuthStorage.openCheckout(interval); setBillingLoading(false); };
+  const handleManageBilling = async () => { setBillingLoading(true); await ipaAuthStorage.openPortal(); setBillingLoading(false); };
+  const handleSyncTier = async () => {
+    setSyncLoading(true);
+    await ipaAuthStorage.syncTier().catch(() => {});
+    setSyncLoading(false);
   };
+
+  const PRO_FEATURES = [
+    'Stress accents on vowels',
+    'Diphthong markers /aɪ, eɪ, ɔɪ, oʊ, aʊ/',
+    'Long vowel markers (:)',
+    'TH / DH sound marks',
+    'T-sound morph & Z-underline',
+    'Hidden phoneme superscripts',
+  ];
+
+  if (!auth.isLoggedIn || !auth.user) {
+    return (
+      <div className="opt-section">
+        <div className="opt-signin-hero">
+          <div className="opt-signin-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Sign In</h2>
+            <p className="opt-section-desc">Sync settings across devices and unlock Pro features.</p>
+          </div>
+        </div>
+
+        {error && <div className="opt-error">{error}</div>}
+
+        <button className="opt-btn-google" onClick={handleGoogleLogin} disabled={loading}>
+          {loading ? 'Signing in…' : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
+              Continue with Google
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="opt-section">
-      <h2>Dictionary Lookup</h2>
-      <p className="opt-desc">Test any English word against the ARPAbet pronunciation dictionary.</p>
-      <input
-        className="opt-input"
-        type="text"
-        placeholder="Type a word…"
-        value={query}
-        onChange={e => handleQuery(e.target.value)}
-        onFocus={() => { if (!dictReady && !dict) loadDict(); }}
-      />
-      {result && (
-        <div className={`opt-dict-result ${result.includes('not found') || result.includes('Failed') ? 'opt-dict-miss' : 'opt-dict-hit'}`}>
-          {result}
+      <div className="opt-page-header">
+        <h2>Account</h2>
+        <p className="opt-section-desc">Settings sync across devices while signed in.</p>
+      </div>
+
+      {/* Profile */}
+      <div className="opt-profile">
+        <img src={auth.user.picture} alt={auth.user.name} className="opt-avatar" />
+        <div className="opt-profile-info">
+          <strong>{auth.user.name}</strong>
+          <span>{auth.user.email}</span>
         </div>
-      )}
-      {!dictReady && !dict && (
-        <p className="opt-empty">Click the input to load the dictionary ({Math.round(4240161 / 1024)} KB).</p>
+        <div className="opt-profile-actions">
+          <span className={`opt-tier-badge opt-tier-${tier}`}>
+            {tier === 'pro' ? '★ Pro' : 'Free'}
+          </span>
+          <button className="opt-btn-outline" onClick={handleLogout} disabled={loading}>
+            {loading ? '…' : 'Sign out'}
+          </button>
+        </div>
+      </div>
+
+      {/* Billing */}
+      {tier === 'pro' ? (
+        <div className="opt-billing-card opt-billing-pro">
+          <div className="opt-billing-header">
+            <span className="opt-billing-dot" />
+            <strong>Pro · Active</strong>
+            <button className="opt-btn-sync" onClick={handleSyncTier} disabled={syncLoading} title="Refresh subscription status">
+              {syncLoading ? '…' : '↻ Sync'}
+            </button>
+          </div>
+          <p className="opt-billing-desc">All phoneme markers are unlocked.</p>
+          <button className="opt-btn-manage" onClick={handleManageBilling} disabled={billingLoading}>
+            {billingLoading ? 'Opening…' : 'Manage Billing ↗'}
+          </button>
+        </div>
+      ) : (
+        <div className="opt-billing-card opt-billing-free">
+          <div className="opt-billing-header">
+            <strong>Upgrade to Pro</strong>
+            <span className="opt-trial-badge">14-day free trial</span>
+          </div>
+          <p className="opt-billing-desc">Unlock all phoneme markers to see every sound pattern in English text.</p>
+          <ul className="opt-pro-feature-list">
+            {PRO_FEATURES.map(f => (
+              <li key={f}><span className="opt-pro-check">✓</span> {f}</li>
+            ))}
+          </ul>
+          <div className="opt-interval-toggle">
+            <button
+              className={`opt-interval-btn${interval === 'month' ? ' active' : ''}`}
+              onClick={() => setInterval('month')}
+            >
+              Monthly · $4
+            </button>
+            <button
+              className={`opt-interval-btn${interval === 'year' ? ' active' : ''}`}
+              onClick={() => setInterval('year')}
+            >
+              Yearly · $36 <span className="opt-save-badge">save 25%</span>
+            </button>
+          </div>
+          <button className="opt-btn-upgrade" onClick={handleUpgrade} disabled={billingLoading}>
+            {billingLoading ? 'Opening checkout…' : 'Start free trial →'}
+          </button>
+        </div>
       )}
     </div>
   );
 }
 
+/* ─── Dictionary Tab ─── */
+function DictionaryTab() {
+  const [query, setQuery] = useState('');
+  const [result, setResult] = useState<{ text: string; hit: boolean } | null>(null);
+  const [dict, setDict] = useState<Record<string, string> | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  const loadDict = async () => {
+    if (dict) return;
+    try {
+      const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
+      const data = await r.json() as Record<string, string>;
+      setDict(data);
+    } catch {
+      setLoadError(true);
+    }
+  };
+
+  const handleQuery = async (val: string) => {
+    setQuery(val);
+    if (!val.trim()) { setResult(null); return; }
+    if (!dict) { await loadDict(); return; }
+    const word = val.trim().toLowerCase();
+    const entry = dict[word];
+    setResult(entry
+      ? { text: `/${entry}/`, hit: true }
+      : { text: `"${word}" not found in dictionary`, hit: false }
+    );
+  };
+
+  return (
+    <div className="opt-section">
+      <div className="opt-page-header">
+        <h2>Dictionary</h2>
+        <p className="opt-section-desc">Look up any English word's ARPAbet pronunciation.</p>
+      </div>
+
+      <div className="opt-dict-search">
+        <input
+          className="opt-input opt-dict-input"
+          type="text"
+          placeholder="Type a word…"
+          value={query}
+          onChange={e => handleQuery(e.target.value)}
+          onFocus={loadDict}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+
+      {loadError && <div className="opt-dict-error">Failed to load dictionary file.</div>}
+
+      {result && (
+        <div className={`opt-dict-result${result.hit ? ' opt-dict-hit' : ' opt-dict-miss'}`}>
+          {result.hit && <span className="opt-dict-word">{query.trim().toLowerCase()}</span>}
+          <span>{result.text}</span>
+        </div>
+      )}
+
+      {!dict && !loadError && !query && (
+        <p className="opt-dict-hint">~134K words · ARPAbet phoneme notation</p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Nav ─── */
 const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'settings',    label: 'Settings',    icon: <IconSettings /> },
   { id: 'translation', label: 'Translation', icon: <IconGlobe /> },
-  { id: 'login',       label: 'Account',     icon: <IconUser /> },
+  { id: 'account',     label: 'Account',     icon: <IconUser /> },
   { id: 'dictionary',  label: 'Dictionary',  icon: <IconBook /> },
 ];
 
@@ -607,6 +623,7 @@ const Options = () => {
             <span className="opt-logo-sub">Pronunciation</span>
           </div>
         </div>
+
         <nav>
           {NAV.map(n => (
             <button
@@ -619,14 +636,16 @@ const Options = () => {
             </button>
           ))}
         </nav>
+
         <div className="opt-sidebar-footer">
           <span>v1.0 · Lumen</span>
         </div>
       </div>
+
       <div className="opt-content">
         {tab === 'settings'    && <SettingsTab />}
         {tab === 'translation' && <TranslationTab />}
-        {tab === 'login'       && <LoginTab />}
+        {tab === 'account'     && <AccountTab />}
         {tab === 'dictionary'  && <DictionaryTab />}
       </div>
     </div>
