@@ -229,6 +229,33 @@ const Popup = () => {
 
   if (!settings || !auth) return null;
 
+  const getInitials = (name: string, email: string) => {
+    const source = name || email;
+    if (!source) return 'U';
+    
+    if (source.includes('@')) {
+      const username = source.split('@')[0];
+      const parts = username.split(/[\._-]/);
+      if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    
+    const parts = source.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const getColorFromSource = (name: string, email: string) => {
+    const source = name || email;
+    if (!source) return 'var(--bg-hover)';
+    let hash = 0;
+    for (let i = 0; i < source.length; i++) {
+      hash = source.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash) % 360;
+    return `hsl(${h}, 60%, 40%)`;
+  };
+
   const siteOverride = currentHost ? (settings.siteOverrides ?? {})[currentHost] : undefined;
   const isActiveOnSite = siteOverride !== undefined ? siteOverride : settings.enabled;
   const hasSiteOverride = siteOverride !== undefined;
@@ -252,13 +279,14 @@ const Popup = () => {
         </div>
         <div className="ipa-header-right">
           {auth.isLoggedIn && auth.user && (
-            <img
-              src={auth.user.picture}
-              alt={auth.user.name}
-              className="ipa-avatar"
+            <div
+              className="ipa-avatar-fallback"
               title={`${auth.user.name} — click to sign out`}
               onClick={() => ipaAuthStorage.logout()}
-            />
+              style={{ backgroundColor: getColorFromSource(auth.user.name, auth.user.email) }}
+            >
+              {getInitials(auth.user.name, auth.user.email)}
+            </div>
           )}
           <Switch checked={settings.enabled} onChange={v => ipaSettingsStorage.setEnabled(v)} />
         </div>

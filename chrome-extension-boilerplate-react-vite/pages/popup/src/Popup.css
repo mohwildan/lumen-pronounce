@@ -153,6 +153,29 @@ body {
   transform: scale(1.08);
 }
 
+.ipa-avatar-fallback {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--primary-dim);
+  background: var(--bg-hover);
+  color: var(--primary-lt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  transition: border-color .15s, transform .15s;
+}
+
+.ipa-avatar-fallback:hover {
+  border-color: var(--primary-lt);
+  transform: scale(1.08);
+}
+
 /* ─── Section ─── */
 .ipa-section {
   padding: 10px 16px;

@@ -31,6 +31,12 @@ export type IpaSettingsState = {
   targetLanguage: string;
   translatePerSentence: boolean;
   pauseOnHover: boolean;
+  ankiEnabled: boolean;
+  ankiEndpoint: string;
+  ankiDeckName: string;
+  ankiNoteType: string;
+  ankiFront: string;
+  ankiBack: string;
 };
 
 const DEFAULT_OPTS: IpaOpts = {
@@ -61,6 +67,13 @@ const DEFAULT_STATE: IpaSettingsState = {
   targetLanguage: 'en',
   translatePerSentence: true,
   pauseOnHover: false,
+  ankiEnabled: true,
+  ankiEndpoint: 'http://localhost:8765',
+  ankiDeckName: 'Lumen Pronunciation',
+  ankiNoteType: 'Basic',
+  ankiFront: '{{word}}
+<br><i>{{ipa}}</i>',
+  ankiBack: '{{definition}}',
 };
 
 export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
@@ -81,6 +94,12 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setLanguage: (lang: string) => Promise<void>;
   setTranslatePerSentence: (val: boolean) => Promise<void>;
   setPauseOnHover: (val: boolean) => Promise<void>;
+  setAnkiEnabled: (val: boolean) => Promise<void>;
+  setAnkiEndpoint: (val: string) => Promise<void>;
+  setAnkiDeckName: (val: string) => Promise<void>;
+  setAnkiNoteType: (val: string) => Promise<void>;
+  setAnkiFront: (val: string) => Promise<void>;
+  setAnkiBack: (val: string) => Promise<void>;
   reset: () => Promise<void>;
 };
 
@@ -139,6 +158,24 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setPauseOnHover: async (pauseOnHover: boolean) => {
     await storage.set(prev => ({ ...prev, pauseOnHover }));
+  },
+  setAnkiEnabled: async (ankiEnabled: boolean) => {
+    await storage.set(prev => ({ ...prev, ankiEnabled }));
+  },
+  setAnkiEndpoint: async (ankiEndpoint: string) => {
+    await storage.set(prev => ({ ...prev, ankiEndpoint }));
+  },
+  setAnkiDeckName: async (ankiDeckName: string) => {
+    await storage.set(prev => ({ ...prev, ankiDeckName }));
+  },
+  setAnkiNoteType: async (ankiNoteType: string) => {
+    await storage.set(prev => ({ ...prev, ankiNoteType }));
+  },
+  setAnkiFront: async (ankiFront: string) => {
+    await storage.set(prev => ({ ...prev, ankiFront }));
+  },
+  setAnkiBack: async (ankiBack: string) => {
+    await storage.set(prev => ({ ...prev, ankiBack }));
   },
   reset: async () => {
     await storage.set(DEFAULT_STATE);

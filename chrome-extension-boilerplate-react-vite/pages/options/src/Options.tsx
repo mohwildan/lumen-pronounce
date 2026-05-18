@@ -5,7 +5,7 @@ import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
 import type { IpaOpts } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
-type Tab = 'settings' | 'translation' | 'account' | 'dictionary';
+type Tab = 'settings' | 'translation' | 'account' | 'dictionary' | 'anki';
 
 const LANGUAGES = [
   { code: 'none', name: 'Off' },
@@ -48,56 +48,56 @@ const PRO_OPT_IDS = new Set<keyof IpaOpts>([
 type SettingRow = { id: keyof IpaOpts; label: string; desc: string; swatch?: string };
 
 const COLOR_OPTS: SettingRow[] = [
-  { id: 'silent',      label: 'Ghost Letters',  desc: 'Fade silent letters to show which characters are unpronounced' },
-  { id: 'color_e',     label: '/ɛ/ Red',         desc: 'bed, head, said — short e sound',     swatch: '#e53935' },
-  { id: 'color_i',     label: '/i/ Green',       desc: 'receipt, ski — long ee sound',         swatch: '#2e7d32' },
-  { id: 'color_u_alt', label: '/ʌ/ Purple',      desc: 'some, blood, love — uh vowel',         swatch: '#8e24aa' },
-  { id: 'color_a',     label: '/æ/ Pink',         desc: 'cat, trap, hand — short a sound',     swatch: '#d81b60' },
-  { id: 'color_u',     label: '/u/ Teal',         desc: 'tomb, blue, shoe — long oo sound',    swatch: '#00838f' },
-  { id: 'color_o',     label: '/ɔ/ Amber',        desc: 'quarter, law, thought — aw sound',    swatch: '#e65100' },
+  { id: 'silent', label: 'Ghost Letters', desc: 'Fade silent letters to show which characters are unpronounced' },
+  { id: 'color_e', label: '/ɛ/ Red', desc: 'bed, head, said — short e sound', swatch: '#e53935' },
+  { id: 'color_i', label: '/i/ Green', desc: 'receipt, ski — long ee sound', swatch: '#2e7d32' },
+  { id: 'color_u_alt', label: '/ʌ/ Purple', desc: 'some, blood, love — uh vowel', swatch: '#8e24aa' },
+  { id: 'color_a', label: '/æ/ Pink', desc: 'cat, trap, hand — short a sound', swatch: '#d81b60' },
+  { id: 'color_u', label: '/u/ Teal', desc: 'tomb, blue, shoe — long oo sound', swatch: '#00838f' },
+  { id: 'color_o', label: '/ɔ/ Amber', desc: 'quarter, law, thought — aw sound', swatch: '#e65100' },
 ];
 
 const PHONETIC_OPTS: SettingRow[] = [
-  { id: 'stress',      label: 'Stress Accents',       desc: 'Accent mark on stressed vowels — updáte, récord' },
-  { id: 'length',      label: 'Long Vowels (:)',       desc: 'Colon after long vowels — soon:, tomb:' },
-  { id: 'diph_ai',    label: 'Diphthong /aɪ/',        desc: 'Superscript on /aɪ/ — item, ice, eye' },
-  { id: 'diph_ei_oi', label: 'Diphthongs /eɪ, ɔɪ/',  desc: 'Superscript on /eɪ/ and /ɔɪ/ — great, boy' },
-  { id: 'diph_ou_au', label: 'Diphthongs /oʊ, aʊ/',  desc: 'Superscript on /oʊ/ and /aʊ/ — road, out' },
-  { id: 'th_t',       label: 'TH Mark /θ/',            desc: 'Voiceless TH superscript — thin, think, through' },
-  { id: 'th_d',       label: 'DH Mark /ð/',            desc: 'Voiced TH superscript — this, there, that' },
-  { id: 'tmark',      label: 'T-Sound Morph',          desc: 'Show ᵗ when T is spelled differently — asked, debt' },
-  { id: 'zmark',      label: 'Z-Sound Lines',          desc: 'Underline letters that make a Z sound — visit, dogs' },
-  { id: 'phonemes',   label: 'Hidden Phonemes',        desc: 'Superscript for unpronounced letters — one → ʷone' },
+  { id: 'stress', label: 'Stress Accents', desc: 'Accent mark on stressed vowels — updáte, récord' },
+  { id: 'length', label: 'Long Vowels (:)', desc: 'Colon after long vowels — soon:, tomb:' },
+  { id: 'diph_ai', label: 'Diphthong /aɪ/', desc: 'Superscript on /aɪ/ — item, ice, eye' },
+  { id: 'diph_ei_oi', label: 'Diphthongs /eɪ, ɔɪ/', desc: 'Superscript on /eɪ/ and /ɔɪ/ — great, boy' },
+  { id: 'diph_ou_au', label: 'Diphthongs /oʊ, aʊ/', desc: 'Superscript on /oʊ/ and /aʊ/ — road, out' },
+  { id: 'th_t', label: 'TH Mark /θ/', desc: 'Voiceless TH superscript — thin, think, through' },
+  { id: 'th_d', label: 'DH Mark /ð/', desc: 'Voiced TH superscript — this, there, that' },
+  { id: 'tmark', label: 'T-Sound Morph', desc: 'Show ᵗ when T is spelled differently — asked, debt' },
+  { id: 'zmark', label: 'Z-Sound Lines', desc: 'Underline letters that make a Z sound — visit, dogs' },
+  { id: 'phonemes', label: 'Hidden Phonemes', desc: 'Superscript for unpronounced letters — one → ʷone' },
 ];
 
 /* ─── Icons ─── */
 
 const IconSettings = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );
 
 const IconGlobe = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="2" y1="12" x2="22" y2="12"/>
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
   </svg>
 );
 
 const IconUser = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-    <circle cx="12" cy="7" r="4"/>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
 const IconBook = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
   </svg>
 );
 
@@ -400,6 +400,33 @@ function AccountTab() {
   if (!auth) return null;
   const tier = auth.user?.tier ?? 'free';
 
+  const getInitials = (name: string, email: string) => {
+    const source = name || email;
+    if (!source) return 'U';
+    
+    if (source.includes('@')) {
+      const username = source.split('@')[0];
+      const parts = username.split(/[\._-]/);
+      if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    
+    const parts = source.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const getColorFromSource = (name: string, email: string) => {
+    const source = name || email;
+    if (!source) return 'var(--bg-hover)';
+    let hash = 0;
+    for (let i = 0; i < source.length; i++) {
+      hash = source.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash) % 360;
+    return `hsl(${h}, 60%, 40%)`;
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true); setError('');
     const res = await ipaAuthStorage.loginWithGoogle();
@@ -412,7 +439,7 @@ function AccountTab() {
   const handleManageBilling = async () => { setBillingLoading(true); await ipaAuthStorage.openPortal(); setBillingLoading(false); };
   const handleSyncTier = async () => {
     setSyncLoading(true);
-    await ipaAuthStorage.syncTier().catch(() => {});
+    await ipaAuthStorage.syncTier().catch(() => { });
     setSyncLoading(false);
   };
 
@@ -431,8 +458,8 @@ function AccountTab() {
         <div className="opt-signin-hero">
           <div className="opt-signin-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <div>
@@ -447,10 +474,10 @@ function AccountTab() {
           {loading ? 'Signing in…' : (
             <>
               <svg width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
               </svg>
               Continue with Google
             </>
@@ -469,7 +496,9 @@ function AccountTab() {
 
       {/* Profile */}
       <div className="opt-profile">
-        <img src={auth.user.picture} alt={auth.user.name} className="opt-avatar" />
+        <div className="opt-avatar-fallback" style={{ backgroundColor: getColorFromSource(auth.user.name, auth.user.email) }}>
+          {getInitials(auth.user.name, auth.user.email)}
+        </div>
         <div className="opt-profile-info">
           <strong>{auth.user.name}</strong>
           <span>{auth.user.email}</span>
@@ -600,12 +629,125 @@ function DictionaryTab() {
   );
 }
 
+const IconAnki = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+    <path d="M12 7v10"/>
+    <path d="M8 12h8"/>
+  </svg>
+);
+
+function AnkiTab() {
+  const settings = useStorage(ipaSettingsStorage);
+  const auth = useStorage(ipaAuthStorage);
+  const [ankiTestStatus, setAnkiTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+
+  if (!settings || !auth) return null;
+  const tier = auth.user?.tier ?? 'free';
+  const isPro = tier === 'pro';
+
+  const testAnki = async () => {
+    setAnkiTestStatus('testing');
+    try {
+      const url = settings?.ankiEndpoint || 'http://localhost:8765';
+      const res = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'version', version: 6 })
+      });
+      if (res.ok) {
+        setAnkiTestStatus('success');
+      } else {
+        setAnkiTestStatus('error');
+        setTimeout(() => setAnkiTestStatus('idle'), 3000);
+      }
+    } catch {
+      setAnkiTestStatus('error');
+      setTimeout(() => setAnkiTestStatus('idle'), 3000);
+    }
+  };
+
+  return (
+    <div className="opt-section">
+      <div className="opt-page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2>Anki Integration</h2>
+          {!isPro && <span className="opt-pro-badge">Pro</span>}
+        </div>
+        <p className="opt-section-desc">Sync saved words directly to your Anki desktop app.</p>
+      </div>
+
+      <div className="opt-card" style={{ opacity: !isPro ? 0.6 : 1, pointerEvents: !isPro ? 'none' : 'auto' }}>
+        <div className="opt-card-row">
+          <div>
+            <label className="opt-card-label">AnkiConnect Sync</label>
+            <p className="opt-card-sublabel">Enable "Save to Anki" button in tooltips</p>
+          </div>
+          <Switch
+            checked={settings.ankiEnabled ?? true}
+            onChange={v => ipaSettingsStorage.setAnkiEnabled(v)}
+            disabled={!isPro}
+          />
+        </div>
+        
+        {(settings.ankiEnabled ?? true) && (
+          <>
+            <div className="opt-card-divider" />
+            <div style={{ padding: '16px' }}>
+              <label className="opt-card-label" style={{ display: 'block', marginBottom: '8px' }}>AnkiConnect Endpoint URL</label>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  className="opt-input"
+                  style={{ flex: 1 }}
+                  value={settings.ankiEndpoint ?? 'http://localhost:8765'}
+                  onChange={e => {
+                    ipaSettingsStorage.setAnkiEndpoint(e.target.value);
+                    setAnkiTestStatus('idle');
+                  }}
+                  disabled={!isPro}
+                />
+                <button
+                  onClick={testAnki}
+                  disabled={!isPro || ankiTestStatus === 'testing'}
+                  style={{
+                    padding: '0 12px',
+                    background: ankiTestStatus === 'success' ? '#2e7d32' : ankiTestStatus === 'error' ? '#bf360c' : '#e8a351',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '.8rem',
+                    opacity: (!isPro || ankiTestStatus === 'testing') ? 0.7 : 1
+                  }}
+                >
+                  {ankiTestStatus === 'testing' ? 'Connecting...' : ankiTestStatus === 'success' ? 'Connected' : ankiTestStatus === 'error' ? 'Check Connection' : 'Connect'}
+                </button>
+              </div>
+              <small style={{ color: '#8c887a' }}>Default is http://localhost:8765. Make sure Anki is open and AnkiConnect is installed.</small>
+            </div>
+          </>
+        )}
+      </div>
+
+      {!isPro && (
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <button className="opt-btn-upgrade" onClick={() => ipaAuthStorage.openCheckout('year')}>
+            Upgrade to Pro to unlock Anki Sync →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Nav ─── */
 const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
-  { id: 'settings',    label: 'Settings',    icon: <IconSettings /> },
+  { id: 'settings', label: 'Settings', icon: <IconSettings /> },
   { id: 'translation', label: 'Translation', icon: <IconGlobe /> },
-  { id: 'account',     label: 'Account',     icon: <IconUser /> },
-  { id: 'dictionary',  label: 'Dictionary',  icon: <IconBook /> },
+  { id: 'account', label: 'Account', icon: <IconUser /> },
+  { id: 'dictionary', label: 'Dictionary', icon: <IconBook /> },
+  { id: 'anki', label: 'Anki Sync', icon: <IconAnki /> },
 ];
 
 const Options = () => {
@@ -643,10 +785,11 @@ const Options = () => {
       </div>
 
       <div className="opt-content">
-        {tab === 'settings'    && <SettingsTab />}
+        {tab === 'settings' && <SettingsTab />}
         {tab === 'translation' && <TranslationTab />}
-        {tab === 'account'     && <AccountTab />}
-        {tab === 'dictionary'  && <DictionaryTab />}
+        {tab === 'account' && <AccountTab />}
+        {tab === 'dictionary' && <DictionaryTab />}
+        {tab === 'anki' && <AnkiTab />}
       </div>
     </div>
   );

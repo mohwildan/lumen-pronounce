@@ -74,6 +74,7 @@ let opts: IpaOpts = {
 let targetLanguage = 'id';
 let translatePerSentence = true;
 let pauseOnHover = false;
+let ankiEnabled = false;
 let hasProcessed = false;
 
 // ── ARPAbet ──────────────────────────────────────────────────────
@@ -473,8 +474,11 @@ function buildTipHTML(word: string, ipa: string): string {
     `<button id="__ipa_speak_btn__" title="Play pronunciation" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;flex-shrink:0">${SPEAK_ICON}</button>` +
     `<span style="font-size:1.25rem;font-weight:800;color:#fdfbf6;letter-spacing:.01em;font-family:'Fraunces', Georgia, serif">${word.toLowerCase()}</span>` +
     `</div>` +
-    // Right: IPA
+    // Right: IPA & Anki
+    `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">` +
     `<span style="font-size:.9rem;color:#c7c3b5;font-style:italic;letter-spacing:.02em;white-space:nowrap;padding-top:4px">${ipa}</span>` +
+    (ankiEnabled ? `<button id="__ipa_anki_btn__" title="Save to Anki" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : '') +
+    `</div>` +
     `</div>` +
     // POS translations area
     `<div id="__ipa_pos_area__" style="margin-top:8px;min-height:32px;font-size:.84rem;line-height:1.65">` +
@@ -671,6 +675,12 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
     speakBtn.addEventListener('click', e => { e.stopPropagation(); playPronunciation(word); });
   }
 
+  // Wire up Anki button
+  const ankiBtn = t.querySelector('#__ipa_anki_btn__') as HTMLButtonElement | null;
+  if (ankiBtn) {
+    ankiBtn.addEventListener('click', e => { e.stopPropagation(); void saveToAnki(word, toIPA(arpa), defCache[word.toLowerCase()]); });
+  }
+
   // Wire up tabs
   t.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -721,6 +731,34 @@ function hideTip(): void {
   maybeResumeVideo();
   tip.style.opacity = '0'; tip.style.transform = 'translateY(6px)'; tip.style.pointerEvents = 'none';
   setTimeout(() => { if (!currentWord && tip) tip.style.display = 'none'; }, 150);
+}
+
+async function saveToAnki(word: string, ipa: string, data: unknown): Promise<void> {
+  const ankiBtn = document.getElementById('__ipa_anki_btn__') as HTMLButtonElement | null;
+  if (ankiBtn) {
+    ankiBtn.style.color = '#e8a351';
+    ankiBtn.style.transform = 'scale(1.15)';
+  }
+
+  let defText = '';
+  if (data) {
+    const arr = data as Array<{ meanings?: Array<{ definitions?: Array<{ definition?: string; example?: string }> }> }>;
+    defText = arr[0]?.meanings?.[0]?.definitions?.[0]?.definition ?? '';
+  }
+  
+  if (!isContextValid()) return;
+  chrome.runtime.sendMessage({ type: 'ANKI_ADD_CARD', word, ipa, definition: defText }, (response: { error?: string; ok?: boolean } | undefined) => {
+    if (ankiBtn) {
+      if (response?.ok) {
+        ankiBtn.style.color = '#a3e851';
+        ankiBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`;
+      } else {
+        ankiBtn.style.color = '#e34d52';
+        ankiBtn.title = response?.error ?? 'Error saving to Anki';
+      }
+      setTimeout(() => { ankiBtn.style.transform = 'scale(1)'; }, 200);
+    }
+  });
 }
 
 // ── Selection Translate ──────────────────────────────────────────
@@ -1109,6 +1147,7 @@ async function checkActivation(): Promise<void> {
     opts = { ...opts, ...applyTierGating({ ...opts, ...s.opts }, tier) };
   }
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
+  if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
 
@@ -1213,6 +1252,7 @@ async function init(): Promise<void> {
   if (s?.targetLanguage) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
+  if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
   syncBodyClasses();
 
   // Observer starts BEFORE dict fetch so mutations during loading are queued

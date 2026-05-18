@@ -238,6 +238,56 @@ async function handleOpenPortal(sendResponse: (r: object) => void): Promise<void
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
+async function handleAnkiAdd(msg: { word: string; ipa: string; definition: string }, sendResponse: (r: object) => void): Promise<void> {
+  try {
+    const raw = await chrome.storage.sync.get('ipa-settings');
+    const settings = raw['ipa-settings'] || {};
+    const ankiEnabled = settings.ankiEnabled ?? true;
+    const ankiEndpoint = settings.ankiEndpoint || 'http://localhost:8765';
+
+    if (!ankiEnabled) {
+      sendResponse({ error: 'Anki sync is disabled in settings.' });
+      return;
+    }
+
+    const deckName = 'Lumen Pronunciation';
+    const createRes = await fetch(ankiEndpoint, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'createDeck', version: 6, params: { deck: deckName } })
+    });
+    if (!createRes.ok) throw new Error('Failed to reach AnkiConnect');
+
+    const note = {
+      deckName,
+      modelName: 'Basic',
+      fields: {
+        Front: `<h2 style="text-align:center">${msg.word}</h2><br><div style="text-align:center;font-style:italic;color:#555">${msg.ipa}</div>`,
+        Back: `<div style="text-align:center">${msg.definition || 'No definition saved.'}</div>`
+      },
+      options: { allowDuplicate: false },
+      tags: ['lumen_pronunciation']
+    };
+    
+    const res = await fetch(ankiEndpoint, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addNote', version: 6, params: { note } })
+    });
+    
+    const data = await res.json() as { error: string | null };
+    if (data.error) {
+      if (data.error.includes('duplicate')) {
+         sendResponse({ error: 'Card already exists in Anki' });
+      } else {
+         sendResponse({ error: data.error });
+      }
+      return;
+    }
+    sendResponse({ ok: true });
+  } catch (e) {
+    sendResponse({ error: 'Could not connect to AnkiConnect. Is Anki open?' });
+  }
+}
+
 // ── Message router ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -251,6 +301,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'SYNC_TIER') { void handleSyncTier(sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_CHECKOUT') { void handleOpenCheckout(msg as { interval: 'month' | 'year' }, sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
+  if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
   return false;
 });
 
