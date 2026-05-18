@@ -515,27 +515,93 @@ function renderSentence(translated: string): void {
   el.textContent = translated ? `"${translated.toUpperCase()}"` : '';
 }
 
-function renderTab(tab: string, word: string, data: unknown): void {
+async function renderTab(tab: string, word: string, data: unknown, forceTranslate = false): Promise<void> {
   const body = document.getElementById('__ipa_body__');
   if (!body) return;
+
+  const canTranslate = targetLanguage && targetLanguage !== 'none' && targetLanguage !== 'en';
+  const shouldTranslate = canTranslate && forceTranslate;
+
   if (tab === 'definition') {
     if (!data) { body.innerHTML = '<span style="color:#8c887a">No definition found.</span>'; return; }
     const arr = data as Array<{ meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string; example?: string }> }> }>;
     const meanings = arr[0]?.meanings ?? [];
     if (!meanings.length) { body.innerHTML = '<span style="color:#8c887a">—</span>'; return; }
-    body.innerHTML = meanings.slice(0, 3).map(m =>
-      `<div style="margin-bottom:8px">` +
-      `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em">${m.partOfSpeech ?? ''}</span>` +
-      `<p style="color:#fdfbf6;margin:2px 0">${m.definitions?.[0]?.definition ?? ''}</p>` +
-      (m.definitions?.[0]?.example ? `<p style="color:#c7c3b5;font-style:italic;font-size:.8rem">"${m.definitions[0].example}"</p>` : '') +
-      `</div>`
-    ).join('');
+
+    // removed: if (shouldTranslate) body.innerHTML = '<span style="color:#8c887a">Translating...</span>';
+
+    let html = '';
+    for (const m of meanings.slice(0, 3)) {
+      let pos = m.partOfSpeech ?? '';
+      let def = m.definitions?.[0]?.definition ?? '';
+      let ex = m.definitions?.[0]?.example ?? '';
+
+      if (shouldTranslate) {
+        if (pos) { const tPos = await translate(pos, targetLanguage); if (tPos) pos = tPos; }
+        if (def) { const tDef = await translate(def, targetLanguage); if (tDef) def = tDef; }
+        if (ex) { const tEx = await translate(ex, targetLanguage); if (tEx) ex = tEx; }
+      }
+
+      html += `<div style="margin-bottom:8px">` +
+        `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em">${pos}</span>` +
+        `<p style="color:#fdfbf6;margin:2px 0">${def}</p>` +
+        (ex ? `<p style="color:#c7c3b5;font-style:italic;font-size:.8rem">"${ex}"</p>` : '') +
+        `</div>`;
+    }
+
+    if (canTranslate && !shouldTranslate) {
+      html += `<button id="__ipa_tab_translate_btn__" style="margin-top:4px;background:none;color:#e8a351;border:1px solid #e8a351;border-radius:4px;padding:4px 8px;font-size:.75rem;cursor:pointer;font-weight:600;transition:all .15s" onmouseover="this.style.background='#e8a351';this.style.color='#1a1915'" onmouseout="this.style.background='none';this.style.color='#e8a351'">Translate</button>`;
+    }
+
+    if (currentWord === word) {
+      body.innerHTML = html;
+      if (canTranslate && !shouldTranslate) {
+        const btn = document.getElementById('__ipa_tab_translate_btn__');
+        if (btn) btn.addEventListener('click', () => {
+          btn.textContent = 'Translating...';
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.7';
+          void renderTab(tab, word, data, true);
+        });
+      }
+    }
   } else if (tab === 'examples') {
     const arr = data as Array<{ meanings?: Array<{ definitions?: Array<{ example?: string }> }> }>;
     const exs = arr?.[0]?.meanings?.flatMap(m => m.definitions ?? []).map(d => d.example).filter(Boolean).slice(0, 4);
-    body.innerHTML = exs?.length
-      ? exs.map(ex => `<p style="margin-bottom:8px;border-left:2px solid #504d41;padding-left:10px;font-style:italic;color:#c7c3b5">${ex}</p>`).join('')
-      : '<span style="color:#8c887a">No examples.</span>';
+
+    if (!exs?.length) {
+      body.innerHTML = '<span style="color:#8c887a">No examples.</span>';
+      return;
+    }
+
+    // removed: if (shouldTranslate) body.innerHTML = '<span style="color:#8c887a">Translating...</span>';
+
+    let html = '';
+    for (const ex of exs) {
+      let text = ex;
+      if (shouldTranslate && text) {
+        const tText = await translate(text, targetLanguage);
+        if (tText) text = tText;
+      }
+      html += `<p style="margin-bottom:8px;border-left:2px solid #504d41;padding-left:10px;font-style:italic;color:#c7c3b5">${text}</p>`;
+    }
+
+    if (canTranslate && !shouldTranslate) {
+      html += `<button id="__ipa_tab_translate_btn__" style="margin-top:4px;background:none;color:#e8a351;border:1px solid #e8a351;border-radius:4px;padding:4px 8px;font-size:.75rem;cursor:pointer;font-weight:600;transition:all .15s" onmouseover="this.style.background='#e8a351';this.style.color='#1a1915'" onmouseout="this.style.background='none';this.style.color='#e8a351'">Translate</button>`;
+    }
+
+    if (currentWord === word) {
+      body.innerHTML = html;
+      if (canTranslate && !shouldTranslate) {
+        const btn = document.getElementById('__ipa_tab_translate_btn__');
+        if (btn) btn.addEventListener('click', () => {
+          btn.textContent = 'Translating...';
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.7';
+          void renderTab(tab, word, data, true);
+        });
+      }
+    }
   } else if (tab === 'slang') {
     const udUrl = `https://www.urbandictionary.com/define.php?term=${encodeURIComponent(word)}`;
     body.innerHTML = `<a href="${udUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block;margin-bottom:8px">&#x1F4AC; Urban Dictionary: "${word}"</a>` +
@@ -557,7 +623,7 @@ async function fetchDictDef(word: string): Promise<void> {
       defCache[key] = r.ok ? await r.json() : null;
     } catch { defCache[key] = null; }
   }
-  if (currentWord === word) renderTab('definition', word, defCache[key]);
+  if (currentWord === word) void renderTab('definition', word, defCache[key]);
 }
 
 function posTip(mouseX: number, mouseY: number): void {
@@ -610,7 +676,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
     btn.addEventListener('click', () => {
       t.querySelectorAll('[data-tab]').forEach(b => ((b as HTMLElement).style.cssText = S.tab + S.tabOff));
       (btn as HTMLElement).style.cssText = S.tab + S.tabOn;
-      renderTab((btn as HTMLElement).dataset.tab!, word, defCache[word.toLowerCase()]);
+      void renderTab((btn as HTMLElement).dataset.tab!, word, defCache[word.toLowerCase()]);
     });
   });
 
