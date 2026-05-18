@@ -1079,11 +1079,14 @@ function handleMutations(mutations: MutationRecord[]): void {
 
 async function init(): Promise<void> {
   if (hasProcessed) return;
+  // Set immediately — prevents concurrent init() calls from racing past this guard
+  hasProcessed = true;
 
   // In sub-frames without relevant elements: wait for them instead of returning
   if (window !== window.top) {
     const SELECTOR = 'video, [class*="caption"], [class*="subtitle"], [class*="transcript"]';
     if (!document.querySelector(SELECTOR)) {
+      hasProcessed = false; // allow re-init when selector appears
       const waiter = new MutationObserver(() => {
         if (document.querySelector(SELECTOR)) {
           waiter.disconnect();
@@ -1095,19 +1098,20 @@ async function init(): Promise<void> {
     }
   }
 
-  if (!document.body) return;
-  if (!isContextValid()) return;
+  if (!document.body) { hasProcessed = false; return; }
+  if (!isContextValid()) { hasProcessed = false; return; }
 
   let stored: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { return; }
+  try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { hasProcessed = false; return; }
   const s = stored['ipa-settings'];
   const _globalOn = s?.enabled !== false;
   const _siteOverride = (s?.siteOverrides ?? {})[window.location.hostname];
   const _isActive = _siteOverride !== undefined ? _siteOverride : _globalOn;
   if (!_isActive) {
+    // Extension disabled — reset so checkActivation() can re-init on next enable
+    hasProcessed = false;
     document.body.classList.add('ipa-disabled'); return;
   }
-  hasProcessed = true;
   if (s?.opts) {
     const tier = await getUserTier();
     opts = { ...opts, ...applyTierGating({ ...opts, ...s.opts }, tier) };
@@ -1152,4 +1156,4 @@ spaInterval = setInterval(() => {
   }
 }, 1000);
 
-if (isContextValid()) void init();
+if (isContextValid()) void checkActivation();
