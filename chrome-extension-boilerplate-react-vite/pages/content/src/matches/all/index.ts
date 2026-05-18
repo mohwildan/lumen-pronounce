@@ -2,12 +2,12 @@
 
 const VOWEL_COLORS: Record<string, { c: string; t: string }> = {
   AH: { c: 'var(--ipa-purple)', t: 'color_u_alt' }, AA: { c: 'var(--ipa-purple)', t: 'color_u_alt' },
-  AE: { c: 'var(--ipa-pink)',   t: 'color_a' },
-  EH: { c: 'var(--ipa-red)',    t: 'color_e' }, ER: { c: 'var(--ipa-red)',    t: 'color_e' },
-  IH: { c: 'var(--ipa-green)',  t: 'color_i' }, IY: { c: 'var(--ipa-green)',  t: 'color_i' },
-  UH: { c: 'var(--ipa-teal)',   t: 'color_u' }, UW: { c: 'var(--ipa-teal)',   t: 'color_u' },
+  AE: { c: 'var(--ipa-pink)', t: 'color_a' },
+  EH: { c: 'var(--ipa-red)', t: 'color_e' }, ER: { c: 'var(--ipa-red)', t: 'color_e' },
+  IH: { c: 'var(--ipa-green)', t: 'color_i' }, IY: { c: 'var(--ipa-green)', t: 'color_i' },
+  UH: { c: 'var(--ipa-teal)', t: 'color_u' }, UW: { c: 'var(--ipa-teal)', t: 'color_u' },
   AO: { c: 'var(--ipa-orange)', t: 'color_o' },
-  AY: { c: 'var(--ipa-pink)',   t: 'color_a' }, EY: { c: 'var(--ipa-red)',    t: 'color_e' },
+  AY: { c: 'var(--ipa-pink)', t: 'color_a' }, EY: { c: 'var(--ipa-red)', t: 'color_e' },
   OY: { c: 'var(--ipa-orange)', t: 'color_o' }, OW: { c: 'var(--ipa-orange)', t: 'color_o' },
   AW: { c: 'var(--ipa-purple)', t: 'color_u_alt' }, AX: { c: 'var(--ipa-purple)', t: 'color_u_alt' },
 };
@@ -230,11 +230,11 @@ function getContainerText(container: Element): string {
       if (el.tagName === 'RP-W') {
         text += el.getAttribute('data-word') || '';
       } else if (!SKIP_TAGS.has(el.tagName)) {
-        for (const child of el.childNodes) traverse(child);
+        for (const child of Array.from(el.childNodes)) traverse(child);
       }
     }
   }
-  for (const child of container.childNodes) traverse(child);
+  for (const child of Array.from(container.childNodes)) traverse(child);
   return text;
 }
 
@@ -413,7 +413,7 @@ function maybeResumeVideo(): void {
   if (!videoPausedByUs) return;
   videoPausedByUs = false;
   const v = getActiveVideo();
-  if (v && v.paused) v.play().catch(() => {});
+  if (v && v.paused) v.play().catch(() => { });
 }
 
 async function playPronunciation(word: string): Promise<void> {
@@ -616,7 +616,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
   // Ensure tip is in correct parent (body or fullscreen element)
   const parent = tipParent();
-  if (tip.parentElement !== parent) parent.appendChild(tip);
+  if (tip && tip.parentElement !== parent) parent.appendChild(tip);
 
   posTip(mouseX, mouseY);
   t.style.display = 'block';
@@ -717,8 +717,8 @@ async function handleSelTranslate(): Promise<void> {
   const result = await translate(text, targetLanguage);
   st.innerHTML = result
     ? `<div style="color:#8c887a;font-size:.75rem;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Translation</div>` +
-      `<div style="color:#fdfbf6">${result}</div>` +
-      `<div style="color:#8c887a;font-size:.75rem;margin-top:6px;font-style:italic">"${text.length > 60 ? text.slice(0, 60) + '…' : text}"</div>`
+    `<div style="color:#fdfbf6">${result}</div>` +
+    `<div style="color:#8c887a;font-size:.75rem;margin-top:6px;font-style:italic">"${text.length > 60 ? text.slice(0, 60) + '…' : text}"</div>`
     : `<div style="color:#e34d52">Translation failed.</div>`;
 }
 
@@ -772,20 +772,20 @@ function guessPronunciation(word: string, depth = 0): string | null {
   if (depth > 2 || !dict) return null;
   const w = word.toLowerCase();
   const getStem = (s: string) => dict![s] || guessPronunciation(s, depth + 1);
-  if (w.endsWith('ization')) { const s = getStem(w.slice(0,-7)+'ize'); if(s) return s.replace(/\s+-\s*$/,' EY1 SH - AX0 N'); }
-  if (w.endsWith('ation'))   { const s = getStem(w.slice(0,-5)+'ate'); if(s) return s.replace(/\s+-\s*$/,' EY1 SH - AX0 N'); }
-  if (w.endsWith('ing'))     { const s = getStem(w.slice(0,-3)+'e');   if(s) return s.replace(/\s+-\s*$/,' IH0 NG -'); }
-  if (w.endsWith('ed'))      { const s = getStem(w.slice(0,-2)+'e');   if(s) return s+' D'; }
-  if (w.endsWith('ies'))     { const s = getStem(w.slice(0,-3)+'y');   if(s){ const t=s.split(/\s+/);const l=t.pop();return t.join(' ')+' '+l+' - Z';} }
-  if (w.endsWith('ily'))     { const s = getStem(w.slice(0,-3)+'y');   if(s){ const t=s.split(/\s+/);const l=t.pop();return t.join(' ')+' '+l+' L IY0';} }
-  if (w.endsWith('able'))    { const s = getStem(w.slice(0,-4)+'e');   if(s) return s.replace(/\s+-\s*$/,' AX0 B L -'); }
-  if (w.endsWith('ible'))    { const s = getStem(w.slice(0,-4)+'e');   if(s) return s.replace(/\s+-\s*$/,' IH0 B L -'); }
-  for (const suf of SUFFIXES) { if(w.endsWith(suf.s)){ const s=getStem(w.slice(0,-suf.s.length)); if(s) return s+' '+suf.t; } }
-  for (const pre of PREFIXES) { if(w.startsWith(pre.p)){ const s=getStem(w.slice(pre.p.length)); if(s) return pre.t+' '+s; } }
+  if (w.endsWith('ization')) { const s = getStem(w.slice(0, -7) + 'ize'); if (s) return s.replace(/\s+-\s*$/, ' EY1 SH - AX0 N'); }
+  if (w.endsWith('ation')) { const s = getStem(w.slice(0, -5) + 'ate'); if (s) return s.replace(/\s+-\s*$/, ' EY1 SH - AX0 N'); }
+  if (w.endsWith('ing')) { const s = getStem(w.slice(0, -3) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' IH0 NG -'); }
+  if (w.endsWith('ed')) { const s = getStem(w.slice(0, -2) + 'e'); if (s) return s + ' D'; }
+  if (w.endsWith('ies')) { const s = getStem(w.slice(0, -3) + 'y'); if (s) { const t = s.split(/\s+/); const l = t.pop(); return t.join(' ') + ' ' + l + ' - Z'; } }
+  if (w.endsWith('ily')) { const s = getStem(w.slice(0, -3) + 'y'); if (s) { const t = s.split(/\s+/); const l = t.pop(); return t.join(' ') + ' ' + l + ' L IY0'; } }
+  if (w.endsWith('able')) { const s = getStem(w.slice(0, -4) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' AX0 B L -'); }
+  if (w.endsWith('ible')) { const s = getStem(w.slice(0, -4) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' IH0 B L -'); }
+  for (const suf of SUFFIXES) { if (w.endsWith(suf.s)) { const s = getStem(w.slice(0, -suf.s.length)); if (s) return s + ' ' + suf.t; } }
+  for (const pre of PREFIXES) { if (w.startsWith(pre.p)) { const s = getStem(w.slice(pre.p.length)); if (s) return pre.t + ' ' + s; } }
   for (const pre of PREFIXES) {
-    if(w.startsWith(pre.p)) {
+    if (w.startsWith(pre.p)) {
       const rem = w.slice(pre.p.length);
-      for (const suf of SUFFIXES) { if(rem.endsWith(suf.s)){ const s=getStem(rem.slice(0,-suf.s.length)); if(s) return pre.t+' '+s+' '+suf.t; } }
+      for (const suf of SUFFIXES) { if (rem.endsWith(suf.s)) { const s = getStem(rem.slice(0, -suf.s.length)); if (s) return pre.t + ' ' + s + ' ' + suf.t; } }
     }
   }
   return null;
@@ -864,7 +864,7 @@ function processTextNode(node: Text): void {
 }
 
 function unwalkAll(): void {
-  for (const rpw of [...document.querySelectorAll('rp-w')]) {
+  for (const rpw of Array.from(document.querySelectorAll('rp-w'))) {
     const text = rpw.getAttribute('data-word') ?? rpw.textContent ?? '';
     if (rpw.parentNode) rpw.parentNode.replaceChild(document.createTextNode(text), rpw);
   }
@@ -879,7 +879,7 @@ function walk(node: Node): void {
   if (el.getAttribute('data-ipa-ui')) return;
   if (el.id && IPA_ROOT_IDS.has(el.id)) return;
   if ((el as HTMLElement).isContentEditable) return;
-  for (const child of [...node.childNodes]) walk(child);
+  for (const child of Array.from(node.childNodes)) walk(child);
 }
 
 // ── Hover events ─────────────────────────────────────────────────
@@ -903,7 +903,7 @@ function findRpwAtPoint(x: number, y: number, container: Element): Element | nul
     if (rpw && container.contains(rpw)) return rpw;
   }
   // Fallback: bounding rect scan within container
-  for (const el of container.querySelectorAll('rp-w[data-word]')) {
+  for (const el of Array.from(container.querySelectorAll('rp-w[data-word]'))) {
     const r = el.getBoundingClientRect();
     if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
   }
@@ -986,23 +986,23 @@ function syncBodyClasses(): void {
   const b = document.body;
   const enabled = !b.classList.contains('ipa-disabled');
   const map: [keyof IpaOpts, string][] = [
-    ['silent',      'ipa-silent'],
-    ['color_e',     'ipa-color-e'],
-    ['color_i',     'ipa-color-i'],
+    ['silent', 'ipa-silent'],
+    ['color_e', 'ipa-color-e'],
+    ['color_i', 'ipa-color-i'],
     ['color_u_alt', 'ipa-color-u-alt'],
-    ['color_a',     'ipa-color-a'],
-    ['color_u',     'ipa-color-u'],
-    ['color_o',     'ipa-color-o'],
-    ['stress',      'ipa-st'],
-    ['length',      'ipa-length'],
-    ['diph_ai',     'ipa-diph-ai'],
-    ['diph_ei_oi',  'ipa-diph-ei-oi'],
-    ['diph_ou_au',  'ipa-diph-ou-au'],
-    ['th_t',        'ipa-th-t'],
-    ['th_d',        'ipa-th-d'],
-    ['tmark',       'ipa-tmark'],
-    ['zmark',       'ipa-zmark'],
-    ['phonemes',    'ipa-phonemes'],
+    ['color_a', 'ipa-color-a'],
+    ['color_u', 'ipa-color-u'],
+    ['color_o', 'ipa-color-o'],
+    ['stress', 'ipa-st'],
+    ['length', 'ipa-length'],
+    ['diph_ai', 'ipa-diph-ai'],
+    ['diph_ei_oi', 'ipa-diph-ei-oi'],
+    ['diph_ou_au', 'ipa-diph-ou-au'],
+    ['th_t', 'ipa-th-t'],
+    ['th_d', 'ipa-th-d'],
+    ['tmark', 'ipa-tmark'],
+    ['zmark', 'ipa-zmark'],
+    ['phonemes', 'ipa-phonemes'],
   ];
   for (const [key, cls] of map) b.classList.toggle(cls, enabled && opts[key]);
 }
@@ -1047,8 +1047,22 @@ async function checkActivation(): Promise<void> {
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
 
   const globalEnabled = s?.enabled !== false;
-  const siteOverride = (s?.siteOverrides ?? {})[window.location.hostname];
-  const isActive = siteOverride !== undefined ? siteOverride : globalEnabled;
+  const overrides = s?.siteOverrides ?? {};
+  let isActive = globalEnabled;
+
+  if (overrides[window.location.hostname] !== undefined) {
+    isActive = overrides[window.location.hostname];
+  } else if (window.location.ancestorOrigins) {
+    for (let i = 0; i < window.location.ancestorOrigins.length; i++) {
+      try {
+        const host = new URL(window.location.ancestorOrigins[i]).hostname;
+        if (overrides[host] !== undefined) {
+          isActive = overrides[host];
+          break;
+        }
+      } catch (e) { }
+    }
+  }
 
   if (!isActive) {
     document.body.classList.add('ipa-disabled');
@@ -1065,7 +1079,7 @@ async function checkActivation(): Promise<void> {
 function handleMutations(mutations: MutationRecord[]): void {
   if (!isContextValid()) { teardown(); return; }
   for (const m of mutations) {
-    for (const node of m.addedNodes) {
+    for (const node of Array.from(m.addedNodes)) {
       if (!dict) continue;
       const el = node as Element;
       if (el.getAttribute?.('data-ipa-ui')) continue;
@@ -1105,8 +1119,22 @@ async function init(): Promise<void> {
   try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { hasProcessed = false; return; }
   const s = stored['ipa-settings'];
   const _globalOn = s?.enabled !== false;
-  const _siteOverride = (s?.siteOverrides ?? {})[window.location.hostname];
-  const _isActive = _siteOverride !== undefined ? _siteOverride : _globalOn;
+  const overrides = s?.siteOverrides ?? {};
+  let _isActive = _globalOn;
+
+  if (overrides[window.location.hostname] !== undefined) {
+    _isActive = overrides[window.location.hostname];
+  } else if (window.location.ancestorOrigins) {
+    for (let i = 0; i < window.location.ancestorOrigins.length; i++) {
+      try {
+        const host = new URL(window.location.ancestorOrigins[i]).hostname;
+        if (overrides[host] !== undefined) {
+          _isActive = overrides[host];
+          break;
+        }
+      } catch (e) { }
+    }
+  }
   if (!_isActive) {
     // Extension disabled — reset so checkActivation() can re-init on next enable
     hasProcessed = false;
