@@ -1046,10 +1046,11 @@ async function checkActivation(): Promise<void> {
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
 
-  const isEnabled = s?.enabled !== false;
-  const isBlacklisted = (s?.blacklist ?? []).includes(window.location.hostname);
+  const globalEnabled = s?.enabled !== false;
+  const siteOverride = (s?.siteOverrides ?? {})[window.location.hostname];
+  const isActive = siteOverride !== undefined ? siteOverride : globalEnabled;
 
-  if (!isEnabled || isBlacklisted) {
+  if (!isActive) {
     document.body.classList.add('ipa-disabled');
     hideTip();
   } else {
@@ -1100,7 +1101,10 @@ async function init(): Promise<void> {
   let stored: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   try { stored = await chrome.storage.sync.get(['ipa-settings']); } catch { return; }
   const s = stored['ipa-settings'];
-  if (s?.enabled === false || (s?.blacklist ?? []).includes(window.location.hostname)) {
+  const _globalOn = s?.enabled !== false;
+  const _siteOverride = (s?.siteOverrides ?? {})[window.location.hostname];
+  const _isActive = _siteOverride !== undefined ? _siteOverride : _globalOn;
+  if (!_isActive) {
     document.body.classList.add('ipa-disabled'); return;
   }
   hasProcessed = true;

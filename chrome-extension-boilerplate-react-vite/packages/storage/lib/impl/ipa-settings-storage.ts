@@ -24,6 +24,9 @@ export type IpaOpts = {
 export type IpaSettingsState = {
   enabled: boolean;
   opts: IpaOpts;
+  /** Per-site overrides. true = force active, false = force disabled. Missing = follow global. */
+  siteOverrides: Record<string, boolean>;
+  /** @deprecated use siteOverrides */
   blacklist: string[];
   targetLanguage: string;
   translatePerSentence: boolean;
@@ -53,6 +56,7 @@ const DEFAULT_OPTS: IpaOpts = {
 const DEFAULT_STATE: IpaSettingsState = {
   enabled: true,
   opts: DEFAULT_OPTS,
+  siteOverrides: {},
   blacklist: [],
   targetLanguage: 'en',
   translatePerSentence: true,
@@ -62,8 +66,17 @@ const DEFAULT_STATE: IpaSettingsState = {
 export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setEnabled: (enabled: boolean) => Promise<void>;
   setOpt: (key: keyof IpaOpts, value: boolean) => Promise<void>;
+  /** Set explicit on/off override for a site. */
+  setSiteEnabled: (host: string, enabled: boolean) => Promise<void>;
+  /** Remove per-site override — site follows global again. */
+  clearSiteOverride: (host: string) => Promise<void>;
+  /** Effective active state for host (site override > global). */
+  isActiveOnSite: (host: string) => Promise<boolean>;
+  /** @deprecated use setSiteEnabled(host, false) */
   addToBlacklist: (host: string) => Promise<void>;
+  /** @deprecated use clearSiteOverride(host) */
   removeFromBlacklist: (host: string) => Promise<void>;
+  /** @deprecated */
   isBlacklisted: (host: string) => Promise<boolean>;
   setLanguage: (lang: string) => Promise<void>;
   setTranslatePerSentence: (val: boolean) => Promise<void>;
@@ -84,18 +97,39 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   setOpt: async (key: keyof IpaOpts, value: boolean) => {
     await storage.set(prev => ({ ...prev, opts: { ...prev.opts, [key]: value } }));
   },
+  setSiteEnabled: async (host: string, enabled: boolean) => {
+    await storage.set(prev => ({
+      ...prev,
+      siteOverrides: { ...(prev.siteOverrides ?? {}), [host]: enabled },
+    }));
+  },
+  clearSiteOverride: async (host: string) => {
+    await storage.set(prev => {
+      const { [host]: _, ...rest } = prev.siteOverrides ?? {};
+      return { ...prev, siteOverrides: rest };
+    });
+  },
+  isActiveOnSite: async (host: string) => {
+    const state = await storage.get();
+    const override = (state.siteOverrides ?? {})[host];
+    return override !== undefined ? override : state.enabled;
+  },
   addToBlacklist: async (host: string) => {
     await storage.set(prev => ({
       ...prev,
+      siteOverrides: { ...(prev.siteOverrides ?? {}), [host]: false },
       blacklist: prev.blacklist.includes(host) ? prev.blacklist : [...prev.blacklist, host],
     }));
   },
   removeFromBlacklist: async (host: string) => {
-    await storage.set(prev => ({ ...prev, blacklist: prev.blacklist.filter(h => h !== host) }));
+    await storage.set(prev => {
+      const { [host]: _, ...rest } = prev.siteOverrides ?? {};
+      return { ...prev, siteOverrides: rest, blacklist: prev.blacklist.filter(h => h !== host) };
+    });
   },
   isBlacklisted: async (host: string) => {
     const state = await storage.get();
-    return state.blacklist.includes(host);
+    return (state.blacklist ?? []).includes(host);
   },
   setLanguage: async (targetLanguage: string) => {
     await storage.set(prev => ({ ...prev, targetLanguage }));

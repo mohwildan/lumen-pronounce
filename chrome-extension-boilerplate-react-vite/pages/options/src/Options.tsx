@@ -224,15 +224,17 @@ function SettingsTab() {
       </div>
 
       <div className="opt-blacklist">
-        <h3>Disabled Sites</h3>
-        {settings.blacklist.length === 0 ? (
-          <p className="opt-empty">No sites disabled — active on all pages.</p>
+        <h3>Site Overrides</h3>
+        {Object.keys(settings.siteOverrides ?? {}).length === 0 ? (
+          <p className="opt-empty">No site overrides — all sites follow global setting.</p>
         ) : (
           <ul>
-            {settings.blacklist.map(host => (
+            {Object.entries(settings.siteOverrides ?? {}).map(([host, enabled]) => (
               <li key={host}>
-                <span>{host}</span>
-                <button onClick={() => ipaSettingsStorage.removeFromBlacklist(host)}>Remove</button>
+                <span className={enabled ? 'opt-site-on' : 'opt-site-off'}>
+                  {enabled ? '✓' : '✕'} {host}
+                </span>
+                <button onClick={() => ipaSettingsStorage.clearSiteOverride(host)}>Remove</button>
               </li>
             ))}
           </ul>

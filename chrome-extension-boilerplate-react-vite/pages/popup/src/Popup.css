@@ -184,6 +184,29 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ipa-clear-override {
+  font-size: .68rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color .15s, border-color .15s;
+}
+.ipa-clear-override:hover { color: var(--primary); border-color: var(--primary); }
+
+.ipa-override-hint {
+  font-size: .68rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 4px;
 }
 
 /* ─── Row ─── */

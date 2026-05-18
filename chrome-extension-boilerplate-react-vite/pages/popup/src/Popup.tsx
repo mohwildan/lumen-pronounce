@@ -229,7 +229,9 @@ const Popup = () => {
 
   if (!settings || !auth) return null;
 
-  const isBlacklisted = currentHost ? settings.blacklist.includes(currentHost) : false;
+  const siteOverride = currentHost ? (settings.siteOverrides ?? {})[currentHost] : undefined;
+  const isActiveOnSite = siteOverride !== undefined ? siteOverride : settings.enabled;
+  const hasSiteOverride = siteOverride !== undefined;
 
   return (
     <div className="ipa-popup">
@@ -266,15 +268,29 @@ const Popup = () => {
       {!domainLoading && currentHost && (
         <div className="ipa-section">
           <div className="ipa-section-title"><IconGlobe />This Site</div>
-          <div className="ipa-domain">{currentHost}</div>
+          <div className="ipa-domain">
+            {currentHost}
+            {hasSiteOverride && (
+              <button
+                className="ipa-clear-override"
+                title="Reset to global default"
+                onClick={() => ipaSettingsStorage.clearSiteOverride(currentHost)}
+              >
+                reset
+              </button>
+            )}
+          </div>
           <div className="ipa-row">
-            <div className="ipa-row-label"><span>Enable on this domain</span></div>
-            <Switch
-              checked={!isBlacklisted}
-              onChange={v => v
-                ? ipaSettingsStorage.removeFromBlacklist(currentHost)
-                : ipaSettingsStorage.addToBlacklist(currentHost)
+            <div className="ipa-row-label">
+              <span>Active on this site</span>
+              {hasSiteOverride
+                ? <small className="ipa-override-hint">{siteOverride ? 'Force on' : 'Force off'}</small>
+                : <small className="ipa-override-hint">Following global</small>
               }
+            </div>
+            <Switch
+              checked={isActiveOnSite}
+              onChange={v => ipaSettingsStorage.setSiteEnabled(currentHost, v)}
             />
           </div>
         </div>

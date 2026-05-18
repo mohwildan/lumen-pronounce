@@ -238,6 +238,8 @@ body {
 }
 
 .opt-blacklist li span { color: var(--text-2); font-size: .85rem; }
+.opt-blacklist li .opt-site-on { color: #4ade80; }
+.opt-blacklist li .opt-site-off { color: #f87171; }
 
 .opt-blacklist li button {
   background: none;
