@@ -1,11 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import '@src/Options.css';
 import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
 import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
 import type { IpaOpts } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
-type Tab = 'settings' | 'translation' | 'account' | 'dictionary' | 'anki';
+type Tab = 'settings' | 'translation' | 'account' | 'dictionary' | 'anki' | 'shortcuts';
 
 const LANGUAGES = [
   { code: 'none', name: 'Off' },
@@ -403,14 +403,14 @@ function AccountTab() {
   const getInitials = (name: string, email: string) => {
     const source = name || email;
     if (!source) return 'U';
-    
+
     if (source.includes('@')) {
       const username = source.split('@')[0];
       const parts = username.split(/[\._-]/);
       if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
       return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
-    
+
     const parts = source.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
@@ -631,9 +631,9 @@ function DictionaryTab() {
 
 const IconAnki = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
-    <path d="M12 7v10"/>
-    <path d="M8 12h8"/>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z" />
+    <path d="M12 7v10" />
+    <path d="M8 12h8" />
   </svg>
 );
 
@@ -641,6 +641,8 @@ function AnkiTab() {
   const settings = useStorage(ipaSettingsStorage);
   const auth = useStorage(ipaAuthStorage);
   const [ankiTestStatus, setAnkiTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [decks, setDecks] = useState<string[]>([]);
+  const [models, setModels] = useState<string[]>([]);
 
   if (!settings || !auth) return null;
   const tier = auth.user?.tier ?? 'free';
@@ -656,6 +658,22 @@ function AnkiTab() {
       });
       if (res.ok) {
         setAnkiTestStatus('success');
+
+        // Fetch decks
+        const decksRes = await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deckNames', version: 6 })
+        });
+        const decksData = await decksRes.json();
+        if (decksData.result) setDecks(decksData.result);
+
+        // Fetch models
+        const modelsRes = await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'modelNames', version: 6 })
+        });
+        const modelsData = await modelsRes.json();
+        if (modelsData.result) setModels(modelsData.result);
       } else {
         setAnkiTestStatus('error');
         setTimeout(() => setAnkiTestStatus('idle'), 3000);
@@ -665,6 +683,12 @@ function AnkiTab() {
       setTimeout(() => setAnkiTestStatus('idle'), 3000);
     }
   };
+
+  useEffect(() => {
+    if (settings.ankiEnabled) {
+      testAnki();
+    }
+  }, []);
 
   return (
     <div className="opt-section">
@@ -688,7 +712,7 @@ function AnkiTab() {
             disabled={!isPro}
           />
         </div>
-        
+
         {(settings.ankiEnabled ?? true) && (
           <>
             <div className="opt-card-divider" />
@@ -726,6 +750,147 @@ function AnkiTab() {
               </div>
               <small style={{ color: '#8c887a' }}>Default is http://localhost:8765. Make sure Anki is open and AnkiConnect is installed.</small>
             </div>
+
+            <div className="opt-card-divider" />
+            <div style={{ padding: '16px' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Anki - Deck Name</label>
+                <select
+                  className="opt-input"
+                  style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
+                  value={settings.ankiDeckName ?? 'Lumen Pronunciation'}
+                  onChange={e => ipaSettingsStorage.setAnkiDeckName(e.target.value)}
+                  disabled={!isPro}
+                >
+                  {decks.length > 0 ? (
+                    decks.map(d => <option key={d} value={d}>{d}</option>)
+                  ) : (
+                    <option value={settings.ankiDeckName ?? 'Lumen Pronunciation'}>{settings.ankiDeckName ?? 'Lumen Pronunciation'}</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Anki - Note Type</label>
+                <select
+                  className="opt-input"
+                  style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
+                  value={settings.ankiModelName ?? 'Basic'}
+                  onChange={async e => {
+                    const modelName = e.target.value;
+                    await ipaSettingsStorage.setAnkiModelName(modelName);
+                    
+                    // Fetch template for this model
+                    try {
+                      const url = settings.ankiEndpoint || 'http://localhost:8765';
+                      const res = await fetch(url, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          action: 'modelTemplates',
+                          version: 6,
+                          params: { modelName }
+                        })
+                      });
+                      const data = await res.json();
+                      if (data.result) {
+                        // Get the first card template
+                        const cardNames = Object.keys(data.result);
+                        if (cardNames.length > 0) {
+                          const firstCard = data.result[cardNames[0]];
+                          if (firstCard) {
+                            await ipaSettingsStorage.setAnkiFrontTemplate(firstCard.Front);
+                            await ipaSettingsStorage.setAnkiBackTemplate(firstCard.Back);
+                          }
+                        }
+                      }
+                    } catch (err) {
+                      console.error('Failed to fetch model template', err);
+                    }
+                  }}
+                  disabled={!isPro}
+                >
+                  {models.length > 0 ? (
+                    models.map(m => <option key={m} value={m}>{m}</option>)
+                  ) : (
+                    <option value={settings.ankiModelName ?? 'Basic'}>{settings.ankiModelName ?? 'Basic'}</option>
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <div className="opt-card-divider" />
+            <div style={{ padding: '16px' }}>
+              <label className="opt-card-label" style={{ display: 'block', marginBottom: '8px' }}>Card Templates</label>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Front Template</label>
+                <textarea
+                  className="opt-input"
+                  style={{ width: '100%', minHeight: '50px', fontFamily: 'monospace', padding: '8px' }}
+                  value={settings.ankiFrontTemplate ?? '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>'}
+                  onChange={e => ipaSettingsStorage.setAnkiFrontTemplate(e.target.value)}
+                  disabled={!isPro}
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Back Template</label>
+                <textarea
+                  className="opt-input"
+                  style={{ width: '100%', minHeight: '70px', fontFamily: 'monospace', padding: '8px' }}
+                  value={settings.ankiBackTemplate ?? '{{definitions}}'}
+                  onChange={e => ipaSettingsStorage.setAnkiBackTemplate(e.target.value)}
+                  disabled={!isPro}
+                />
+              </div>
+
+              <div style={{ background: '#1e1d1a', padding: '10px', borderRadius: '4px', fontSize: '0.8rem' }}>
+                <strong style={{ color: '#e8a351', display: 'block', marginBottom: '4px' }}>Supported Variables:</strong>
+                <div style={{ color: '#8c887a', lineHeight: '1.4' }}>
+                  <code>{"{{word}}"}</code> - Word or phrasal noun/verb<br />
+                  <code>{"{{word.phonetic}}"}</code> - Phonetic pronunciation (IPA)<br />
+                  <code>{"{{word.baseform}}"}</code> - Base form of a word<br />
+                  <code>{"{{word.parts-of-speech}}"}</code> - Parts of speech<br />
+                  <code>{"{{language}}"}</code> - Language of a word (e.g., English)<br />
+                  <code>{"{{definitions}}"}</code> - List of definitions<br />
+                  <code>{"{{definitions.numbered}}"}</code> - Numbered list of definitions<br />
+                  <code>{"{{definitions.translated}}"}</code> - Translated definitions<br />
+                  <code>{"{{sentence}}"}</code> - Sentence in which word was encountered<br />
+                  <code>{"{{sentence.phonetic}}"}</code> - Phonetic pronunciation of sentence<br />
+                  <code>{"{{links}}"}</code> - List of external links<br />
+                  <div style={{ color: '#e8a351', marginTop: '6px', marginBottom: '2px' }}><strong>Pro / AI Features (Placeholders):</strong></div>
+                  <code>{"{{word.audio}}"}</code> - Audio pronunciation<br />
+                  <code>{"{{word.image}}"}</code> - Image of a word<br />
+                  <code>{"{{screenshot.video}}"}</code> - Screenshot of a video<br />
+                  <code>{"{{ai.text.definition}}"}</code> - Contextual definition by AI<br />
+                  <code>{"{{ai.word.image}}"}</code> - Stylized image by AI
+                </div>
+              </div>
+              <div style={{ marginTop: '12px', textAlign: 'right' }}>
+                <button
+                  style={{
+                    fontSize: '0.8rem',
+                    padding: '6px 12px',
+                    background: 'transparent',
+                    color: '#8c887a',
+                    border: '1px solid #444',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    opacity: !isPro ? 0.5 : 1
+                  }}
+                  onClick={async () => {
+                    await ipaSettingsStorage.setAnkiEnabled(true);
+                    await ipaSettingsStorage.setAnkiEndpoint('http://localhost:8765');
+                    await ipaSettingsStorage.setAnkiFrontTemplate('<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>');
+                    await ipaSettingsStorage.setAnkiBackTemplate('{{definitions}}');
+                    setAnkiTestStatus('idle');
+                  }}
+                  disabled={!isPro}
+                >
+                  Reset to Default
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -741,6 +906,82 @@ function AnkiTab() {
   );
 }
 
+const IconKeyboard = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
+    <path d="M6 8h.01" />
+    <path d="M10 8h.01" />
+    <path d="M14 8h.01" />
+    <path d="M18 8h.01" />
+    <path d="M6 12h.01" />
+    <path d="M10 12h.01" />
+    <path d="M14 12h.01" />
+    <path d="M18 12h.01" />
+    <path d="M7 16h10" />
+  </svg>
+);
+
+function ShortcutsTab() {
+  const settings = useStorage(ipaSettingsStorage);
+
+  if (!settings) return null;
+
+  const shortcuts = settings.shortcuts ?? { rewind: 'a', forward: 'd', playPause: 's' };
+
+  const updateShortcut = (key: keyof typeof shortcuts, val: string) => {
+    ipaSettingsStorage.setShortcuts({ ...shortcuts, [key]: val });
+  };
+
+  return (
+    <div className="opt-section">
+      <div className="opt-page-header">
+        <h2>Video Shortcuts</h2>
+        <p className="opt-section-desc">Configure keyboard shortcuts for video playback control.</p>
+      </div>
+
+      <div className="opt-card">
+        <div style={{ padding: '16px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Rewind (10s)</label>
+            <input
+              type="text"
+              className="opt-input"
+              style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
+              value={shortcuts.rewind}
+              onChange={e => updateShortcut('rewind', e.target.value)}
+              maxLength={1}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Forward (10s)</label>
+            <input
+              type="text"
+              className="opt-input"
+              style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
+              value={shortcuts.forward}
+              onChange={e => updateShortcut('forward', e.target.value)}
+              maxLength={1}
+            />
+          </div>
+
+          <div>
+            <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Play / Pause</label>
+            <input
+              type="text"
+              className="opt-input"
+              style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
+              value={shortcuts.playPause}
+              onChange={e => updateShortcut('playPause', e.target.value)}
+              maxLength={1}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Nav ─── */
 const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'settings', label: 'Settings', icon: <IconSettings /> },
@@ -748,6 +989,7 @@ const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'account', label: 'Account', icon: <IconUser /> },
   { id: 'dictionary', label: 'Dictionary', icon: <IconBook /> },
   { id: 'anki', label: 'Anki Sync', icon: <IconAnki /> },
+  { id: 'shortcuts', label: 'Shortcuts', icon: <IconKeyboard /> },
 ];
 
 const Options = () => {
@@ -790,6 +1032,7 @@ const Options = () => {
         {tab === 'account' && <AccountTab />}
         {tab === 'dictionary' && <DictionaryTab />}
         {tab === 'anki' && <AnkiTab />}
+        {tab === 'shortcuts' && <ShortcutsTab />}
       </div>
     </div>
   );

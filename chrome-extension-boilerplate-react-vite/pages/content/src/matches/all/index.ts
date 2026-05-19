@@ -76,6 +76,7 @@ let translatePerSentence = true;
 let pauseOnHover = false;
 let ankiEnabled = false;
 let hasProcessed = false;
+let videoShortcuts = { rewind: 'a', forward: 'd', playPause: 's' };
 
 // ── ARPAbet ──────────────────────────────────────────────────────
 
@@ -1083,6 +1084,39 @@ document.addEventListener('mouseout', e => {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip(); hideSelUI(); } });
 
+// Video control shortcuts (a: -10s, d: +10s, s: pause/play)
+document.addEventListener('keydown', e => {
+  const target = e.target as HTMLElement;
+  if (!target) return;
+  
+  if (
+    target.tagName === 'INPUT' || 
+    target.tagName === 'TEXTAREA' || 
+    target.isContentEditable
+  ) {
+    return;
+  }
+
+  const video = document.querySelector('video');
+  if (!video) return;
+
+  const key = e.key.toLowerCase();
+  if (key === videoShortcuts.rewind.toLowerCase()) {
+    e.preventDefault();
+    video.currentTime = Math.max(0, video.currentTime - 10);
+  } else if (key === videoShortcuts.forward.toLowerCase()) {
+    e.preventDefault();
+    video.currentTime = Math.min(video.duration, video.currentTime + 10);
+  } else if (key === videoShortcuts.playPause.toLowerCase()) {
+    e.preventDefault();
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
+    }
+  }
+});
+
 // ── Activation ───────────────────────────────────────────────────
 
 
@@ -1150,6 +1184,7 @@ async function checkActivation(): Promise<void> {
   if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
+  if (s?.shortcuts !== undefined) videoShortcuts = s.shortcuts;
 
   const globalEnabled = s?.enabled !== false;
   const overrides = s?.siteOverrides ?? {};
@@ -1253,6 +1288,7 @@ async function init(): Promise<void> {
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
   if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
+  if (s?.shortcuts !== undefined) videoShortcuts = s.shortcuts;
   syncBodyClasses();
 
   // Observer starts BEFORE dict fetch so mutations during loading are queued

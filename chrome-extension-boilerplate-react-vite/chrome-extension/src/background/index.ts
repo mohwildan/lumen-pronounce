@@ -238,7 +238,10 @@ async function handleOpenPortal(sendResponse: (r: object) => void): Promise<void
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
-async function handleAnkiAdd(msg: { word: string; ipa: string; definition: string }, sendResponse: (r: object) => void): Promise<void> {
+async function handleAnkiAdd(
+  msg: { word: string; ipa: string; definition: string },
+  sendResponse: (response: any) => void
+): Promise<void> {
   try {
     const raw = await chrome.storage.sync.get('ipa-settings');
     const settings = raw['ipa-settings'] || {};
@@ -250,44 +253,116 @@ async function handleAnkiAdd(msg: { word: string; ipa: string; definition: strin
       return;
     }
 
-    const deckName = 'Lumen Pronunciation';
+    const deckName = settings.ankiDeckName || 'Lumen Pronunciation';
+
+    // 1. Pastikan deck tersedia
     const createRes = await fetch(ankiEndpoint, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'createDeck', version: 6, params: { deck: deckName } })
     });
-    if (!createRes.ok) throw new Error('Failed to reach AnkiConnect');
+    if (!createRes.ok) throw new Error(`HTTP Error: ${createRes.status}`);
+
+    const frontTemplate = settings.ankiFrontTemplate || '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>';
+    const backTemplate = settings.ankiBackTemplate || '{{definitions}}';
+
+    const parseTemplate = (tpl: string) => {
+      return tpl
+        .replace(/\{\{word\}\}/g, msg.word || '')
+        .replace(/\{\{word\.phonetic\}\}/g, msg.ipa || '')
+        .replace(/\{\{definitions\}\}/g, msg.definition || 'No definition saved.')
+        .replace(/\{\{translations\}\}/g, '')
+        .replace(/\{\{sentence\}\}/g, '')
+        .replace(/\{\{sentence\.phonetic\}\}/g, '')
+        .replace(/\{\{word\.audio\}\}/g, '')
+        .replace(/\{\{word\.image\}\}/g, '')
+        .replace(/\{\{links\}\}/g, '')
+        .replace(/\{\{word\.baseform\}\}/g, '')
+        .replace(/\{\{word\.parts-of-speech\}\}/g, '')
+        .replace(/\{\{language\}\}/g, 'English')
+        .replace(/\{\{definitions\.numbered\}\}/g, msg.definition ? `1. ${msg.definition}` : 'No definition saved.')
+        .replace(/\{\{definitions\.translated\}\}/g, '')
+        .replace(/\{\{screenshot\.video\}\}/g, '')
+        .replace(/\{\{ai\.text\.definition\}\}/g, '')
+        .replace(/\{\{ai\.word\.image\}\}/g, '');
+    };
+
+    // 2. Fetch field names
+    let availableFields: string[] = ['Front', 'Back'];
+    try {
+      const fieldsRes = await fetch(ankiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'modelFieldNames',
+          version: 6,
+          params: { modelName: settings.ankiModelName || 'Basic' }
+        })
+      });
+
+      if (!fieldsRes.ok) throw new Error('Failed to fetch model fields');
+
+      const fieldsData = await fieldsRes.json() as { result: string[] | null; error: string | null };
+      if (fieldsData.error) {
+        sendResponse({ error: `Anki Error: ${fieldsData.error}` });
+        return;
+      }
+
+      if (fieldsData.result && fieldsData.result.length > 0) {
+        availableFields = fieldsData.result;
+      } else {
+        sendResponse({ error: 'Selected Note Type has no fields.' });
+        return;
+      }
+    } catch (err) {
+      sendResponse({ error: 'Failed to connect to Anki. Is Anki app open?' });
+      return;
+    }
+
+    // 3. Susun isi kartu
+    const noteFields: Record<string, string> = {};
+    if (availableFields.length >= 2) {
+      noteFields[availableFields[0]] = parseTemplate(frontTemplate);
+      noteFields[availableFields[1]] = parseTemplate(backTemplate);
+
+      for (let i = 2; i < availableFields.length; i++) {
+        noteFields[availableFields[i]] = '';
+      }
+    } else if (availableFields.length === 1) {
+      noteFields[availableFields[0]] = parseTemplate(frontTemplate) + '<br><br>' + parseTemplate(backTemplate);
+    }
 
     const note = {
       deckName,
-      modelName: 'Basic',
-      fields: {
-        Front: `<h2 style="text-align:center">${msg.word}</h2><br><div style="text-align:center;font-style:italic;color:#555">${msg.ipa}</div>`,
-        Back: `<div style="text-align:center">${msg.definition || 'No definition saved.'}</div>`
-      },
+      modelName: settings.ankiModelName || 'Basic',
+      fields: noteFields,
       options: { allowDuplicate: false },
       tags: ['lumen_pronunciation']
     };
-    
+
+    // 4. Kirim ke Anki
     const res = await fetch(ankiEndpoint, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'addNote', version: 6, params: { note } })
     });
-    
+
     const data = await res.json() as { error: string | null };
     if (data.error) {
       if (data.error.includes('duplicate')) {
-         sendResponse({ error: 'Card already exists in Anki' });
+        sendResponse({ error: 'Card already exists in Anki' });
       } else {
-         sendResponse({ error: data.error });
+        sendResponse({ error: data.error });
       }
       return;
     }
+
     sendResponse({ ok: true });
-  } catch (e) {
-    sendResponse({ error: 'Could not connect to AnkiConnect. Is Anki open?' });
+  } catch (e: any) {
+    console.error("Anki Sync Error:", e);
+    sendResponse({ error: `Connection failed: ${e.message || 'Is Anki open?'}` });
   }
 }
-
 // ── Message router ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

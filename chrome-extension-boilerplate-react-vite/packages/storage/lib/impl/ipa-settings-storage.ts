@@ -21,6 +21,12 @@ export type IpaOpts = {
   length: boolean;
 };
 
+export type IpaShortcuts = {
+  rewind: string;
+  forward: string;
+  playPause: string;
+};
+
 export type IpaSettingsState = {
   enabled: boolean;
   opts: IpaOpts;
@@ -33,10 +39,11 @@ export type IpaSettingsState = {
   pauseOnHover: boolean;
   ankiEnabled: boolean;
   ankiEndpoint: string;
+  ankiFrontTemplate: string;
+  ankiBackTemplate: string;
   ankiDeckName: string;
-  ankiNoteType: string;
-  ankiFront: string;
-  ankiBack: string;
+  ankiModelName: string;
+  shortcuts: IpaShortcuts;
 };
 
 const DEFAULT_OPTS: IpaOpts = {
@@ -69,11 +76,15 @@ const DEFAULT_STATE: IpaSettingsState = {
   pauseOnHover: false,
   ankiEnabled: true,
   ankiEndpoint: 'http://localhost:8765',
+  ankiFrontTemplate: '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>',
+  ankiBackTemplate: '{{definitions}}',
   ankiDeckName: 'Lumen Pronunciation',
-  ankiNoteType: 'Basic',
-  ankiFront: '{{word}}
-<br><i>{{ipa}}</i>',
-  ankiBack: '{{definition}}',
+  ankiModelName: 'Basic',
+  shortcuts: {
+    rewind: 'a',
+    forward: 'd',
+    playPause: 's',
+  },
 };
 
 export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
@@ -96,10 +107,11 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setPauseOnHover: (val: boolean) => Promise<void>;
   setAnkiEnabled: (val: boolean) => Promise<void>;
   setAnkiEndpoint: (val: string) => Promise<void>;
+  setAnkiFrontTemplate: (val: string) => Promise<void>;
+  setAnkiBackTemplate: (val: string) => Promise<void>;
   setAnkiDeckName: (val: string) => Promise<void>;
-  setAnkiNoteType: (val: string) => Promise<void>;
-  setAnkiFront: (val: string) => Promise<void>;
-  setAnkiBack: (val: string) => Promise<void>;
+  setAnkiModelName: (val: string) => Promise<void>;
+  setShortcuts: (val: IpaShortcuts) => Promise<void>;
   reset: () => Promise<void>;
 };
 
@@ -165,17 +177,20 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   setAnkiEndpoint: async (ankiEndpoint: string) => {
     await storage.set(prev => ({ ...prev, ankiEndpoint }));
   },
+  setAnkiFrontTemplate: async (ankiFrontTemplate: string) => {
+    await storage.set(prev => ({ ...prev, ankiFrontTemplate }));
+  },
+  setAnkiBackTemplate: async (ankiBackTemplate: string) => {
+    await storage.set(prev => ({ ...prev, ankiBackTemplate }));
+  },
   setAnkiDeckName: async (ankiDeckName: string) => {
     await storage.set(prev => ({ ...prev, ankiDeckName }));
   },
-  setAnkiNoteType: async (ankiNoteType: string) => {
-    await storage.set(prev => ({ ...prev, ankiNoteType }));
+  setAnkiModelName: async (ankiModelName: string) => {
+    await storage.set(prev => ({ ...prev, ankiModelName }));
   },
-  setAnkiFront: async (ankiFront: string) => {
-    await storage.set(prev => ({ ...prev, ankiFront }));
-  },
-  setAnkiBack: async (ankiBack: string) => {
-    await storage.set(prev => ({ ...prev, ankiBack }));
+  setShortcuts: async (shortcuts: IpaShortcuts) => {
+    await storage.set(prev => ({ ...prev, shortcuts }));
   },
   reset: async () => {
     await storage.set(DEFAULT_STATE);
