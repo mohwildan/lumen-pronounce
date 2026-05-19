@@ -44,6 +44,8 @@ export type IpaSettingsState = {
   ankiDeckName: string;
   ankiModelName: string;
   shortcuts: IpaShortcuts;
+  pronunciationDialect: 'nAmE' | 'brE';
+  enableBaseforms: boolean;
 };
 
 const DEFAULT_OPTS: IpaOpts = {
@@ -85,6 +87,8 @@ const DEFAULT_STATE: IpaSettingsState = {
     forward: 'd',
     playPause: 's',
   },
+  pronunciationDialect: 'nAmE',
+  enableBaseforms: true,
 };
 
 export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
@@ -112,6 +116,8 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setAnkiDeckName: (val: string) => Promise<void>;
   setAnkiModelName: (val: string) => Promise<void>;
   setShortcuts: (val: IpaShortcuts) => Promise<void>;
+  setPronunciationDialect: (val: 'nAmE' | 'brE') => Promise<void>;
+  setEnableBaseforms: (val: boolean) => Promise<void>;
   reset: () => Promise<void>;
 };
 
@@ -191,6 +197,12 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setShortcuts: async (shortcuts: IpaShortcuts) => {
     await storage.set(prev => ({ ...prev, shortcuts }));
+  },
+  setPronunciationDialect: async (pronunciationDialect: 'nAmE' | 'brE') => {
+    await storage.set(prev => ({ ...prev, pronunciationDialect }));
+  },
+  setEnableBaseforms: async (enableBaseforms: boolean) => {
+    await storage.set(prev => ({ ...prev, enableBaseforms }));
   },
   reset: async () => {
     await storage.set(DEFAULT_STATE);

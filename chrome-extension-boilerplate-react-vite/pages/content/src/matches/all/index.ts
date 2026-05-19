@@ -53,6 +53,9 @@ type IpaOpts = {
 };
 
 let dict: Record<string, string> | null = null;
+let baseforms: Record<string, string> | null = null;
+let activeDialect: 'nAmE' | 'brE' | null = null;
+let activeBaseformsSetting: boolean | null = null;
 let mainObserver: MutationObserver | null = null;
 let spaInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -116,6 +119,7 @@ function alignWord(word: string, arpa: string): AlignedToken[] {
 }
 
 function toIPA(arpaStr: string): string {
+  if (!arpaStr) return '';
   const toks = arpaStr.trim().split(/\s+/)
     .filter(t => t !== '-' && t !== '--' && !t.startsWith('+'))
     .map(tok => {
@@ -172,7 +176,7 @@ function renderWordFrag(word: string, arpa: string): HTMLElement {
     const isLast = i === aligned.length - 1 || aligned[i + 1]?.base !== base;
 
     if (silent) {
-      sEl.setAttribute('data-silent', '1');
+      if (arpa) sEl.setAttribute('data-silent', '1');
     } else if (base) {
       const vColor = VOWEL_COLORS[base];
       if (vColor) {
@@ -477,7 +481,7 @@ function buildTipHTML(word: string, ipa: string): string {
     `</div>` +
     // Right: IPA & Anki
     `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">` +
-    `<span style="font-size:.9rem;color:#c7c3b5;font-style:italic;letter-spacing:.02em;white-space:nowrap;padding-top:4px">${ipa}</span>` +
+    `<span id="__ipa_header_ipa__" style="font-size:.9rem;color:#c7c3b5;font-style:italic;letter-spacing:.02em;white-space:nowrap;padding-top:4px">${ipa}</span>` +
     (ankiEnabled ? `<button id="__ipa_anki_btn__" title="Save to Anki" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : '') +
     `</div>` +
     `</div>` +
@@ -628,7 +632,25 @@ async function fetchDictDef(word: string): Promise<void> {
       defCache[key] = r.ok ? await r.json() : null;
     } catch { defCache[key] = null; }
   }
-  if (currentWord === word) void renderTab('definition', word, defCache[key]);
+  if (currentWord === word) {
+    void renderTab('definition', word, defCache[key]);
+    const data = defCache[key];
+    if (data) {
+      const arr = data as Array<{ phonetic?: string; phonetics?: Array<{ text?: string }> }>;
+      let fetchedIpa = arr[0]?.phonetic || '';
+      if (!fetchedIpa && arr[0]?.phonetics) {
+        const found = arr[0].phonetics.find(p => p.text);
+        if (found) fetchedIpa = found.text || '';
+      }
+      if (fetchedIpa) {
+        if (!fetchedIpa.startsWith('/')) fetchedIpa = '/' + fetchedIpa + '/';
+        const ipaSpan = document.getElementById('__ipa_header_ipa__');
+        if (ipaSpan && !ipaSpan.textContent) {
+          ipaSpan.textContent = fetchedIpa;
+        }
+      }
+    }
+  }
 }
 
 function posTip(mouseX: number, mouseY: number): void {
@@ -660,14 +682,14 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
   const t = getTip();
   const word = wordEl.getAttribute('data-word');
   const arpa = wordEl.getAttribute('data-arpa');
-  if (!word || !arpa) return;
+  if (!word) return;
   currentWord = word;
 
   stopCurrent();
   ttsActive = false;
   maybePauseVideo();
 
-  t.innerHTML = buildTipHTML(word, toIPA(arpa));
+  t.innerHTML = buildTipHTML(word, toIPA(arpa ?? ''));
   t.style.pointerEvents = 'auto';
 
   // Wire up speaker button
@@ -679,7 +701,12 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
   // Wire up Anki button
   const ankiBtn = t.querySelector('#__ipa_anki_btn__') as HTMLButtonElement | null;
   if (ankiBtn) {
-    ankiBtn.addEventListener('click', e => { e.stopPropagation(); void saveToAnki(word, toIPA(arpa), defCache[word.toLowerCase()]); });
+    ankiBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const ipaSpan = t.querySelector('#__ipa_header_ipa__');
+      const ipaVal = ipaSpan?.textContent || '';
+      void saveToAnki(word, ipaVal, defCache[word.toLowerCase()]);
+    });
   }
 
   // Wire up tabs
@@ -746,7 +773,7 @@ async function saveToAnki(word: string, ipa: string, data: unknown): Promise<voi
     const arr = data as Array<{ meanings?: Array<{ definitions?: Array<{ definition?: string; example?: string }> }> }>;
     defText = arr[0]?.meanings?.[0]?.definitions?.[0]?.definition ?? '';
   }
-  
+
   if (!isContextValid()) return;
   chrome.runtime.sendMessage({ type: 'ANKI_ADD_CARD', word, ipa, definition: defText }, (response: { error?: string; ok?: boolean } | undefined) => {
     if (ankiBtn) {
@@ -876,7 +903,13 @@ const SUFFIXES = [
 function guessPronunciation(word: string, depth = 0): string | null {
   if (depth > 2 || !dict) return null;
   const w = word.toLowerCase();
-  const getStem = (s: string) => dict![s] || guessPronunciation(s, depth + 1);
+  if (baseforms) {
+    const base = baseforms[w];
+    if (base && dict[base.toLowerCase()]) {
+      return dict[base.toLowerCase()];
+    }
+  }
+  const getStem = (s: string) => dict![s] || (baseforms?.[s] && dict![baseforms[s].toLowerCase()]) || guessPronunciation(s, depth + 1);
   if (w.endsWith('ization')) { const s = getStem(w.slice(0, -7) + 'ize'); if (s) return s.replace(/\s+-\s*$/, ' EY1 SH - AX0 N'); }
   if (w.endsWith('ation')) { const s = getStem(w.slice(0, -5) + 'ate'); if (s) return s.replace(/\s+-\s*$/, ' EY1 SH - AX0 N'); }
   if (w.endsWith('ing')) { const s = getStem(w.slice(0, -3) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' IH0 NG -'); }
@@ -912,6 +945,10 @@ function processTextNode(node: Text): void {
 
     const clean = token.replace(/^'+|'+$/g, ''); // strip leading/trailing apostrophes
     let arpa = clean ? (dict?.[clean.toLowerCase()] ?? null) : null;
+    if (!arpa && clean && baseforms) {
+      const base = baseforms[clean.toLowerCase()];
+      if (base) arpa = dict?.[base.toLowerCase()] ?? null;
+    }
     if (!arpa && clean && (clean.length > 4 || clean.includes("'"))) arpa = guessPronunciation(clean);
 
     // Helper: build rp-w for a contraction — base gets IPA, suffix appended as plain text INSIDE rp-w
@@ -961,6 +998,17 @@ function processTextNode(node: Text): void {
           continue;
         }
       }
+    }
+    // General fallback: if the word is alphabetical and has length >= 2, we still wrap it with an empty arpa
+    // so it is hoverable, has a dictionary definition, and can be saved to Anki.
+    if (clean && /^[a-zA-Z]+$/.test(clean) && clean.length >= 2) {
+      const pre = token.match(/^'+/)?.[0] ?? '';
+      if (pre) frag.appendChild(document.createTextNode(pre));
+      const post = token.match(/'+$/)?.[0] ?? '';
+      frag.appendChild(renderWordFrag(clean, ''));
+      if (post) frag.appendChild(document.createTextNode(post));
+      changed = true;
+      continue;
     }
 
     frag.appendChild(document.createTextNode(token));
@@ -1088,10 +1136,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip();
 document.addEventListener('keydown', e => {
   const target = e.target as HTMLElement;
   if (!target) return;
-  
+
   if (
-    target.tagName === 'INPUT' || 
-    target.tagName === 'TEXTAREA' || 
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
     target.isContentEditable
   ) {
     return;
@@ -1207,8 +1255,16 @@ async function checkActivation(): Promise<void> {
   if (!isActive) {
     document.body.classList.add('ipa-disabled');
     hideTip();
+    unwalkAll();
+    hasProcessed = false;
   } else {
     document.body.classList.remove('ipa-disabled');
+    const dialect = s?.pronunciationDialect ?? 'nAmE';
+    const enableBaseforms = s?.enableBaseforms !== false;
+    if (hasProcessed && (dialect !== activeDialect || enableBaseforms !== activeBaseformsSetting)) {
+      unwalkAll();
+      hasProcessed = false;
+    }
     if (!hasProcessed) { void init(); return; }
   }
   syncBodyClasses();
@@ -1235,22 +1291,6 @@ async function init(): Promise<void> {
   if (hasProcessed) return;
   // Set immediately — prevents concurrent init() calls from racing past this guard
   hasProcessed = true;
-
-  // In sub-frames without relevant elements: wait for them instead of returning
-  if (window !== window.top) {
-    const SELECTOR = 'video, [class*="caption"], [class*="subtitle"], [class*="transcript"]';
-    if (!document.querySelector(SELECTOR)) {
-      hasProcessed = false; // allow re-init when selector appears
-      const waiter = new MutationObserver(() => {
-        if (document.querySelector(SELECTOR)) {
-          waiter.disconnect();
-          void init();
-        }
-      });
-      waiter.observe(document.documentElement ?? document.body ?? document, { childList: true, subtree: true });
-      return;
-    }
-  }
 
   if (!document.body) { hasProcessed = false; return; }
   if (!isContextValid()) { hasProcessed = false; return; }
@@ -1297,8 +1337,23 @@ async function init(): Promise<void> {
 
   try {
     if (!isContextValid()) return;
-    const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
-    dict = await r.json() as Record<string, string>;
+    const dialect = s?.pronunciationDialect ?? 'nAmE';
+    const enableBaseforms = s?.enableBaseforms !== false;
+
+    activeDialect = dialect as 'nAmE' | 'brE';
+    activeBaseformsSetting = enableBaseforms;
+
+    const dictFile = dialect === 'brE' ? 'en-BrE-pronunciation.txt' : 'en-NAmE-pronunciation.txt';
+
+    const dictPromise = fetch(chrome.runtime.getURL(dictFile)).then(r => r.json());
+    const baseformsPromise = enableBaseforms
+      ? fetch(chrome.runtime.getURL('en-baseforms.json')).then(r => r.json()).catch(() => null)
+      : Promise.resolve(null);
+
+    const [dictData, baseformsData] = await Promise.all([dictPromise, baseformsPromise]);
+    dict = dictData as Record<string, string>;
+    baseforms = baseformsData as Record<string, string> | null;
+
     walk(document.body);
   } catch (e) { console.error('[IPA Stylizer]', e); }
 }

@@ -238,6 +238,39 @@ function SettingsTab() {
           <div className="opt-row-body">
             <span className="opt-swatch opt-swatch-ghost" />
             <div className="opt-row-text">
+              <span className="opt-row-name">Pronunciation Dialect</span>
+              <small>Accent/dialect style used for word highlight and translation</small>
+            </div>
+          </div>
+          <select
+            className="opt-select"
+            value={settings.pronunciationDialect ?? 'nAmE'}
+            onChange={e => ipaSettingsStorage.setPronunciationDialect(e.target.value as 'nAmE' | 'brE')}
+            style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #444', borderRadius: '4px', padding: '6px 8px', width: '200px' }}
+          >
+            <option value="nAmE">American English (NAmE)</option>
+            <option value="brE">British English (BrE)</option>
+          </select>
+        </div>
+
+        <div className="opt-row">
+          <div className="opt-row-body">
+            <span className="opt-swatch opt-swatch-ghost" />
+            <div className="opt-row-text">
+              <span className="opt-row-name">Enable Baseforms Fallback</span>
+              <small>Use base forms dictionary to find inflected/conjugate words</small>
+            </div>
+          </div>
+          <Switch
+            checked={settings.enableBaseforms !== false}
+            onChange={v => ipaSettingsStorage.setEnableBaseforms(v)}
+          />
+        </div>
+
+        <div className="opt-row">
+          <div className="opt-row-body">
+            <span className="opt-swatch opt-swatch-ghost" />
+            <div className="opt-row-text">
               <span className="opt-row-name">Pause video on hover</span>
               <small>Pause playing video when hovering over highlighted words</small>
             </div>
@@ -565,17 +598,37 @@ function AccountTab() {
 
 /* ─── Dictionary Tab ─── */
 function DictionaryTab() {
+  const settings = useStorage(ipaSettingsStorage);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<{ text: string; hit: boolean } | null>(null);
   const [dict, setDict] = useState<Record<string, string> | null>(null);
+  const [baseforms, setBaseforms] = useState<Record<string, string> | null>(null);
   const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    setDict(null);
+    setBaseforms(null);
+    setResult(null);
+    setQuery('');
+  }, [settings?.pronunciationDialect, settings?.enableBaseforms]);
 
   const loadDict = async () => {
     if (dict) return;
     try {
-      const r = await fetch(chrome.runtime.getURL('pronunciation.json'));
-      const data = await r.json() as Record<string, string>;
-      setDict(data);
+      const dialect = settings?.pronunciationDialect ?? 'nAmE';
+      const enableBaseforms = settings?.enableBaseforms !== false;
+
+      let dictFile = 'en-NAmE-pronunciation.txt';
+      if (dialect === 'brE') dictFile = 'en-BrE-pronunciation.txt';
+
+      const dictPromise = fetch(chrome.runtime.getURL(dictFile)).then(r => r.json());
+      const baseformsPromise = enableBaseforms
+        ? fetch(chrome.runtime.getURL('en-baseforms.json')).then(r => r.json()).catch(() => null)
+        : Promise.resolve(null);
+
+      const [dictData, baseformsData] = await Promise.all([dictPromise, baseformsPromise]);
+      setDict(dictData);
+      setBaseforms(baseformsData);
     } catch {
       setLoadError(true);
     }
@@ -584,13 +637,64 @@ function DictionaryTab() {
   const handleQuery = async (val: string) => {
     setQuery(val);
     if (!val.trim()) { setResult(null); return; }
-    if (!dict) { await loadDict(); return; }
+    let activeDict = dict;
+    let activeBaseforms = baseforms;
+    if (!activeDict) {
+      try {
+        const dialect = settings?.pronunciationDialect ?? 'nAmE';
+        const enableBaseforms = settings?.enableBaseforms !== false;
+
+        let dictFile = 'en-NAmE-pronunciation.txt';
+        if (dialect === 'brE') dictFile = 'en-BrE-pronunciation.txt';
+
+        const dictPromise = fetch(chrome.runtime.getURL(dictFile)).then(r => r.json());
+        const baseformsPromise = enableBaseforms
+          ? fetch(chrome.runtime.getURL('en-baseforms.json')).then(r => r.json()).catch(() => null)
+          : Promise.resolve(null);
+
+        const [dictData, baseformsData] = await Promise.all([dictPromise, baseformsPromise]);
+        activeDict = dictData;
+        activeBaseforms = baseformsData;
+        setDict(dictData);
+        setBaseforms(baseformsData);
+      } catch {
+        setLoadError(true);
+        return;
+      }
+    }
+
+    if (!activeDict) return;
+
     const word = val.trim().toLowerCase();
-    const entry = dict[word];
-    setResult(entry
-      ? { text: `/${entry}/`, hit: true }
-      : { text: `"${word}" not found in dictionary`, hit: false }
-    );
+    let entry = activeDict[word];
+    let isBaseformFallback = false;
+    let baseWordUsed = '';
+
+    if (!entry && activeBaseforms) {
+      const base = activeBaseforms[word];
+      if (base) {
+        const baseLower = base.toLowerCase();
+        if (activeDict[baseLower]) {
+          entry = activeDict[baseLower];
+          isBaseformFallback = true;
+          baseWordUsed = base;
+        }
+      }
+    }
+
+    if (entry) {
+      setResult({
+        text: isBaseformFallback
+          ? `/${entry}/ (baseform: "${baseWordUsed}")`
+          : `/${entry}/`,
+        hit: true,
+      });
+    } else {
+      setResult({
+        text: `"${word}" not found in dictionary`,
+        hit: false,
+      });
+    }
   };
 
   return (

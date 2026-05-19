@@ -382,25 +382,187 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // ── TTS ─────────────────────────────────────────────────────────
 
-const TTS_SOURCES = (word: string) => [
-  `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=en-US&q=${encodeURIComponent(word)}&total=1&idx=0&textlen=${word.length}&prev=input`,
-  `https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=${encodeURIComponent(word)}`,
-];
+function md5(str: string): string {
+  const k = [
+    0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
+    0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
+    0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
+    0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
+    0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa,
+    0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+    0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed,
+    0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
+    0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
+    0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
+    0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05,
+    0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+    0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
+    0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
+    0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
+    0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
+  ];
+  const s = [
+    7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+    5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+    4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+    6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
+  ];
+
+  let h0 = 0x67452301;
+  let h1 = 0xefcdab89;
+  let h2 = 0x98badcfe;
+  let h3 = 0x10325476;
+
+  const utf8 = unescape(encodeURIComponent(str));
+  const msgLen = utf8.length;
+  const words = new Uint32Array(((msgLen + 8) >> 6) * 16 + 16);
+  for (let i = 0; i < msgLen; i++) {
+    words[i >> 2] |= utf8.charCodeAt(i) << ((i % 4) * 8);
+  }
+  words[msgLen >> 2] |= 0x80 << ((msgLen % 4) * 8);
+  words[words.length - 2] = msgLen * 8;
+
+  const rotateLeft = (x: number, n: number) => (x << n) | (x >>> (32 - n));
+
+  for (let j = 0; j < words.length; j += 16) {
+    let a = h0;
+    let b = h1;
+    let c = h2;
+    let d = h3;
+
+    for (let i = 0; i < 64; i++) {
+      let f = 0;
+      let g = 0;
+
+      if (i < 16) {
+        f = (b & c) | (~b & d);
+        g = i;
+      } else if (i < 32) {
+        f = (d & b) | (~d & c);
+        g = (5 * i + 1) % 16;
+      } else if (i < 48) {
+        f = b ^ c ^ d;
+        g = (3 * i + 5) % 16;
+      } else {
+        f = c ^ (b | ~d);
+        g = (7 * i) % 16;
+      }
+
+      const temp = d;
+      d = c;
+      c = b;
+      b = (b + rotateLeft(a + f + k[i] + words[j + g], s[i])) | 0;
+      a = temp;
+    }
+
+    h0 = (h0 + a) | 0;
+    h1 = (h1 + b) | 0;
+    h2 = (h2 + c) | 0;
+    h3 = (h3 + d) | 0;
+  }
+
+  const toHex = (n: number) => {
+    let out = '';
+    for (let i = 0; i < 4; i++) {
+      out += ((n >> (i * 8)) & 0xff).toString(16).padStart(2, '0');
+    }
+    return out;
+  };
+
+  return toHex(h0) + toHex(h1) + toHex(h2) + toHex(h3);
+}
+
+function getWikimediaUrl(filename: string): string {
+  let normalized = filename.trim().replace(/ /g, '_');
+  if (normalized.length > 0) {
+    normalized = normalized[0].toUpperCase() + normalized.slice(1);
+  }
+  const hash = md5(normalized);
+  const h1 = hash[0];
+  const h2 = hash.substring(0, 2);
+  return `https://upload.wikimedia.org/wikipedia/commons/${h1}/${h2}/${encodeURIComponent(normalized)}`;
+}
+
+let loadedDialect: string | null = null;
+let audioMap: Record<string, string> | null = null;
+
+async function getAudioMap(dialect: string): Promise<Record<string, string>> {
+  if (audioMap && loadedDialect === dialect) {
+    return audioMap;
+  }
+  try {
+    const file = dialect === 'brE' ? 'en-BrE-audios.txt' : 'en-NAmE-audios.txt';
+    const url = chrome.runtime.getURL(file);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load ${file}`);
+    audioMap = await res.json() as Record<string, string>;
+    loadedDialect = dialect;
+    return audioMap;
+  } catch (err) {
+    console.error("Failed to load audio map:", err);
+    return {};
+  }
+}
+
+const getTtsSources = (word: string, dialect: string) => {
+  const langCode = dialect === 'brE' ? 'en-GB' : 'en-US';
+  const voice = dialect === 'brE' ? 'Emma' : 'Brian';
+  return [
+    `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${langCode}&q=${encodeURIComponent(word)}&total=1&idx=0&textlen=${word.length}&prev=input`,
+    `https://api.streamelements.com/kappa/v2/speech?voice=${voice}&text=${encodeURIComponent(word)}`,
+  ];
+};
 
 async function handleTts(word: string, sendResponse: (r: object) => void): Promise<void> {
-  for (const url of TTS_SOURCES(word)) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const buf = await res.arrayBuffer();
-      if (buf.byteLength === 0) continue;
-      const bytes = new Uint8Array(buf);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      sendResponse({ base64: btoa(binary), mimeType: res.headers.get('content-type') ?? 'audio/mpeg' });
-      return;
-    } catch { continue; }
+  try {
+    const raw = await chrome.storage.sync.get('ipa-settings');
+    const settings = raw['ipa-settings'] || {};
+    const activeDialect = settings.pronunciationDialect || 'nAmE';
+
+    // 1. Try Wikimedia Commons audio map first
+    const map = await getAudioMap(activeDialect);
+    const filename = map[word.toLowerCase()];
+    if (filename) {
+      const wikimediaUrl = getWikimediaUrl(filename);
+      try {
+        const res = await fetch(wikimediaUrl);
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          if (buf.byteLength > 0) {
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const ext = filename.split('.').pop()?.toLowerCase();
+            const mimeType = ext === 'wav' ? 'audio/x-wav' : (ext === 'flac' ? 'audio/flac' : 'audio/ogg');
+            sendResponse({ base64: btoa(binary), mimeType });
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch Wikimedia audio, falling back to TTS:", e);
+      }
+    }
+
+    // 2. Fallback to Google / StreamElements TTS
+    for (const url of getTtsSources(word, activeDialect)) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength === 0) continue;
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        sendResponse({ base64: btoa(binary), mimeType: res.headers.get('content-type') ?? 'audio/mpeg' });
+        return;
+      } catch {
+        continue;
+      }
+    }
+  } catch (err) {
+    console.error("Error in handleTts:", err);
   }
+
   sendResponse({ error: 'all_failed' });
 }
 
