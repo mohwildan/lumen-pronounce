@@ -52,10 +52,11 @@ type IpaOpts = {
   diph_ei_oi: boolean; phonemes: boolean; th_d: boolean; diph_ou_au: boolean; length: boolean;
 };
 
-let dict: Record<string, string> | null = null;
+let dict: Record<string, string> = {};
 let baseforms: Record<string, string> | null = null;
 let activeDialect: 'nAmE' | 'brE' | null = null;
 let activeBaseformsSetting: boolean | null = null;
+let isInit = false;
 let mainObserver: MutationObserver | null = null;
 let spaInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -901,7 +902,7 @@ const SUFFIXES = [
 ];
 
 function guessPronunciation(word: string, depth = 0): string | null {
-  if (depth > 2 || !dict) return null;
+  if (depth > 2 || !isInit) return null;
   const w = word.toLowerCase();
   if (baseforms) {
     const base = baseforms[w];
@@ -1024,7 +1025,66 @@ function unwalkAll(): void {
   document.body.normalize();
 }
 
-function walk(node: Node): void {
+function gatherWords(node: Node): Set<string> {
+  const words = new Set<string>();
+
+  function traverse(n: Node) {
+    if (n.nodeType === Node.TEXT_NODE) {
+      const text = n.textContent;
+      if (!text?.trim() || !/[a-zA-Z]/.test(text)) return;
+      const norm = text.replace(/[’ʼ]/g, "'");
+      const tokens = norm.match(/[a-zA-Z']+/g) ?? [];
+      for (const token of tokens) {
+        const clean = token.replace(/^'+|'+$/g, '').toLowerCase();
+        if (clean && !dict[clean]) {
+          words.add(clean);
+          gatherGuesses(clean);
+        }
+      }
+      return;
+    }
+    if (n.nodeType !== Node.ELEMENT_NODE) return;
+    const el = n as Element;
+    if (SKIP_TAGS.has(el.tagName)) return;
+    if (el.getAttribute('data-ipa-ui')) return;
+    if (el.id && IPA_ROOT_IDS.has(el.id)) return;
+    if ((el as HTMLElement).isContentEditable) return;
+    for (const child of Array.from(n.childNodes)) traverse(child);
+  }
+
+  function gatherGuesses(w: string) {
+    if (w.endsWith('ization')) words.add(w.slice(0, -7) + 'ize');
+    if (w.endsWith('ation')) words.add(w.slice(0, -5) + 'ate');
+    if (w.endsWith('ing')) words.add(w.slice(0, -3) + 'e');
+    if (w.endsWith('ed')) words.add(w.slice(0, -2) + 'e');
+    if (w.endsWith('ies')) words.add(w.slice(0, -3) + 'y');
+    if (w.endsWith('ily')) words.add(w.slice(0, -3) + 'y');
+    if (w.endsWith('able')) words.add(w.slice(0, -4) + 'e');
+    if (w.endsWith('ible')) words.add(w.slice(0, -4) + 'e');
+    for (const suf of SUFFIXES) {
+      if (w.endsWith(suf.s)) {
+        const stem = w.slice(0, -suf.s.length);
+        words.add(stem);
+        if (stem.endsWith('ing')) words.add(stem.slice(0, -3) + 'e');
+        if (stem.endsWith('ed')) words.add(stem.slice(0, -2) + 'e');
+      }
+    }
+    for (const pre of PREFIXES) {
+      if (w.startsWith(pre.p)) {
+        const rem = w.slice(pre.p.length);
+        words.add(rem);
+        for (const suf of SUFFIXES) {
+          if (rem.endsWith(suf.s)) words.add(rem.slice(0, -suf.s.length));
+        }
+      }
+    }
+  }
+
+  traverse(node);
+  return words;
+}
+
+function walkSync(node: Node): void {
   if (node.nodeType === Node.TEXT_NODE) { processTextNode(node as Text); return; }
   if (node.nodeType !== Node.ELEMENT_NODE) return;
   const el = node as Element;
@@ -1032,7 +1092,31 @@ function walk(node: Node): void {
   if (el.getAttribute('data-ipa-ui')) return;
   if (el.id && IPA_ROOT_IDS.has(el.id)) return;
   if ((el as HTMLElement).isContentEditable) return;
-  for (const child of Array.from(node.childNodes)) walk(child);
+  for (const child of Array.from(node.childNodes)) walkSync(child);
+}
+
+async function walk(node: Node): Promise<void> {
+  if (!isInit) return;
+  const words = gatherWords(node);
+  if (words.size > 0) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'DICT_LOOKUP',
+        words: Array.from(words),
+        dialect: activeDialect,
+        includeBaseforms: activeBaseformsSetting
+      });
+      if (response && !response.error) {
+        Object.assign(dict, response.dict);
+        if (response.baseforms && baseforms) {
+          Object.assign(baseforms, response.baseforms);
+        }
+      }
+    } catch (e) {
+      console.error('[IPA Stylizer] Dict lookup message failed:', e);
+    }
+  }
+  walkSync(node);
 }
 
 // ── Hover events ─────────────────────────────────────────────────
@@ -1276,13 +1360,16 @@ function handleMutations(mutations: MutationRecord[]): void {
   if (!isContextValid()) { teardown(); return; }
   for (const m of mutations) {
     for (const node of Array.from(m.addedNodes)) {
-      if (!dict) continue;
+      if (!isInit) continue;
       const el = node as Element;
       if (el.getAttribute?.('data-ipa-ui')) continue;
       if (el.id && IPA_ROOT_IDS.has(el.id)) continue;
       if ((node as Node).parentElement?.closest?.('[data-ipa-ui]')) continue;
-      if (node.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(el.tagName)) walk(node);
-      else if (node.nodeType === Node.TEXT_NODE) processTextNode(node as Text);
+      if (node.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(el.tagName)) {
+        void walk(node);
+      } else if (node.nodeType === Node.TEXT_NODE) {
+        void walk(node);
+      }
     }
   }
 }
@@ -1343,26 +1430,19 @@ async function init(): Promise<void> {
     activeDialect = dialect as 'nAmE' | 'brE';
     activeBaseformsSetting = enableBaseforms;
 
-    const dictFile = dialect === 'brE' ? 'en-BrE-pronunciation.txt' : 'en-NAmE-pronunciation.txt';
+    dict = {};
+    baseforms = enableBaseforms ? {} : null;
+    isInit = true;
 
-    const dictPromise = fetch(chrome.runtime.getURL(dictFile)).then(r => r.json());
-    const baseformsPromise = enableBaseforms
-      ? fetch(chrome.runtime.getURL('en-baseforms.json')).then(r => r.json()).catch(() => null)
-      : Promise.resolve(null);
-
-    const [dictData, baseformsData] = await Promise.all([dictPromise, baseformsPromise]);
-    dict = dictData as Record<string, string>;
-    baseforms = baseformsData as Record<string, string> | null;
-
-    walk(document.body);
+    void walk(document.body);
   } catch (e) { console.error('[IPA Stylizer]', e); }
 }
 
 // ── SPA navigation re-walk ────────────────────────────────────────
 
 function reprocess(): void {
-  if (!dict || !hasProcessed) return;
-  walk(document.body);
+  if (!isInit || !hasProcessed) return;
+  void walk(document.body);
 }
 
 // YouTube-specific SPA event

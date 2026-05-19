@@ -248,8 +248,8 @@ function SettingsTab() {
             onChange={e => ipaSettingsStorage.setPronunciationDialect(e.target.value as 'nAmE' | 'brE')}
             style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #444', borderRadius: '4px', padding: '6px 8px', width: '200px' }}
           >
-            <option value="nAmE">American English (NAmE)</option>
-            <option value="brE">British English (BrE)</option>
+            <option value="nAmE">American English</option>
+            <option value="brE">British English</option>
           </select>
         </div>
 
@@ -612,88 +612,56 @@ function DictionaryTab() {
     setQuery('');
   }, [settings?.pronunciationDialect, settings?.enableBaseforms]);
 
-  const loadDict = async () => {
-    if (dict) return;
-    try {
-      const dialect = settings?.pronunciationDialect ?? 'nAmE';
-      const enableBaseforms = settings?.enableBaseforms !== false;
-
-      let dictFile = 'en-NAmE-pronunciation.txt';
-      if (dialect === 'brE') dictFile = 'en-BrE-pronunciation.txt';
-
-      const dictPromise = fetch(chrome.runtime.getURL(dictFile)).then(r => r.json());
-      const baseformsPromise = enableBaseforms
-        ? fetch(chrome.runtime.getURL('en-baseforms.json')).then(r => r.json()).catch(() => null)
-        : Promise.resolve(null);
-
-      const [dictData, baseformsData] = await Promise.all([dictPromise, baseformsPromise]);
-      setDict(dictData);
-      setBaseforms(baseformsData);
-    } catch {
-      setLoadError(true);
-    }
-  };
+  const loadDict = () => {};
 
   const handleQuery = async (val: string) => {
     setQuery(val);
     if (!val.trim()) { setResult(null); return; }
-    let activeDict = dict;
-    let activeBaseforms = baseforms;
-    if (!activeDict) {
-      try {
-        const dialect = settings?.pronunciationDialect ?? 'nAmE';
-        const enableBaseforms = settings?.enableBaseforms !== false;
+    try {
+      const dialect = settings?.pronunciationDialect ?? 'nAmE';
+      const enableBaseforms = settings?.enableBaseforms !== false;
+      const word = val.trim().toLowerCase();
 
-        let dictFile = 'en-NAmE-pronunciation.txt';
-        if (dialect === 'brE') dictFile = 'en-BrE-pronunciation.txt';
+      const response = await chrome.runtime.sendMessage({
+        type: 'DICT_LOOKUP',
+        words: [word],
+        dialect,
+        includeBaseforms: enableBaseforms
+      });
 
-        const dictPromise = fetch(chrome.runtime.getURL(dictFile)).then(r => r.json());
-        const baseformsPromise = enableBaseforms
-          ? fetch(chrome.runtime.getURL('en-baseforms.json')).then(r => r.json()).catch(() => null)
-          : Promise.resolve(null);
+      if (response && !response.error) {
+        let entry = response.dict[word];
+        let isBaseformFallback = false;
+        let baseWordUsed = '';
 
-        const [dictData, baseformsData] = await Promise.all([dictPromise, baseformsPromise]);
-        activeDict = dictData;
-        activeBaseforms = baseformsData;
-        setDict(dictData);
-        setBaseforms(baseformsData);
-      } catch {
-        setLoadError(true);
-        return;
-      }
-    }
-
-    if (!activeDict) return;
-
-    const word = val.trim().toLowerCase();
-    let entry = activeDict[word];
-    let isBaseformFallback = false;
-    let baseWordUsed = '';
-
-    if (!entry && activeBaseforms) {
-      const base = activeBaseforms[word];
-      if (base) {
-        const baseLower = base.toLowerCase();
-        if (activeDict[baseLower]) {
-          entry = activeDict[baseLower];
-          isBaseformFallback = true;
-          baseWordUsed = base;
+        if (!entry && enableBaseforms && response.baseforms[word]) {
+          const base = response.baseforms[word];
+          const baseLower = base.toLowerCase();
+          if (response.dict[baseLower]) {
+            entry = response.dict[baseLower];
+            isBaseformFallback = true;
+            baseWordUsed = base;
+          }
         }
-      }
-    }
 
-    if (entry) {
-      setResult({
-        text: isBaseformFallback
-          ? `/${entry}/ (baseform: "${baseWordUsed}")`
-          : `/${entry}/`,
-        hit: true,
-      });
-    } else {
-      setResult({
-        text: `"${word}" not found in dictionary`,
-        hit: false,
-      });
+        if (entry) {
+          setResult({
+            text: isBaseformFallback
+              ? `/${entry}/ (baseform: "${baseWordUsed}")`
+              : `/${entry}/`,
+            hit: true,
+          });
+        } else {
+          setResult({
+            text: `"${word}" not found in dictionary`,
+            hit: false,
+          });
+        }
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
     }
   };
 
@@ -883,7 +851,7 @@ function AnkiTab() {
                   onChange={async e => {
                     const modelName = e.target.value;
                     await ipaSettingsStorage.setAnkiModelName(modelName);
-                    
+
                     // Fetch template for this model
                     try {
                       const url = settings.ankiEndpoint || 'http://localhost:8765';

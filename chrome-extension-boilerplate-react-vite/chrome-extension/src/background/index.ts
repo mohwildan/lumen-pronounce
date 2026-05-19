@@ -363,6 +363,65 @@ async function handleAnkiAdd(
     sendResponse({ error: `Connection failed: ${e.message || 'Is Anki open?'}` });
   }
 }
+// ── Dict lookup optimization ──────────────────────────────────────
+let cachedDicts: Record<string, Record<string, string>> = {};
+let cachedBaseforms: Record<string, string> | null = null;
+
+async function getDict(dialect: string): Promise<Record<string, string>> {
+  if (cachedDicts[dialect]) return cachedDicts[dialect];
+  const dictFile = dialect === 'brE' ? 'en-BrE-pronunciation.txt' : 'en-NAmE-pronunciation.txt';
+  const url = chrome.runtime.getURL(dictFile);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to load ${dictFile}`);
+  const data = await res.json() as Record<string, string>;
+  cachedDicts[dialect] = data;
+  return data;
+}
+
+async function getBaseforms(): Promise<Record<string, string>> {
+  if (cachedBaseforms) return cachedBaseforms;
+  const url = chrome.runtime.getURL('en-baseforms.json');
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to load en-baseforms.json`);
+  const data = await res.json() as Record<string, string>;
+  cachedBaseforms = data;
+  return data;
+}
+
+async function handleDictLookup(
+  words: string[],
+  dialect: 'nAmE' | 'brE',
+  includeBaseforms: boolean,
+  sendResponse: (r: any) => void
+): Promise<void> {
+  try {
+    const dict = await getDict(dialect);
+    const baseforms = includeBaseforms ? await getBaseforms() : null;
+
+    const resultDict: Record<string, string> = {};
+    const resultBaseforms: Record<string, string> = {};
+
+    for (const rawWord of words) {
+      const w = rawWord.toLowerCase();
+      if (dict[w]) {
+        resultDict[w] = dict[w];
+      }
+      if (baseforms && baseforms[w]) {
+        resultBaseforms[w] = baseforms[w];
+        const base = baseforms[w].toLowerCase();
+        if (dict[base]) {
+          resultDict[base] = dict[base];
+        }
+      }
+    }
+
+    sendResponse({ dict: resultDict, baseforms: resultBaseforms });
+  } catch (err: any) {
+    console.error("Dict lookup error:", err);
+    sendResponse({ error: err.message });
+  }
+}
+
 // ── Message router ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -377,6 +436,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'STRIPE_OPEN_CHECKOUT') { void handleOpenCheckout(msg as { interval: 'month' | 'year' }, sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
   if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
+  if (msg.type === 'DICT_LOOKUP') { void handleDictLookup(msg.words as string[], msg.dialect as 'nAmE' | 'brE', msg.includeBaseforms as boolean, sendResponse); return true; }
   return false;
 });
 
