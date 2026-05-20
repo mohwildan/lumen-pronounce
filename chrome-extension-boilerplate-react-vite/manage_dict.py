@@ -114,7 +114,7 @@ def get_git_diff_added_words(ref="HEAD"):
     """Runs git diff to find newly added words in the pronunciation and baseforms files."""
     added_words = set()
     files_to_check = [
-        "chrome-extension/public/en-baseforms.json",
+        "chrome-extension/public/en-baseforms.txt",
         "chrome-extension/public/en-NAmE-pronunciation.txt",
         "chrome-extension/public/en-BrE-pronunciation.txt"
     ]
@@ -534,7 +534,7 @@ def run_manual_word_addition(baseforms, name_pron, bre_pron, name_aud, bre_aud, 
     print("==================================================")
     if 'baseforms' in proposed_changes:
         val = proposed_changes['baseforms']
-        print(f" * en-baseforms.json:        {repr(curr_base)} -> {repr(val)}")
+        print(f" * en-baseforms.txt:         {repr(curr_base)} -> {repr(val)}")
     if 'name_pron' in proposed_changes:
         val = proposed_changes['name_pron']
         print(f" * en-NAmE-pronunciation.txt: {repr(curr_name_p)} -> {repr(val)}")
@@ -584,7 +584,7 @@ def run_manual_word_addition(baseforms, name_pron, bre_pron, name_aud, bre_aud, 
 
 def main():
     # Setup paths
-    baseforms_path = "chrome-extension/public/en-baseforms.json"
+    baseforms_path = "chrome-extension/public/en-baseforms.txt"
     name_pron_path = "chrome-extension/public/en-NAmE-pronunciation.txt"
     bre_pron_path = "chrome-extension/public/en-BrE-pronunciation.txt"
     name_aud_path = "chrome-extension/public/en-NAmE-audios.txt"

@@ -427,9 +427,9 @@ async function getDict(dialect: string): Promise<Record<string, string>> {
 
 async function getBaseforms(): Promise<Record<string, string>> {
   if (cachedBaseforms) return cachedBaseforms;
-  const url = chrome.runtime.getURL('en-baseforms.json');
+  const url = chrome.runtime.getURL('en-baseforms.txt');
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to load en-baseforms.json`);
+  if (!res.ok) throw new Error(`Failed to load en-baseforms.txt`);
   const data = await res.json() as Record<string, string>;
   cachedBaseforms = data;
   return data;

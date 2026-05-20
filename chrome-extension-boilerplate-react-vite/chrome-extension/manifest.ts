@@ -51,7 +51,7 @@ const manifest = {
         'icon-512.png',
         'en-BrE-pronunciation.txt',
         'en-NAmE-pronunciation.txt',
-        'en-baseforms.json',
+        'en-baseforms.txt',
         'en-BrE-audios.txt',
         'en-NAmE-audios.txt',
       ],
