@@ -1,11 +1,23 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import React, { useEffect, useState, type ReactNode } from 'react';
 import '@src/Options.css';
+import '../../../chrome-extension/public/content.css';
 import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
 import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
 import type { IpaOpts } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
-type Tab = 'settings' | 'translation' | 'account' | 'dictionary' | 'anki' | 'shortcuts';
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'rp-w': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { 'data-word'?: string; 'data-arpa'?: string }, HTMLElement>;
+      'rp-s': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { 'data-silent'?: string; 'data-vc'?: string; 'data-st'?: string; 'data-zm'?: string }, HTMLElement>;
+      'rp-c': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { 'data-type'?: string }, HTMLElement>;
+      'rp-sup': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { 'data-ghost'?: string; 'data-gvc'?: string; 'data-type'?: string }, HTMLElement>;
+    }
+  }
+}
+
+type Tab = 'settings' | 'translation' | 'account' | 'sandbox' | 'anki' | 'shortcuts';
 
 const LANGUAGES = [
   { code: 'none', name: 'Off' },
@@ -257,20 +269,6 @@ function SettingsTab() {
           <div className="opt-row-body">
             <span className="opt-swatch opt-swatch-ghost" />
             <div className="opt-row-text">
-              <span className="opt-row-name">Enable Baseforms Fallback</span>
-              <small>Use base forms dictionary to find inflected/conjugate words</small>
-            </div>
-          </div>
-          <Switch
-            checked={settings.enableBaseforms !== false}
-            onChange={v => ipaSettingsStorage.setEnableBaseforms(v)}
-          />
-        </div>
-
-        <div className="opt-row">
-          <div className="opt-row-body">
-            <span className="opt-swatch opt-swatch-ghost" />
-            <div className="opt-row-text">
               <span className="opt-row-name">Pause video on hover</span>
               <small>Pause playing video when hovering over highlighted words</small>
             </div>
@@ -310,30 +308,26 @@ function SettingsTab() {
 /* ─── Translation Tab ─── */
 function TranslationTab() {
   const settings = useStorage(ipaSettingsStorage);
-  const [testWord, setTestWord] = useState('');
-  const [testSentence, setTestSentence] = useState('');
-  const [wordResult, setWordResult] = useState('');
-  const [sentenceResult, setSentenceResult] = useState('');
-  const [loading, setLoading] = useState<'word' | 'sentence' | null>(null);
+  const [testText, setTestText] = useState('');
+  const [translationResult, setTranslationResult] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!settings) return null;
   const lang = settings.targetLanguage ?? 'none';
 
-  const translateText = async (text: string, type: 'word' | 'sentence') => {
+  const translateText = async (text: string) => {
     if (!text.trim() || lang === 'none') return;
-    setLoading(type);
+    setLoading(true);
     try {
       const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(text)}`;
       const r = await fetch(url);
       const data = await r.json() as unknown[][];
       const result = (data[0] as unknown[][])?.map((c: unknown[]) => c[0]).filter(Boolean).join('') ?? '';
-      if (type === 'word') setWordResult(result);
-      else setSentenceResult(result);
+      setTranslationResult(result);
     } catch {
-      if (type === 'word') setWordResult('Translation failed.');
-      else setSentenceResult('Translation failed.');
+      setTranslationResult('Translation failed.');
     }
-    setLoading(null);
+    setLoading(false);
   };
 
   return (
@@ -373,46 +367,43 @@ function TranslationTab() {
         <>
           <SectionLabel>Test Translation</SectionLabel>
           <div className="opt-rows">
-            <div className="opt-trans-test-card">
-              <label className="opt-trans-test-label">Word</label>
-              <div className="opt-trans-input-row">
+            <div className="opt-trans-test-card" style={{ width: '100%' }}>
+              <label className="opt-trans-test-label">Enter text to translate</label>
+              <div className="opt-trans-input-row" style={{ marginTop: '8px' }}>
                 <input
                   className="opt-input"
-                  placeholder="e.g. pronunciation"
-                  value={testWord}
-                  onChange={e => { setTestWord(e.target.value); setWordResult(''); }}
-                  onKeyDown={e => e.key === 'Enter' && translateText(testWord.trim(), 'word')}
+                  placeholder="Type a word or sentence…"
+                  value={testText}
+                  onChange={e => { setTestText(e.target.value); setTranslationResult(''); }}
+                  onKeyDown={e => e.key === 'Enter' && translateText(testText.trim())}
+                  style={{ flex: 1 }}
                 />
                 <button
                   className="opt-btn-trans"
-                  disabled={!testWord.trim() || loading === 'word'}
-                  onClick={() => translateText(testWord.trim(), 'word')}
+                  disabled={!testText.trim() || loading}
+                  onClick={() => translateText(testText.trim())}
+                  style={{ minWidth: '100px' }}
                 >
-                  {loading === 'word' ? '…' : 'Go'}
+                  {loading ? '…' : 'Translate'}
                 </button>
               </div>
-              {wordResult && <div className="opt-trans-result">{wordResult}</div>}
-            </div>
-
-            <div className="opt-trans-test-card">
-              <label className="opt-trans-test-label">Sentence</label>
-              <div className="opt-trans-input-row">
-                <input
-                  className="opt-input"
-                  placeholder="e.g. The quick brown fox"
-                  value={testSentence}
-                  onChange={e => { setTestSentence(e.target.value); setSentenceResult(''); }}
-                  onKeyDown={e => e.key === 'Enter' && translateText(testSentence.trim(), 'sentence')}
-                />
-                <button
-                  className="opt-btn-trans"
-                  disabled={!testSentence.trim() || loading === 'sentence'}
-                  onClick={() => translateText(testSentence.trim(), 'sentence')}
+              {translationResult && (
+                <div 
+                  className="opt-trans-result" 
+                  style={{ 
+                    marginTop: '12px', 
+                    padding: '12px', 
+                    background: '#121224', 
+                    borderRadius: '6px', 
+                    border: '1px solid #222',
+                    color: '#fff',
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                  }}
                 >
-                  {loading === 'sentence' ? '…' : 'Go'}
-                </button>
-              </div>
-              {sentenceResult && <div className="opt-trans-result">{sentenceResult}</div>}
+                  {translationResult}
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -596,21 +587,225 @@ function AccountTab() {
   );
 }
 
-/* ─── Dictionary Tab ─── */
+/* ─── Word preview renderer types, mappings & helpers ─── */
+type Token = { phoneme: string | null; base: string | null; silent: boolean; ghost: boolean; stress: number };
+type AlignedToken = Token & { char: string | null };
+
+const VOWEL_COLORS: Record<string, string> = {
+  AH: 'color_u_alt', AA: 'color_u_alt',
+  AE: 'color_a',
+  EH: 'color_e', ER: 'color_e',
+  IH: 'color_i', IY: 'color_i',
+  UH: 'color_u', UW: 'color_u',
+  AO: 'color_o',
+  AY: 'color_a', EY: 'color_e',
+  OY: 'color_o', OW: 'color_o',
+  AW: 'color_u_alt', AX: 'color_u_alt',
+};
+
+const ARPA_IPA: Record<string, string> = {
+  IY: 'iː', IH: 'ɪ', EH: 'ɛ', AE: 'æ', AH: 'ʌ', AA: 'ɑː', AO: 'ɔː',
+  UH: 'ʊ', UW: 'uː', ER: 'ɜː', AX: 'ə',
+  AY: 'aɪ', EY: 'eɪ', OY: 'ɔɪ', AW: 'aʊ', OW: 'oʊ',
+  P: 'p', B: 'b', T: 't', D: 'd', K: 'k', G: 'ɡ', F: 'f', V: 'v',
+  TH: 'θ', DH: 'ð', S: 's', Z: 'z', SH: 'ʃ', ZH: 'ʒ',
+  HH: 'h', M: 'm', N: 'n', NG: 'ŋ', L: 'l', R: 'r', W: 'w', Y: 'j',
+  CH: 'tʃ', JH: 'dʒ', KW: 'kw', KS: 'ks', KSH: 'kʃ', KZ: 'kz',
+  GZ: 'ɡz', GZH: 'ɡʒ', JHD: 'dʒ', CCC: 'k', HHH: 'h',
+};
+
+const ACUTE: Record<string, string> = {
+  a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', y: 'ý',
+  A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', Y: 'Ý',
+};
+
+const LONG_VOWELS = new Set(['IY', 'UW', 'ER', 'AO']);
+const DIPH_SUPER: Record<string, string> = { AY: 'ᵃ', EY: 'ⁱ', OW: 'ᵘ', AW: 'ᵃ', OY: 'ᵒ' };
+const TH_SUPER: Record<string, string> = { TH: 'ᵗ', DH: 'ᵈ' };
+
+function parseArpabet(str: string): Token[] {
+  return str.trim().split(/\s+/).map(raw => {
+    if (raw === '-' || raw === '--') return { phoneme: null, base: null, silent: true, ghost: false, stress: 0 };
+    if (raw.startsWith('+')) {
+      const clean = raw.replace(/^\+/, '').replace(/^\.+/, '');
+      const stress = parseInt(clean.match(/([012])$/)?.[1] ?? '0');
+      const phoneme = clean.replace(/[012]$/, '');
+      return { phoneme, base: phoneme.replace(/[^A-Z]/gi, '').toUpperCase(), silent: false, ghost: true, stress };
+    }
+    if (raw.startsWith('-r')) return { phoneme: null, base: null, silent: false, ghost: false, stress: 0 };
+    const clean = raw.replace(/^\.+/, '');
+    const stress = parseInt(clean.match(/([012])$/)?.[1] ?? '0');
+    const phoneme = clean.replace(/[012]$/, '');
+    return { phoneme, base: phoneme.replace(/[^A-Z]/gi, '').toUpperCase(), silent: false, ghost: false, stress };
+  });
+}
+
+function alignWord(word: string, arpa: string): AlignedToken[] {
+  const tokens = parseArpabet(arpa);
+  const chars = [...word];
+  const aligned: AlignedToken[] = [];
+  let ci = 0;
+  for (const t of tokens) {
+    if (t.ghost) { aligned.push({ char: null, ...t }); }
+    else { aligned.push({ char: chars[ci] || null, ...t }); ci++; }
+  }
+  for (let i = ci; i < chars.length; i++) {
+    aligned.push({ char: chars[i], phoneme: null, base: null, silent: true, stress: 0, ghost: false });
+  }
+  return aligned;
+}
+
+function RenderedWord({ word, arpa, suffix }: { word: string; arpa: string; suffix?: string }) {
+  const aligned = alignWord(word, arpa);
+  return (
+    <rp-w data-word={word} data-arpa={arpa} style={{ display: 'inline', float: 'none', pointerEvents: 'auto', cursor: 'pointer' }}>
+      {aligned.map((item, index) => {
+        const { char, base, silent, stress, ghost } = item;
+
+        if (ghost) {
+          if (base && ARPA_IPA[base]) {
+            const ipaChar = ARPA_IPA[base];
+            const gvc = VOWEL_COLORS[base];
+            return (
+              <rp-sup
+                key={index}
+                data-ghost="1"
+                data-gvc={gvc}
+                style={{
+                  display: 'inline',
+                  fontSize: '.48em',
+                  verticalAlign: 'super',
+                  opacity: 0.8,
+                  marginLeft: '.5px',
+                  lineHeight: 1,
+                  color: 'var(--ipa-sup)',
+                }}
+              >
+                {ipaChar}
+              </rp-sup>
+            );
+          }
+          return null;
+        }
+
+        const isFirst = index === 0 || aligned[index - 1]?.base !== base;
+        const isLast = index === aligned.length - 1 || aligned[index + 1]?.base !== base;
+
+        const sProps: Record<string, string> = {};
+        if (silent) {
+          if (arpa) sProps['data-silent'] = '1';
+        } else if (base) {
+          const vc = VOWEL_COLORS[base];
+          if (vc) {
+            sProps['data-vc'] = vc;
+            if (stress === 1 && isFirst && char && ACUTE[char]) sProps['data-st'] = '1';
+          }
+          if (base === 'Z' || base === 'ZH') {
+            sProps['data-zm'] = '1';
+          }
+        }
+
+        return (
+          <rp-s
+            key={index}
+            {...sProps}
+            style={{ display: 'inline', float: 'none', transition: 'color 0.2s, opacity 0.2s' }}
+          >
+            {char ?? ''}
+            {isLast && !silent && base && (
+              <>
+                {LONG_VOWELS.has(base) && (
+                  <rp-c data-type="length" style={{ display: 'inline', opacity: 0.6, marginLeft: '1px', color: 'var(--ipa-sup)' }}>:</rp-c>
+                )}
+                {DIPH_SUPER[base] && (
+                  <rp-sup data-type={base} style={{ display: 'inline', fontSize: '.48em', verticalAlign: 'super', opacity: 0.8, marginLeft: '.5px', lineHeight: 1, color: 'var(--ipa-sup)' }}>
+                    {DIPH_SUPER[base]}
+                  </rp-sup>
+                )}
+                {TH_SUPER[base] && (
+                  <rp-sup data-type={base} style={{ display: 'inline', fontSize: '.48em', verticalAlign: 'super', opacity: 0.8, marginLeft: '.5px', lineHeight: 1, color: 'var(--ipa-sup)' }}>
+                    {TH_SUPER[base]}
+                  </rp-sup>
+                )}
+                {base === 'T' && char && !['t', 'T'].includes(char) && (
+                  <rp-sup data-type="tmark" style={{ display: 'inline', fontSize: '.48em', verticalAlign: 'super', opacity: 0.8, marginLeft: '.5px', lineHeight: 1, color: 'var(--ipa-sup)' }}>ᵗ</rp-sup>
+                )}
+              </>
+            )}
+          </rp-s>
+        );
+      })}
+      {suffix || null}
+    </rp-w>
+  );
+}
+
+/* ─── Sandbox Tab ─── */
+interface SandboxToken {
+  token: string;
+  clean: string;
+  word: string;
+  arpa: string | null;
+  isWord: boolean;
+  suffix?: string;
+  text?: string;
+}
+
+function guessPronunciationSandbox(word: string, dict: Record<string, string>, baseforms: Record<string, string> | null, depth = 0): string | null {
+  if (depth > 2) return null;
+  const w = word.toLowerCase();
+  if (baseforms) {
+    const base = baseforms[w];
+    if (base && dict[base.toLowerCase()]) {
+      return dict[base.toLowerCase()];
+    }
+  }
+  const getStem = (s: string): string | null =>
+    dict[s] ||
+    (baseforms?.[s] && dict[baseforms[s].toLowerCase()]) ||
+    guessPronunciationSandbox(s, dict, baseforms, depth + 1);
+
+  if (w.endsWith('ization')) { const s = getStem(w.slice(0, -7) + 'ize'); if (s) return s.replace(/\s+-\s*$/, ' EY1 SH - AX0 N'); }
+  if (w.endsWith('ation')) { const s = getStem(w.slice(0, -5) + 'ate'); if (s) return s.replace(/\s+-\s*$/, ' EY1 SH - AX0 N'); }
+  if (w.endsWith('ing')) { const s = getStem(w.slice(0, -3) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' IH0 NG -'); }
+  if (w.endsWith('ed')) { const s = getStem(w.slice(0, -2) + 'e'); if (s) return s + ' D'; }
+  if (w.endsWith('ies')) { const s = getStem(w.slice(0, -3) + 'y'); if (s) { const t = s.split(/\s+/); const l = t.pop(); return t.join(' ') + ' ' + l + ' - Z'; } }
+  if (w.endsWith('ily')) { const s = getStem(w.slice(0, -3) + 'y'); if (s) { const t = s.split(/\s+/); const l = t.pop(); return t.join(' ') + ' ' + l + ' L IY0'; } }
+  if (w.endsWith('able')) { const s = getStem(w.slice(0, -4) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' AX0 B L -'); }
+  if (w.endsWith('ible')) { const s = getStem(w.slice(0, -4) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' IH0 B L -'); }
+  
+  const SUFFIXES = [
+    { s: "'s", t: '- Z' }, { s: "'ve", t: '- V' }, { s: "'re", t: '- ER0' },
+    { s: "'ll", t: '- L' }, { s: "'d", t: '- D' }, { s: "'m", t: 'M' }, { s: "'t", t: 'T' },
+  ];
+  const PREFIXES = [
+    { p: 'un', t: 'AH0 N -' }, { p: 're', t: 'R IY0 -' }, { p: 'dis', t: 'D IH0 S -' },
+    { p: 'pre', t: 'P R IY0 -' }, { p: 'non', t: 'N AA1 N -' }, { p: 'in', t: 'IH0 N -' },
+  ];
+
+  for (const suf of SUFFIXES) { if (w.endsWith(suf.s)) { const s = getStem(w.slice(0, -suf.s.length)); if (s) return s + ' ' + suf.t; } }
+  for (const pre of PREFIXES) { if (w.startsWith(pre.p)) { const s = getStem(w.slice(pre.p.length)); if (s) return pre.t + ' ' + s; } }
+  for (const pre of PREFIXES) {
+    if (w.startsWith(pre.p)) {
+      const rem = w.slice(pre.p.length);
+      for (const suf of SUFFIXES) { if (rem.endsWith(suf.s)) { const s = getStem(rem.slice(0, -suf.s.length)); if (s) return pre.t + ' ' + s + ' ' + suf.t; } }
+    }
+  }
+  return null;
+}
+
 function DictionaryTab() {
   const settings = useStorage(ipaSettingsStorage);
   const [query, setQuery] = useState('');
-  const [result, setResult] = useState<{ text: string; hit: boolean } | null>(null);
-  const [dict, setDict] = useState<Record<string, string> | null>(null);
-  const [baseforms, setBaseforms] = useState<Record<string, string> | null>(null);
+  const [result, setResult] = useState<{
+    tokens: SandboxToken[];
+  } | null>(null);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    setDict(null);
-    setBaseforms(null);
     setResult(null);
     setQuery('');
-  }, [settings?.pronunciationDialect, settings?.enableBaseforms]);
+  }, [settings?.pronunciationDialect]);
 
   const loadDict = () => {};
 
@@ -619,83 +814,278 @@ function DictionaryTab() {
     if (!val.trim()) { setResult(null); return; }
     try {
       const dialect = settings?.pronunciationDialect ?? 'nAmE';
-      const enableBaseforms = settings?.enableBaseforms !== false;
-      const word = val.trim().toLowerCase();
+      const enableBaseforms = true;
 
-      const response = await chrome.runtime.sendMessage({
-        type: 'DICT_LOOKUP',
-        words: [word],
-        dialect,
-        includeBaseforms: enableBaseforms
-      });
+      const norm = val.replace(/[’ʼ]/g, "'");
+      const tokens = norm.match(/[a-zA-Z']+|[^a-zA-Z']+/g) ?? [];
 
-      if (response && !response.error) {
-        let entry = response.dict[word];
+      const wordsToLookup = new Set<string>();
+      for (const token of tokens) {
+        if (/^[a-zA-Z']+$/i.test(token)) {
+          const clean = token.replace(/^'+|'+$/g, '').toLowerCase();
+          if (clean) {
+            wordsToLookup.add(clean);
+            if (clean.endsWith('ization')) wordsToLookup.add(clean.slice(0, -7) + 'ize');
+            if (clean.endsWith('ation')) wordsToLookup.add(clean.slice(0, -5) + 'ate');
+            if (clean.endsWith('ing')) wordsToLookup.add(clean.slice(0, -3) + 'e');
+            if (clean.endsWith('ed')) wordsToLookup.add(clean.slice(0, -2) + 'e');
+            if (clean.endsWith('ies')) wordsToLookup.add(clean.slice(0, -3) + 'y');
+            if (clean.endsWith('ily')) wordsToLookup.add(clean.slice(0, -3) + 'y');
+            if (clean.endsWith('able')) wordsToLookup.add(clean.slice(0, -4) + 'e');
+            if (clean.endsWith('ible')) wordsToLookup.add(clean.slice(0, -4) + 'e');
+            
+            const SUFFIXES = [
+              { s: "'s", t: '- Z' }, { s: "'ve", t: '- V' }, { s: "'re", t: '- ER0' },
+              { s: "'ll", t: '- L' }, { s: "'d", t: '- D' }, { s: "'m", t: 'M' }, { s: "'t", t: 'T' },
+            ];
+            const PREFIXES = [
+              { p: 'un', t: 'AH0 N -' }, { p: 're', t: 'R IY0 -' }, { p: 'dis', t: 'D IH0 S -' },
+              { p: 'pre', t: 'P R IY0 -' }, { p: 'non', t: 'N AA1 N -' }, { p: 'in', t: 'IH0 N -' },
+            ];
+            for (const suf of SUFFIXES) { if (clean.endsWith(suf.s)) wordsToLookup.add(clean.slice(0, -suf.s.length)); }
+            for (const pre of PREFIXES) {
+              if (clean.startsWith(pre.p)) {
+                const rem = clean.slice(pre.p.length);
+                wordsToLookup.add(rem);
+                for (const suf of SUFFIXES) { if (rem.endsWith(suf.s)) wordsToLookup.add(rem.slice(0, -suf.s.length)); }
+              }
+            }
+          }
+        }
+      }
+
+      const wordsArray = Array.from(wordsToLookup);
+      let dictResult: Record<string, string> = {};
+      let baseformsResult: Record<string, string> = {};
+
+      if (wordsArray.length > 0) {
+        const response = await chrome.runtime.sendMessage({
+          type: 'DICT_LOOKUP',
+          words: wordsArray,
+          dialect,
+          includeBaseforms: enableBaseforms
+        });
+        if (response && !response.error) {
+          dictResult = response.dict || {};
+          baseformsResult = response.baseforms || {};
+        } else {
+          setLoadError(true);
+          return;
+        }
+      }
+
+      const sandboxTokens: SandboxToken[] = [];
+      for (const token of tokens) {
+        if (!/^[a-zA-Z']+$/i.test(token)) {
+          sandboxTokens.push({
+            token,
+            clean: '',
+            word: '',
+            arpa: null,
+            isWord: false
+          });
+          continue;
+        }
+
+        const clean = token.replace(/^'+|'+$/g, '');
+        const cleanLower = clean.toLowerCase();
+        let arpa = clean ? (dictResult[cleanLower] ?? null) : null;
         let isBaseformFallback = false;
         let baseWordUsed = '';
 
-        if (!entry && enableBaseforms && response.baseforms[word]) {
-          const base = response.baseforms[word];
+        if (!arpa && clean && enableBaseforms && baseformsResult[cleanLower]) {
+          const base = baseformsResult[cleanLower];
           const baseLower = base.toLowerCase();
-          if (response.dict[baseLower]) {
-            entry = response.dict[baseLower];
+          if (dictResult[baseLower]) {
+            arpa = dictResult[baseLower];
             isBaseformFallback = true;
             baseWordUsed = base;
           }
         }
 
-        if (entry) {
-          setResult({
-            text: isBaseformFallback
-              ? `/${entry}/ (baseform: "${baseWordUsed}")`
-              : `/${entry}/`,
-            hit: true,
-          });
+        if (!arpa && clean && (clean.length > 4 || clean.includes("'"))) {
+          arpa = guessPronunciationSandbox(clean, dictResult, baseformsResult);
+        }
+
+        if (arpa) {
+          if (clean.includes("'")) {
+            const apostIdx = clean.indexOf("'");
+            const base = clean.slice(0, apostIdx);
+            const suffix = clean.slice(apostIdx);
+            const baseArpa = (base && dictResult[base.toLowerCase()]) ?? arpa;
+            sandboxTokens.push({
+              token,
+              clean,
+              word: base || clean,
+              arpa: baseArpa,
+              isWord: true,
+              suffix,
+              text: isBaseformFallback ? `(baseform fallback: "${baseWordUsed}")` : undefined
+            });
+          } else {
+            sandboxTokens.push({
+              token,
+              clean,
+              word: isBaseformFallback ? baseWordUsed : clean,
+              arpa,
+              isWord: true,
+              text: isBaseformFallback ? `(baseform fallback: "${baseWordUsed}")` : undefined
+            });
+          }
         } else {
-          setResult({
-            text: `"${word}" not found in dictionary`,
-            hit: false,
+          if (clean.includes("'")) {
+            const apostIdx = clean.indexOf("'");
+            const base = clean.slice(0, apostIdx);
+            const suffix = clean.slice(apostIdx);
+            if (base.length > 0) {
+              let baseArpa = dictResult[base.toLowerCase()] ?? null;
+              if (!baseArpa && base.length > 2 && base.endsWith('n')) {
+                baseArpa = dictResult[base.slice(0, -1).toLowerCase()] ?? null;
+              }
+              if (baseArpa) {
+                sandboxTokens.push({
+                  token,
+                  clean,
+                  word: base,
+                  arpa: baseArpa,
+                  isWord: true,
+                  suffix
+                });
+                continue;
+              }
+            }
+          }
+
+          sandboxTokens.push({
+            token,
+            clean,
+            word: clean,
+            arpa: null,
+            isWord: true
           });
         }
-      } else {
-        setLoadError(true);
       }
+
+      setResult({
+        tokens: sandboxTokens
+      });
+      setLoadError(false);
     } catch {
       setLoadError(true);
     }
   };
 
+  if (!settings) return null;
+
   return (
     <div className="opt-section">
       <div className="opt-page-header">
-        <h2>Dictionary</h2>
-        <p className="opt-section-desc">Look up any English word's ARPAbet pronunciation.</p>
+        <h2>Pronunciation Sandbox</h2>
+        <p className="opt-section-desc">Type or paste words, sentences, or paragraphs to preview pronunciation guide styling.</p>
       </div>
 
-      <div className="opt-dict-search">
-        <input
-          className="opt-input opt-dict-input"
-          type="text"
-          placeholder="Type a word…"
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', alignItems: 'center', background: 'var(--bg-card)', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ fontSize: '14px', color: 'var(--text-3)' }}>Dialect / Accent:</label>
+          <select
+            className="opt-select"
+            value={settings.pronunciationDialect ?? 'nAmE'}
+            onChange={e => ipaSettingsStorage.setPronunciationDialect(e.target.value as 'nAmE' | 'brE')}
+            style={{
+              padding: '6px 12px',
+              fontSize: '14px',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="nAmE">American English (NAmE)</option>
+            <option value="brE">British English (BrE)</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="opt-sandbox-input-container" style={{ marginBottom: '20px' }}>
+        <textarea
+          className="opt-input"
+          placeholder="Type or paste text here…"
           value={query}
           onChange={e => handleQuery(e.target.value)}
           onFocus={loadDict}
           autoComplete="off"
           spellCheck={false}
+          style={{
+            width: '100%',
+            height: '110px',
+            padding: '12px',
+            fontSize: '16px',
+            resize: 'vertical',
+            fontFamily: 'inherit',
+          }}
         />
       </div>
 
       {loadError && <div className="opt-dict-error">Failed to load dictionary file.</div>}
 
       {result && (
-        <div className={`opt-dict-result${result.hit ? ' opt-dict-hit' : ' opt-dict-miss'}`}>
-          {result.hit && <span className="opt-dict-word">{query.trim().toLowerCase()}</span>}
-          <span>{result.text}</span>
+        <div 
+          className="opt-sandbox-result"
+          style={{ 
+            background: 'var(--bg-deep)', 
+            border: '1px solid var(--border)', 
+            borderRadius: '12px', 
+            padding: '20px', 
+            minHeight: '100px',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)'
+          }}
+        >
+          <h3 style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-3)', marginBottom: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+            Pronunciation Output
+          </h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', rowGap: '16px', columnGap: '2px', fontSize: '20px', color: 'var(--text)', lineHeight: '2' }}>
+            {result.tokens.map((tok, idx) => {
+              if (!tok.isWord) {
+                return (
+                  <span key={idx} style={{ whiteSpace: 'pre-wrap', color: '#777' }}>
+                    {tok.token}
+                  </span>
+                );
+              }
+              
+              const pre = tok.token.match(/^'+/)?.[0] ?? '';
+              const post = tok.token.match(/'+$/)?.[0] ?? '';
+              const mainWord = tok.word;
+
+              return (
+                <span 
+                  key={idx} 
+                  style={{ 
+                    display: 'inline-flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    margin: '0 2px',
+                    position: 'relative'
+                  }}
+                  title={tok.text ? `${tok.word} ${tok.text}` : tok.word}
+                >
+                  <span style={{ display: 'inline-block' }}>
+                    {pre}
+                    {tok.arpa ? (
+                      <RenderedWord word={mainWord} arpa={tok.arpa} suffix={tok.suffix} />
+                    ) : (
+                      <span style={{ borderBottom: '1px dashed #555', color: '#ccc' }}>
+                        {mainWord}{tok.suffix ?? ''}
+                      </span>
+                    )}
+                    {post}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {!dict && !loadError && !query && (
-        <p className="opt-dict-hint">~134K words · ARPAbet phoneme notation</p>
+      {!loadError && !query && (
+        <p className="opt-dict-hint">Type any sentence to see word-by-word pronunciation highlights live.</p>
       )}
     </div>
   );
@@ -709,16 +1099,87 @@ const IconAnki = () => (
   </svg>
 );
 
+const getAutoMapping = (fieldName: string): string => {
+  const normalized = fieldName.toLowerCase().trim().replace(/[-_]/g, ' ');
+  
+  if (normalized.includes('word') || normalized.includes('vocabulary') || normalized === 'term') {
+    return '{{word}}';
+  }
+  if (normalized.includes('transcription') || normalized.includes('phonetic') || normalized.includes('ipa') || normalized.includes('pronunciation')) {
+    return '{{word.phonetic}}';
+  }
+  if (normalized.includes('translation') || normalized.includes('definition') || normalized.includes('meaning')) {
+    return '{{definitions}}';
+  }
+  if (normalized.includes('context') || normalized.includes('sentence') || normalized.includes('example')) {
+    return '{{sentence}}';
+  }
+  if (normalized.includes('part of speech') || normalized === 'pos') {
+    return '{{word.parts-of-speech}}';
+  }
+  if (normalized.includes('audio')) {
+    return '{{word.audio}}';
+  }
+  if (normalized.includes('image') || normalized === 'picture') {
+    return '{{word.image}}';
+  }
+  if (normalized === 'front') {
+    return '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>';
+  }
+  if (normalized === 'back') {
+    return '{{definitions}}';
+  }
+  return '';
+};
+
 function AnkiTab() {
   const settings = useStorage(ipaSettingsStorage);
   const auth = useStorage(ipaAuthStorage);
   const [ankiTestStatus, setAnkiTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [decks, setDecks] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
+  const [modelFields, setModelFields] = useState<string[]>([]);
 
   if (!settings || !auth) return null;
   const tier = auth.user?.tier ?? 'free';
   const isPro = tier === 'pro';
+
+  const fetchModelFields = async (modelName: string) => {
+    try {
+      const url = settings?.ankiEndpoint || 'http://localhost:8765';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'modelFieldNames',
+          version: 6,
+          params: { modelName }
+        })
+      });
+      const data = await res.json();
+      if (data.result) {
+        const fields = data.result as string[];
+        setModelFields(fields);
+
+        // Auto-populate empty mappings
+        const currentTemplates = { ...(settings.ankiFieldTemplates || {}) };
+        let updated = false;
+        
+        fields.forEach(field => {
+          if (currentTemplates[field] === undefined || currentTemplates[field] === '') {
+            currentTemplates[field] = getAutoMapping(field);
+            updated = true;
+          }
+        });
+        
+        if (updated) {
+          await ipaSettingsStorage.setAnkiFieldTemplates(currentTemplates);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch model fields', err);
+    }
+  };
 
   const testAnki = async () => {
     setAnkiTestStatus('testing');
@@ -726,6 +1187,7 @@ function AnkiTab() {
       const url = settings?.ankiEndpoint || 'http://localhost:8765';
       const res = await fetch(url, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'version', version: 6 })
       });
       if (res.ok) {
@@ -734,6 +1196,7 @@ function AnkiTab() {
         // Fetch decks
         const decksRes = await fetch(url, {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'deckNames', version: 6 })
         });
         const decksData = await decksRes.json();
@@ -742,10 +1205,15 @@ function AnkiTab() {
         // Fetch models
         const modelsRes = await fetch(url, {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'modelNames', version: 6 })
         });
         const modelsData = await modelsRes.json();
-        if (modelsData.result) setModels(modelsData.result);
+        if (modelsData.result) {
+          setModels(modelsData.result);
+          const currentModel = settings.ankiModelName || 'Basic';
+          await fetchModelFields(currentModel);
+        }
       } else {
         setAnkiTestStatus('error');
         setTimeout(() => setAnkiTestStatus('idle'), 3000);
@@ -851,33 +1319,7 @@ function AnkiTab() {
                   onChange={async e => {
                     const modelName = e.target.value;
                     await ipaSettingsStorage.setAnkiModelName(modelName);
-
-                    // Fetch template for this model
-                    try {
-                      const url = settings.ankiEndpoint || 'http://localhost:8765';
-                      const res = await fetch(url, {
-                        method: 'POST',
-                        body: JSON.stringify({
-                          action: 'modelTemplates',
-                          version: 6,
-                          params: { modelName }
-                        })
-                      });
-                      const data = await res.json();
-                      if (data.result) {
-                        // Get the first card template
-                        const cardNames = Object.keys(data.result);
-                        if (cardNames.length > 0) {
-                          const firstCard = data.result[cardNames[0]];
-                          if (firstCard) {
-                            await ipaSettingsStorage.setAnkiFrontTemplate(firstCard.Front);
-                            await ipaSettingsStorage.setAnkiBackTemplate(firstCard.Back);
-                          }
-                        }
-                      }
-                    } catch (err) {
-                      console.error('Failed to fetch model template', err);
-                    }
+                    await fetchModelFields(modelName);
                   }}
                   disabled={!isPro}
                 >
@@ -891,30 +1333,72 @@ function AnkiTab() {
             </div>
 
             <div className="opt-card-divider" />
+            <div style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <label className="opt-card-label" style={{ display: 'block', marginBottom: '2px' }}>Allow Duplicate Cards</label>
+                <small style={{ color: '#8c887a' }}>Force save words to Anki even if they already exist in the deck.</small>
+              </div>
+              <Switch
+                checked={settings.ankiAllowDuplicate ?? false}
+                onChange={v => ipaSettingsStorage.setAnkiAllowDuplicate(v)}
+                disabled={!isPro}
+              />
+            </div>
+
+            <div className="opt-card-divider" />
             <div style={{ padding: '16px' }}>
               <label className="opt-card-label" style={{ display: 'block', marginBottom: '8px' }}>Card Templates</label>
 
-              <div style={{ marginBottom: '12px' }}>
-                <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Front Template</label>
-                <textarea
-                  className="opt-input"
-                  style={{ width: '100%', minHeight: '50px', fontFamily: 'monospace', padding: '8px' }}
-                  value={settings.ankiFrontTemplate ?? '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>'}
-                  onChange={e => ipaSettingsStorage.setAnkiFrontTemplate(e.target.value)}
-                  disabled={!isPro}
-                />
-              </div>
+              {modelFields.length > 0 ? (
+                <div>
+                  <p style={{ color: '#8c887a', fontSize: '0.8rem', marginBottom: '12px' }}>
+                    Configure the value templates for each field in your selected Anki Note Type (<strong>{settings.ankiModelName || 'Basic'}</strong>).
+                  </p>
+                  {modelFields.map(field => (
+                    <div key={field} style={{ marginBottom: '12px' }}>
+                      <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>{field}</label>
+                      <textarea
+                        className="opt-input"
+                        style={{ width: '100%', minHeight: '40px', fontFamily: 'monospace', padding: '8px' }}
+                        value={settings.ankiFieldTemplates?.[field] ?? (field === modelFields[0] ? (settings.ankiFrontTemplate ?? '') : field === modelFields[1] ? (settings.ankiBackTemplate ?? '') : '')}
+                        onChange={async e => {
+                          const newVal = e.target.value;
+                          const currentTemplates = settings.ankiFieldTemplates ?? {};
+                          await ipaSettingsStorage.setAnkiFieldTemplates({
+                            ...currentTemplates,
+                            [field]: newVal
+                          });
+                        }}
+                        disabled={!isPro}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Front Template</label>
+                    <textarea
+                      className="opt-input"
+                      style={{ width: '100%', minHeight: '50px', fontFamily: 'monospace', padding: '8px' }}
+                      value={settings.ankiFrontTemplate ?? '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>'}
+                      onChange={e => ipaSettingsStorage.setAnkiFrontTemplate(e.target.value)}
+                      disabled={!isPro}
+                    />
+                  </div>
 
-              <div style={{ marginBottom: '12px' }}>
-                <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Back Template</label>
-                <textarea
-                  className="opt-input"
-                  style={{ width: '100%', minHeight: '70px', fontFamily: 'monospace', padding: '8px' }}
-                  value={settings.ankiBackTemplate ?? '{{definitions}}'}
-                  onChange={e => ipaSettingsStorage.setAnkiBackTemplate(e.target.value)}
-                  disabled={!isPro}
-                />
-              </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Back Template</label>
+                    <textarea
+                      className="opt-input"
+                      style={{ width: '100%', minHeight: '70px', fontFamily: 'monospace', padding: '8px' }}
+                      value={settings.ankiBackTemplate ?? '{{definitions}}'}
+                      onChange={e => ipaSettingsStorage.setAnkiBackTemplate(e.target.value)}
+                      disabled={!isPro}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div style={{ background: '#1e1d1a', padding: '10px', borderRadius: '4px', fontSize: '0.8rem' }}>
                 <strong style={{ color: '#e8a351', display: 'block', marginBottom: '4px' }}>Supported Variables:</strong>
@@ -955,6 +1439,8 @@ function AnkiTab() {
                     await ipaSettingsStorage.setAnkiEndpoint('http://localhost:8765');
                     await ipaSettingsStorage.setAnkiFrontTemplate('<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>');
                     await ipaSettingsStorage.setAnkiBackTemplate('{{definitions}}');
+                    await ipaSettingsStorage.setAnkiFieldTemplates({});
+                    await ipaSettingsStorage.setAnkiAllowDuplicate(false);
                     setAnkiTestStatus('idle');
                   }}
                   disabled={!isPro}
@@ -993,6 +1479,141 @@ const IconKeyboard = () => (
   </svg>
 );
 
+function getDisplayKey(shortcutStr: string) {
+  if (!shortcutStr) return '';
+
+  const ctrl = shortcutStr.includes('Ctrl+');
+  const alt = shortcutStr.includes('Alt+');
+  const shift = shortcutStr.includes('Shift+');
+  const meta = shortcutStr.includes('Meta+');
+
+  let mainKey = shortcutStr;
+  if (ctrl) mainKey = mainKey.replace('Ctrl+', '');
+  if (alt) mainKey = mainKey.replace('Alt+', '');
+  if (shift) mainKey = mainKey.replace('Shift+', '');
+  if (meta) mainKey = mainKey.replace('Meta+', '');
+
+  let displayMain = mainKey;
+  if (mainKey === ' ') displayMain = 'Space';
+  else if (mainKey === 'ArrowLeft') displayMain = '← (Left Arrow)';
+  else if (mainKey === 'ArrowRight') displayMain = '→ (Right Arrow)';
+  else if (mainKey === 'ArrowUp') displayMain = '↑ (Up Arrow)';
+  else if (mainKey === 'ArrowDown') displayMain = '↓ (Down Arrow)';
+  else if (mainKey.length === 1) displayMain = mainKey.toUpperCase();
+
+  const parts: string[] = [];
+  if (ctrl) parts.push('Ctrl');
+  if (alt) parts.push('Alt');
+  if (shift) parts.push('Shift');
+  if (meta) parts.push('Meta');
+  parts.push(displayMain);
+
+  return parts.join(' + ');
+}
+
+function ShortcutInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [tempKeys, setTempKeys] = useState<string>('');
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === 'Escape') {
+      setIsRecording(false);
+      e.currentTarget.blur();
+      return;
+    }
+
+    const mods: string[] = [];
+    if (e.ctrlKey) mods.push('Ctrl');
+    if (e.altKey) mods.push('Alt');
+    if (e.shiftKey) mods.push('Shift');
+    if (e.metaKey) mods.push('Meta');
+
+    const isModOnly = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+
+    if (isModOnly) {
+      if (mods.length > 0) {
+        setTempKeys(mods.join('+') + '+...');
+      } else {
+        setTempKeys('Press keys...');
+      }
+      return;
+    }
+
+    const mainKey = e.key;
+    const finalShortcut = mods.length > 0 ? [...mods, mainKey].join('+') : mainKey;
+
+    onChange(finalShortcut);
+    setIsRecording(false);
+    e.currentTarget.blur();
+  };
+
+  const handleFocus = () => {
+    setIsRecording(true);
+    setTempKeys('Press keys...');
+  };
+
+  const handleBlur = () => {
+    setIsRecording(false);
+  };
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <label className="opt-card-label" style={{ display: 'block', marginBottom: '8px' }}>
+        {label}
+      </label>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <input
+          type="text"
+          className="opt-input"
+          style={{
+            width: '100%',
+            background: 'var(--bg-deep)',
+            color: isRecording ? 'var(--primary-lt)' : 'var(--text)',
+            borderColor: isRecording ? 'var(--primary)' : 'var(--border-lt)',
+            caretColor: 'transparent',
+            cursor: 'pointer',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: '15px',
+            letterSpacing: '0.5px',
+          }}
+          value={isRecording ? tempKeys : getDisplayKey(value)}
+          readOnly
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+        />
+        {isRecording && (
+          <span 
+            style={{ 
+              position: 'absolute', 
+              right: '12px', 
+              fontSize: '11px', 
+              color: 'var(--primary-lt)', 
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+          >
+            Recording
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ShortcutsTab() {
   const settings = useStorage(ipaSettingsStorage);
 
@@ -1012,42 +1633,22 @@ function ShortcutsTab() {
       </div>
 
       <div className="opt-card">
-        <div style={{ padding: '16px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Rewind (10s)</label>
-            <input
-              type="text"
-              className="opt-input"
-              style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
-              value={shortcuts.rewind}
-              onChange={e => updateShortcut('rewind', e.target.value)}
-              maxLength={1}
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Forward (10s)</label>
-            <input
-              type="text"
-              className="opt-input"
-              style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
-              value={shortcuts.forward}
-              onChange={e => updateShortcut('forward', e.target.value)}
-              maxLength={1}
-            />
-          </div>
-
-          <div>
-            <label className="opt-card-label" style={{ display: 'block', marginBottom: '4px' }}>Play / Pause</label>
-            <input
-              type="text"
-              className="opt-input"
-              style={{ width: '100%', background: '#1a1a1a', color: '#fff' }}
-              value={shortcuts.playPause}
-              onChange={e => updateShortcut('playPause', e.target.value)}
-              maxLength={1}
-            />
-          </div>
+        <div style={{ padding: '20px' }}>
+          <ShortcutInput
+            label="Rewind (10s)"
+            value={shortcuts.rewind}
+            onChange={val => updateShortcut('rewind', val)}
+          />
+          <ShortcutInput
+            label="Forward (10s)"
+            value={shortcuts.forward}
+            onChange={val => updateShortcut('forward', val)}
+          />
+          <ShortcutInput
+            label="Play / Pause"
+            value={shortcuts.playPause}
+            onChange={val => updateShortcut('playPause', val)}
+          />
         </div>
       </div>
     </div>
@@ -1059,13 +1660,41 @@ const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'settings', label: 'Settings', icon: <IconSettings /> },
   { id: 'translation', label: 'Translation', icon: <IconGlobe /> },
   { id: 'account', label: 'Account', icon: <IconUser /> },
-  { id: 'dictionary', label: 'Dictionary', icon: <IconBook /> },
+  { id: 'sandbox', label: 'Sandbox', icon: <IconBook /> },
   { id: 'anki', label: 'Anki Sync', icon: <IconAnki /> },
   { id: 'shortcuts', label: 'Shortcuts', icon: <IconKeyboard /> },
 ];
 
 const Options = () => {
   const [tab, setTab] = useState<Tab>('settings');
+  const settings = useStorage(ipaSettingsStorage);
+
+  useEffect(() => {
+    if (!settings?.opts) return;
+    const b = document.body;
+    const map: [keyof IpaOpts, string][] = [
+      ['silent', 'ipa-silent'],
+      ['color_e', 'ipa-color-e'],
+      ['color_i', 'ipa-color-i'],
+      ['color_u_alt', 'ipa-color-u-alt'],
+      ['color_a', 'ipa-color-a'],
+      ['color_u', 'ipa-color-u'],
+      ['color_o', 'ipa-color-o'],
+      ['stress', 'ipa-st'],
+      ['length', 'ipa-length'],
+      ['diph_ai', 'ipa-diph-ai'],
+      ['diph_ei_oi', 'ipa-diph-ei-oi'],
+      ['diph_ou_au', 'ipa-diph-ou-au'],
+      ['th_t', 'ipa-th-t'],
+      ['th_d', 'ipa-th-d'],
+      ['tmark', 'ipa-tmark'],
+      ['zmark', 'ipa-zmark'],
+      ['phonemes', 'ipa-phonemes'],
+    ];
+    for (const [key, cls] of map) {
+      b.classList.toggle(cls, !!settings.opts[key]);
+    }
+  }, [settings?.opts]);
 
   return (
     <div className="opt-app">
@@ -1102,7 +1731,7 @@ const Options = () => {
         {tab === 'settings' && <SettingsTab />}
         {tab === 'translation' && <TranslationTab />}
         {tab === 'account' && <AccountTab />}
-        {tab === 'dictionary' && <DictionaryTab />}
+        {tab === 'sandbox' && <DictionaryTab />}
         {tab === 'anki' && <AnkiTab />}
         {tab === 'shortcuts' && <ShortcutsTab />}
       </div>

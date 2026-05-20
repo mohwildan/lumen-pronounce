@@ -262,6 +262,11 @@ async function handleAnkiAdd(
       body: JSON.stringify({ action: 'createDeck', version: 6, params: { deck: deckName } })
     });
     if (!createRes.ok) throw new Error(`HTTP Error: ${createRes.status}`);
+    const createData = await createRes.json() as { error: string | null };
+    if (createData.error) {
+      sendResponse({ error: `Anki Error: ${createData.error}` });
+      return;
+    }
 
     const frontTemplate = settings.ankiFrontTemplate || '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>';
     const backTemplate = settings.ankiBackTemplate || '{{definitions}}';
@@ -321,22 +326,64 @@ async function handleAnkiAdd(
 
     // 3. Susun isi kartu
     const noteFields: Record<string, string> = {};
-    if (availableFields.length >= 2) {
-      noteFields[availableFields[0]] = parseTemplate(frontTemplate);
-      noteFields[availableFields[1]] = parseTemplate(backTemplate);
+    const fieldTemplates = settings.ankiFieldTemplates || {};
 
-      for (let i = 2; i < availableFields.length; i++) {
-        noteFields[availableFields[i]] = '';
+    for (const field of availableFields) {
+      let tpl = fieldTemplates[field];
+      if (tpl === undefined) {
+        // Fallback to legacy behavior
+        if (field === availableFields[0]) {
+          tpl = frontTemplate;
+        } else if (field === availableFields[1]) {
+          tpl = backTemplate;
+        } else {
+          tpl = '';
+        }
       }
-    } else if (availableFields.length === 1) {
-      noteFields[availableFields[0]] = parseTemplate(frontTemplate) + '<br><br>' + parseTemplate(backTemplate);
+      noteFields[field] = parseTemplate(tpl);
+    }
+
+    // Check if the card already exists in the deck
+    let isDuplicate = false;
+    try {
+      const query = `deck:"${deckName}" "${msg.word.replace(/"/g, '\\"')}"`;
+      const findRes = await fetch(ankiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'findNotes',
+          version: 6,
+          params: { query }
+        })
+      });
+      if (findRes.ok) {
+        const findData = await findRes.json() as { result: number[] | null; error: string | null };
+        if (findData.result && findData.result.length > 0) {
+          isDuplicate = true;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to check duplicate:", err);
+    }
+
+    if (isDuplicate && !settings.ankiAllowDuplicate) {
+      sendResponse({ error: 'Card already exists in Anki' });
+      return;
     }
 
     const note = {
       deckName,
       modelName: settings.ankiModelName || 'Basic',
       fields: noteFields,
-      options: { allowDuplicate: false },
+      options: {
+        allowDuplicate: !!settings.ankiAllowDuplicate,
+        duplicateScope: 'deck',
+        duplicateScopeOptions: {
+          deckName,
+          checkChildren: false,
+          checkAllModels: false
+        }
+      },
       tags: ['lumen_pronunciation']
     };
 
@@ -357,7 +404,7 @@ async function handleAnkiAdd(
       return;
     }
 
-    sendResponse({ ok: true });
+    sendResponse({ ok: true, isDuplicate });
   } catch (e: any) {
     console.error("Anki Sync Error:", e);
     sendResponse({ error: `Connection failed: ${e.message || 'Is Anki open?'}` });

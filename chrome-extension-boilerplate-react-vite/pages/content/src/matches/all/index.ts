@@ -776,11 +776,18 @@ async function saveToAnki(word: string, ipa: string, data: unknown): Promise<voi
   }
 
   if (!isContextValid()) return;
-  chrome.runtime.sendMessage({ type: 'ANKI_ADD_CARD', word, ipa, definition: defText }, (response: { error?: string; ok?: boolean } | undefined) => {
+  chrome.runtime.sendMessage({ type: 'ANKI_ADD_CARD', word, ipa, definition: defText }, (response: { error?: string; ok?: boolean; isDuplicate?: boolean } | undefined) => {
     if (ankiBtn) {
       if (response?.ok) {
-        ankiBtn.style.color = '#a3e851';
-        ankiBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`;
+        if (response.isDuplicate) {
+          ankiBtn.style.color = '#da892b';
+          ankiBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`;
+          ankiBtn.title = 'Saved to Anki (Duplicate card)';
+        } else {
+          ankiBtn.style.color = '#a3e851';
+          ankiBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`;
+          ankiBtn.title = 'Saved to Anki';
+        }
       } else {
         ankiBtn.style.color = '#e34d52';
         ankiBtn.title = response?.error ?? 'Error saving to Anki';
@@ -1157,6 +1164,15 @@ function startFsHover(): void {
     const fs = document.fullscreenElement;
     if (!fs) { stopFsHover(); return; }
     const x = lastMoveX, y = lastMoveY;
+
+    // Check if mouse is hovering over the tooltip itself
+    if (tip && tip.style.display !== 'none') {
+      const r = tip.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return; // keep it visible while mouse is inside
+      }
+    }
+
     const found = findRpwAtPoint(x, y, fs);
     const word = found?.getAttribute('data-word') ?? null;
 
@@ -1216,7 +1232,29 @@ document.addEventListener('mouseout', e => {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip(); hideSelUI(); } });
 
-// Video control shortcuts (a: -10s, d: +10s, s: pause/play)
+function matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
+  if (!shortcutStr) return false;
+
+  const ctrl = shortcutStr.includes('Ctrl+');
+  const alt = shortcutStr.includes('Alt+');
+  const shift = shortcutStr.includes('Shift+');
+  const meta = shortcutStr.includes('Meta+');
+
+  let mainKey = shortcutStr;
+  if (ctrl) mainKey = mainKey.replace('Ctrl+', '');
+  if (alt) mainKey = mainKey.replace('Alt+', '');
+  if (shift) mainKey = mainKey.replace('Shift+', '');
+  if (meta) mainKey = mainKey.replace('Meta+', '');
+
+  if (e.ctrlKey !== ctrl) return false;
+  if (e.altKey !== alt) return false;
+  if (e.shiftKey !== shift) return false;
+  if (e.metaKey !== meta) return false;
+
+  return e.key.toLowerCase() === mainKey.toLowerCase();
+}
+
+// Video control shortcuts (rewind, forward, play/pause support combined/modifiers keys)
 document.addEventListener('keydown', e => {
   const target = e.target as HTMLElement;
   if (!target) return;
@@ -1232,14 +1270,13 @@ document.addEventListener('keydown', e => {
   const video = document.querySelector('video');
   if (!video) return;
 
-  const key = e.key.toLowerCase();
-  if (key === videoShortcuts.rewind.toLowerCase()) {
+  if (matchesShortcut(e, videoShortcuts.rewind)) {
     e.preventDefault();
     video.currentTime = Math.max(0, video.currentTime - 10);
-  } else if (key === videoShortcuts.forward.toLowerCase()) {
+  } else if (matchesShortcut(e, videoShortcuts.forward)) {
     e.preventDefault();
     video.currentTime = Math.min(video.duration, video.currentTime + 10);
-  } else if (key === videoShortcuts.playPause.toLowerCase()) {
+  } else if (matchesShortcut(e, videoShortcuts.playPause)) {
     e.preventDefault();
     if (video.paused) {
       video.play();
@@ -1344,7 +1381,7 @@ async function checkActivation(): Promise<void> {
   } else {
     document.body.classList.remove('ipa-disabled');
     const dialect = s?.pronunciationDialect ?? 'nAmE';
-    const enableBaseforms = s?.enableBaseforms !== false;
+    const enableBaseforms = true;
     if (hasProcessed && (dialect !== activeDialect || enableBaseforms !== activeBaseformsSetting)) {
       unwalkAll();
       hasProcessed = false;
@@ -1425,7 +1462,7 @@ async function init(): Promise<void> {
   try {
     if (!isContextValid()) return;
     const dialect = s?.pronunciationDialect ?? 'nAmE';
-    const enableBaseforms = s?.enableBaseforms !== false;
+    const enableBaseforms = true;
 
     activeDialect = dialect as 'nAmE' | 'brE';
     activeBaseformsSetting = enableBaseforms;

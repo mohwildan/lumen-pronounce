@@ -43,6 +43,8 @@ export type IpaSettingsState = {
   ankiBackTemplate: string;
   ankiDeckName: string;
   ankiModelName: string;
+  ankiFieldTemplates?: Record<string, string>;
+  ankiAllowDuplicate?: boolean;
   shortcuts: IpaShortcuts;
   pronunciationDialect: 'nAmE' | 'brE';
   enableBaseforms: boolean;
@@ -82,6 +84,8 @@ const DEFAULT_STATE: IpaSettingsState = {
   ankiBackTemplate: '{{definitions}}',
   ankiDeckName: 'Lumen Pronunciation',
   ankiModelName: 'Basic',
+  ankiFieldTemplates: {},
+  ankiAllowDuplicate: false,
   shortcuts: {
     rewind: 'a',
     forward: 'd',
@@ -115,6 +119,8 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setAnkiBackTemplate: (val: string) => Promise<void>;
   setAnkiDeckName: (val: string) => Promise<void>;
   setAnkiModelName: (val: string) => Promise<void>;
+  setAnkiFieldTemplates: (val: Record<string, string>) => Promise<void>;
+  setAnkiAllowDuplicate: (val: boolean) => Promise<void>;
   setShortcuts: (val: IpaShortcuts) => Promise<void>;
   setPronunciationDialect: (val: 'nAmE' | 'brE') => Promise<void>;
   setEnableBaseforms: (val: boolean) => Promise<void>;
@@ -194,6 +200,12 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setAnkiModelName: async (ankiModelName: string) => {
     await storage.set(prev => ({ ...prev, ankiModelName }));
+  },
+  setAnkiFieldTemplates: async (ankiFieldTemplates: Record<string, string>) => {
+    await storage.set(prev => ({ ...prev, ankiFieldTemplates }));
+  },
+  setAnkiAllowDuplicate: async (ankiAllowDuplicate: boolean) => {
+    await storage.set(prev => ({ ...prev, ankiAllowDuplicate }));
   },
   setShortcuts: async (shortcuts: IpaShortcuts) => {
     await storage.set(prev => ({ ...prev, shortcuts }));
