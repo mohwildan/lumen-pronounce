@@ -203,7 +203,12 @@ async function handleOpenCheckout(
   sendResponse: (r: object) => void,
 ): Promise<void> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    let { data: { session } } = await supabase.auth.getSession();
+    // Access token might be expired — try to refresh
+    if (!session) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed.session;
+    }
     if (!session) { sendResponse({ error: 'Not logged in' }); return; }
     const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/create-checkout-session`, {
       method: 'POST',
@@ -222,7 +227,11 @@ async function handleOpenCheckout(
 
 async function handleOpenPortal(sendResponse: (r: object) => void): Promise<void> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed.session;
+    }
     if (!session) { sendResponse({ error: 'Not logged in' }); return; }
     const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/create-portal-session`, {
       method: 'POST',

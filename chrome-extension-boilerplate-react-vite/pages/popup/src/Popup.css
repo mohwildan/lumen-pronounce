@@ -580,28 +580,89 @@ body {
   gap: 6px;
 }
 
+.ipa-upgrade-tagline {
+  margin: 0;
+  font-size: .63rem;
+  color: var(--text-3);
+  text-align: center;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
 .ipa-interval-toggle {
   display: flex;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--border);
+  background: var(--bg-deep, rgba(0,0,0,.18));
 }
 
 .ipa-interval-toggle button {
   flex: 1;
   background: none;
   border: none;
-  padding: 4px 6px;
-  font-size: .63rem;
-  font-weight: 700;
-  color: var(--text-3);
+  padding: 7px 6px 6px;
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition: background .15s, color .15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.ipa-plan-label {
+  font-size: .58rem;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: .03em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color .15s;
+}
+
+.ipa-plan-price {
+  font-size: .78rem;
+  font-weight: 800;
+  color: var(--text-2);
+  transition: color .15s;
+}
+
+.ipa-plan-price small {
+  font-size: .58rem;
+  font-weight: 600;
+  opacity: .75;
 }
 
 .ipa-interval-toggle button.active {
   background: var(--primary-dim);
+}
+
+.ipa-interval-toggle button.active .ipa-plan-label {
   color: var(--primary-lt);
+}
+
+.ipa-interval-toggle button.active .ipa-plan-price {
+  color: var(--primary-lt);
+}
+
+.ipa-save-badge {
+  background: #16a34a22;
+  color: #4ade80;
+  font-size: .52rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  letter-spacing: .02em;
+}
+
+.ipa-billed-note {
+  margin: 0;
+  font-size: .6rem;
+  color: var(--text-3);
+  text-align: center;
+  opacity: .75;
 }
 
 .ipa-upgrade-btn {

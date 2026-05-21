@@ -1103,6 +1103,7 @@ function walkSync(node: Node): void {
 }
 
 async function walk(node: Node): Promise<void> {
+  if (!isContextValid()) { teardown(); return; }
   if (!isInit) return;
   const words = gatherWords(node);
   if (words.size > 0) {
@@ -1119,7 +1120,12 @@ async function walk(node: Node): Promise<void> {
           Object.assign(baseforms, response.baseforms);
         }
       }
-    } catch (e) {
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      if (msg.includes('context invalidated')) {
+        teardown();
+        return;
+      }
       console.error('[IPA Stylizer] Dict lookup message failed:', e);
     }
   }

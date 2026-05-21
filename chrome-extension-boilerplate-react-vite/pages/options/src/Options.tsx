@@ -468,12 +468,12 @@ function AccountTab() {
   };
 
   const PRO_FEATURES = [
-    'Stress accents on vowels',
-    'Diphthong markers /aɪ, eɪ, ɔɪ, oʊ, aʊ/',
-    'Long vowel markers (:)',
-    'TH / DH sound marks',
-    'T-sound morph & Z-underline',
-    'Hidden phoneme superscripts',
+    'Stress accents on vowels — Shows which syllable to emphasize in pronunciation',
+    'Diphthong markers (/aɪ, eɪ, ɔɪ, oʊ, aʊ/) — Highlights vowel combinations for clearer pronunciation',
+    'Long vowel markers (:) — Marks extended vowel sounds so you pronounce them correctly',
+    'TH / DH sound marks — Special marks for these tricky sounds that differ across dialects',
+    'T-sound morph & Z-underline — Helps you understand subtle pronunciation changes in English',
+    'Hidden phoneme superscripts — Shows every sound in a word, even silent or unclear ones',
   ];
 
   if (!auth.isLoggedIn || !auth.user) {
@@ -547,7 +547,7 @@ function AccountTab() {
               {syncLoading ? '…' : '↻ Sync'}
             </button>
           </div>
-          <p className="opt-billing-desc">All phoneme markers are unlocked.</p>
+          <p className="opt-billing-desc">You have access to all advanced pronunciation markers. Explore detailed phoneme breakdowns, stress patterns, vowel combinations, and special sound rules across all your reading. You're getting the complete language learning experience.</p>
           <button className="opt-btn-manage" onClick={handleManageBilling} disabled={billingLoading}>
             {billingLoading ? 'Opening…' : 'Manage Billing ↗'}
           </button>
@@ -558,7 +558,7 @@ function AccountTab() {
             <strong>Upgrade to Pro</strong>
             <span className="opt-trial-badge">14-day free trial</span>
           </div>
-          <p className="opt-billing-desc">Unlock all phoneme markers to see every sound pattern in English text.</p>
+          <p className="opt-billing-desc">See advanced pronunciation details including stress patterns, vowel combinations, and sound rules to master English pronunciation. Perfect for learners who want to understand exactly how to pronounce every word correctly.</p>
           <ul className="opt-pro-feature-list">
             {PRO_FEATURES.map(f => (
               <li key={f}><span className="opt-pro-check">✓</span> {f}</li>
@@ -569,15 +569,18 @@ function AccountTab() {
               className={`opt-interval-btn${interval === 'month' ? ' active' : ''}`}
               onClick={() => setInterval('month')}
             >
-              Monthly · $4
+              <span className="opt-plan-label">Monthly</span>
+              <span className="opt-plan-price">$3<small>/mo</small></span>
             </button>
             <button
               className={`opt-interval-btn${interval === 'year' ? ' active' : ''}`}
               onClick={() => setInterval('year')}
             >
-              Yearly · $36 <span className="opt-save-badge">save 25%</span>
+              <span className="opt-plan-label">Yearly <span className="opt-save-badge">save 25%</span></span>
+              <span className="opt-plan-price">$2.25<small>/mo</small></span>
             </button>
           </div>
+          {interval === 'year' && <p className="opt-billed-note">Billed $27/year</p>}
           <button className="opt-btn-upgrade" onClick={handleUpgrade} disabled={billingLoading}>
             {billingLoading ? 'Opening checkout…' : 'Start free trial →'}
           </button>

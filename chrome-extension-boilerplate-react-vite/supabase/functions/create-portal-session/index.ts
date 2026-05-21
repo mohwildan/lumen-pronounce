@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: 'https://lumenpronunciation.com/#pricing',
+      return_url: 'https://lumen-pronounce-landingpage-ghqxyhgmy.vercel.app/#pricing',
     });
 
     return json({ url: portalSession.url });

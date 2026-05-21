@@ -214,6 +214,7 @@ const Popup = () => {
   const [authLoading, setAuthLoading] = useState(false);
   const [interval, setInterval] = useState<'month' | 'year'>('year');
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
@@ -406,7 +407,12 @@ const Popup = () => {
                   className="ipa-lock-btn"
                   onClick={async () => {
                     setUpgradeLoading(true);
-                    await ipaAuthStorage.openCheckout(interval);
+                    const res = await ipaAuthStorage.openCheckout(interval);
+                    if (res?.error) {
+                      setUpgradeError(res.error);
+                    } else {
+                      setUpgradeError(null);
+                    }
                     setUpgradeLoading(false);
                   }}
                   title="Upgrade to Pro"
@@ -507,27 +513,41 @@ const Popup = () => {
 
             {auth.user?.tier !== 'pro' ? (
               <div className="ipa-upgrade-block">
+                <p className="ipa-upgrade-tagline">Unlock all Pro features</p>
                 <div className="ipa-interval-toggle">
                   <button
                     className={interval === 'month' ? 'active' : ''}
                     onClick={() => setInterval('month')}
-                  >Monthly · $4</button>
+                  >
+                    <span className="ipa-plan-label">Monthly</span>
+                    <span className="ipa-plan-price">$3<small>/mo</small></span>
+                  </button>
                   <button
                     className={interval === 'year' ? 'active' : ''}
                     onClick={() => setInterval('year')}
-                  >Yearly · $3<small>/mo</small></button>
+                  >
+                    <span className="ipa-plan-label">Yearly <span className="ipa-save-badge">save 25%</span></span>
+                    <span className="ipa-plan-price">$2.25<small>/mo</small></span>
+                  </button>
                 </div>
+                {interval === 'year' && <p className="ipa-billed-note">Billed $27/year</p>}
                 <button
                   className="ipa-upgrade-btn"
                   disabled={upgradeLoading}
                   onClick={async () => {
                     setUpgradeLoading(true);
-                    await ipaAuthStorage.openCheckout(interval);
+                    const res = await ipaAuthStorage.openCheckout(interval);
+                    if (res?.error) {
+                      setUpgradeError(res.error);
+                    } else {
+                      setUpgradeError(null);
+                    }
                     setUpgradeLoading(false);
                   }}
                 >
                   {upgradeLoading ? '…' : '⬆ Upgrade to Pro'}
                 </button>
+                {upgradeError && <div className="ipa-upgrade-error" style={{color: 'var(--danger)', marginTop: '4px', fontSize: '.68rem'}}>{upgradeError}</div>}
               </div>
             ) : (
               <button

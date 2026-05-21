@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { trial_period_days: 14 },
-      success_url: 'http://localhost:3000/pro-activated?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'http://localhost:3000/#pricing',
+      success_url: 'https://lumen-pronounce-landingpage-ghqxyhgmy.vercel.app/pro-activated?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://lumen-pronounce-landingpage-ghqxyhgmy.vercel.app/cancel',
       metadata: { supabase_user_id: user.id },
     });
 

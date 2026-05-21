@@ -840,8 +840,8 @@ body {
 
 .opt-interval-toggle {
   display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .opt-interval-btn {
@@ -849,21 +849,50 @@ body {
   background: var(--bg-hover);
   border: 1px solid var(--border-lt);
   color: var(--text-3);
-  font-size: .82rem;
-  font-weight: 600;
-  padding: 9px 14px;
-  border-radius: 9px;
+  padding: 10px 14px 9px;
+  border-radius: 10px;
   cursor: pointer;
   transition: border-color .15s, color .15s, background .15s;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  gap: 2px;
+}
+
+.opt-plan-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: .03em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color .15s;
+}
+
+.opt-plan-price {
+  font-size: .98rem;
+  font-weight: 800;
+  color: var(--text-2);
+  transition: color .15s;
+}
+
+.opt-plan-price small {
+  font-size: .7rem;
+  font-weight: 600;
+  opacity: .75;
 }
 
 .opt-interval-btn.active {
   background: var(--primary-dim);
   border-color: var(--primary);
+}
+
+.opt-interval-btn.active .opt-plan-label {
+  color: var(--primary-lt);
+}
+
+.opt-interval-btn.active .opt-plan-price {
   color: var(--primary-lt);
 }
 
@@ -876,6 +905,13 @@ body {
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: .05em;
+}
+
+.opt-billed-note {
+  margin: 0 0 10px;
+  font-size: .77rem;
+  color: var(--text-3);
+  text-align: center;
 }
 
 .opt-btn-upgrade {

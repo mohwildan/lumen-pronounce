@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://sxqojqgmswxlmsjtzyce.supabase.co';
 
 type Status = 'verifying' | 'success' | 'already_pro' | 'error';
 
-export default function ProActivatedPage() {
+function ProActivatedContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<Status>('verifying');
   const [errorMsg, setErrorMsg] = useState('');
@@ -150,5 +150,19 @@ export default function ProActivatedPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function ProActivatedPage() {
+  return (
+    <Suspense
+      fallback={
+        <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1915', color: '#c7c3b5', fontFamily: 'system-ui, sans-serif' }}>
+          <p>Loading…</p>
+        </main>
+      }
+    >
+      <ProActivatedContent />
+    </Suspense>
   );
 }
