@@ -478,6 +478,45 @@ async function handleDictLookup(
   }
 }
 
+async function handleGetRelatedForms(
+  word: string,
+  dialect: 'nAmE' | 'brE',
+  sendResponse: (r: any) => void
+): Promise<void> {
+  try {
+    const dict = await getDict(dialect);
+    const baseforms = await getBaseforms();
+
+    const wLower = word.toLowerCase();
+    const baseWord = baseforms[wLower] || wLower;
+
+    const formsSet = new Set<string>();
+    formsSet.add(baseWord);
+
+    for (const key in baseforms) {
+      if (Object.prototype.hasOwnProperty.call(baseforms, key)) {
+        if (baseforms[key] === baseWord) {
+          formsSet.add(key);
+        }
+      }
+    }
+
+    const formsList = Array.from(formsSet).sort();
+    const resultDict: Record<string, string> = {};
+
+    for (const f of formsList) {
+      if (dict[f]) {
+        resultDict[f] = dict[f];
+      }
+    }
+
+    sendResponse({ forms: formsList, dict: resultDict });
+  } catch (err: any) {
+    console.error("Get related forms error:", err);
+    sendResponse({ error: err.message });
+  }
+}
+
 // ── Message router ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -493,6 +532,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
   if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
   if (msg.type === 'DICT_LOOKUP') { void handleDictLookup(msg.words as string[], msg.dialect as 'nAmE' | 'brE', msg.includeBaseforms as boolean, sendResponse); return true; }
+  if (msg.type === 'GET_RELATED_FORMS') { void handleGetRelatedForms(msg.word as string, msg.dialect as 'nAmE' | 'brE', sendResponse); return true; }
   return false;
 });
 

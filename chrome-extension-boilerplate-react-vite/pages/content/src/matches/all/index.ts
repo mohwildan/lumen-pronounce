@@ -285,6 +285,7 @@ const wordDataCache: Record<string, WordData> = {};
 
 type WordData = {
   posList: Array<{ pos: string; translations: string[] }>;
+  mainTranslation?: string;
 };
 
 async function translate(text: string, lang: string): Promise<string> {
@@ -319,7 +320,41 @@ async function fetchWordData(word: string, lang: string): Promise<WordData> {
       translations: (entry[1] as string[]).slice(0, 5),
     })) ?? [];
 
-    wordDataCache[key] = { posList };
+    let mainTranslation = (data[0] as unknown[][])?.map(c => (c as unknown[])[0]).filter(Boolean).join('') ?? '';
+
+    // If main translation is empty or matches original word, try prefix-based hyphenated fallback
+    const queryWord = word.toLowerCase().trim();
+    const transWord = mainTranslation.toLowerCase().trim();
+    if (!posList.length && (transWord === queryWord || !transWord)) {
+      const PREFIXES = [
+        'non', 'un', 're', 'dis', 'anti', 'post', 'pre', 'co', 'sub', 'super',
+        'de', 'mis', 'over', 'under', 'semi', 'micro', 'macro', 'multi', 'inter',
+        'infra', 'ultra', 'counter', 'extra', 'hyper', 'hypo', 'mega', 'mini',
+        'mono', 'poly', 'pro', 'bi', 'tri'
+      ];
+      for (const prefix of PREFIXES) {
+        if (queryWord.startsWith(prefix) && queryWord.length > prefix.length + 2) {
+          const hyphenated = prefix + '-' + word.slice(prefix.length);
+          try {
+            const hUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(hyphenated)}`;
+            const hr = await fetch(hUrl);
+            if (hr.ok) {
+              const hData = await hr.json() as unknown[][];
+              const hTrans = (hData[0] as unknown[][])?.map(c => (c as unknown[])[0]).filter(Boolean).join('') ?? '';
+              const hTransLower = hTrans.toLowerCase().trim();
+              if (hTransLower && hTransLower !== hyphenated.toLowerCase().trim() && hTransLower !== queryWord) {
+                mainTranslation = hTrans;
+                break;
+              }
+            }
+          } catch (e) {
+            console.error('[IPA Stylizer] Prefix translation error:', e);
+          }
+        }
+      }
+    }
+
+    wordDataCache[key] = { posList, mainTranslation };
     return wordDataCache[key];
   } catch {
     wordDataCache[key] = { posList: [] };
@@ -332,7 +367,7 @@ async function fetchWordData(word: string, lang: string): Promise<WordData> {
 const TIP_W = 320;
 const S = {
   // Shared inline style fragments
-  tab: 'flex:1;padding:6px 4px;border:none;background:none;cursor:pointer;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:color .1s,border-color .1s;',
+  tab: 'flex:1;padding:6px 2px;border:none;background:none;cursor:pointer;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:color .1s,border-color .1s;',
   tabOn: 'color:#e8a351;border-bottom:2px solid #e8a351;',
   tabOff: 'color:#8c887a;border-bottom:2px solid transparent;',
 };
@@ -341,11 +376,43 @@ let tip: HTMLDivElement | null = null;
 let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 let currentWord: string | null = null;
 const defCache: Record<string, unknown> = {};
+let activeRenderContent: ((word: string, arpa: string) => void) | null = null;
+let lastMoveX = 0, lastMoveY = 0;
+let lastClickTime = 0;
+
+function isMouseInTip(): boolean {
+  if (!tip || tip.style.display === 'none') return false;
+  const rect = tip.getBoundingClientRect();
+  return (
+    lastMoveX >= rect.left &&
+    lastMoveX <= rect.right &&
+    lastMoveY >= rect.top &&
+    lastMoveY <= rect.bottom
+  );
+}
 
 function isOwnEl(node: Node | null): boolean {
   if (!node) return false;
   const el = node as Element;
   return !!(el.id && IPA_ROOT_IDS.has(el.id)) || !!el.closest?.('[data-ipa-ui]');
+}
+
+function getRelatedForms(word: string): string[] {
+  const wLower = word.toLowerCase();
+  const formsSet = new Set<string>();
+  formsSet.add(wLower);
+  if (baseforms) {
+    const baseWord = baseforms[wLower] || wLower;
+    formsSet.add(baseWord);
+    for (const key in baseforms) {
+      if (Object.prototype.hasOwnProperty.call(baseforms, key)) {
+        if (baseforms[key] === baseWord) {
+          formsSet.add(key);
+        }
+      }
+    }
+  }
+  return Array.from(formsSet).sort();
 }
 
 function tipParent(): Element {
@@ -370,8 +437,33 @@ function getTip(): HTMLDivElement {
   ].join(';');
   tip.addEventListener('mouseenter', () => { if (hoverTimer) clearTimeout(hoverTimer); });
   tip.addEventListener('mouseleave', e => {
-    if (!(e.relatedTarget as Element)?.closest?.('rp-w')) hideTip();
+    const rel = e.relatedTarget as Element | null;
+    if (rel && (rel.closest?.('rp-w') || (tip && tip.contains(rel)))) return;
+
+    const timePassed = Date.now() - lastClickTime;
+    if (timePassed < 500) {
+      setTimeout(() => {
+        if (!isMouseInTip() && currentWord) {
+          hideTip();
+        }
+      }, 500 - timePassed);
+      return;
+    }
+
+    if (isMouseInTip()) return;
+    hideTip();
   });
+  tip.addEventListener('click', e => {
+    lastClickTime = Date.now();
+    const pill = (e.target as Element).closest('.__ipa_form_pill__');
+    if (pill && activeRenderContent) {
+      const targetWord = pill.getAttribute('data-word');
+      if (targetWord) {
+        const targetArpa = dict[targetWord.toLowerCase()] || '';
+        activeRenderContent(targetWord, targetArpa);
+      }
+    }
+  }, { capture: true });
   tipParent().appendChild(tip);
   return tip;
 }
@@ -470,15 +562,25 @@ async function playPronunciation(word: string): Promise<void> {
   });
 }
 
-function buildTipHTML(word: string, ipa: string): string {
+function buildTipHTML(word: string, ipa: string, baseWord: string | null = null, activeTab = 'definition'): string {
   return (
+    // Style block for scrollbars
+    `<style>` +
+    `#__ipa_body__::-webkit-scrollbar{width:6px}` +
+    `#__ipa_body__::-webkit-scrollbar-track{background:transparent}` +
+    `#__ipa_body__::-webkit-scrollbar-thumb{background:#3e3c33;border-radius:3px}` +
+    `#__ipa_body__::-webkit-scrollbar-thumb:hover{background:#e8a351}` +
+    `</style>` +
     // Header
     `<div style="padding:14px 16px 0">` +
     `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">` +
-    // Left: speaker + word
+    // Left: speaker + word + optionally baseform
+    `<div style="display:flex;flex-direction:column;gap:2px">` +
     `<div style="display:flex;align-items:center;gap:8px">` +
     `<button id="__ipa_speak_btn__" title="Play pronunciation" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;flex-shrink:0">${SPEAK_ICON}</button>` +
     `<span style="font-size:1.25rem;font-weight:800;color:#fdfbf6;letter-spacing:.01em;font-family:'Fraunces', Georgia, serif">${word.toLowerCase()}</span>` +
+    `</div>` +
+    (baseWord ? `<div style="font-size:.72rem;color:#8c887a;margin-left:25px">Base: <span id="__ipa_baseform_link__" style="text-decoration:underline dotted;text-decoration-color:#e8a351;text-underline-offset:3px;cursor:pointer;color:#e8a351;font-weight:600">${baseWord.toLowerCase()}</span></div>` : '') +
     `</div>` +
     // Right: IPA & Anki
     `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">` +
@@ -495,28 +597,46 @@ function buildTipHTML(word: string, ipa: string): string {
     `</div>` +
     // Tabs
     `<div style="display:flex;border-top:1px solid #3e3c33;border-bottom:1px solid #3e3c33;background:#1a1915">` +
-    `<button data-tab="definition" style="${S.tab}${S.tabOn}">Definition</button>` +
-    `<button data-tab="examples"   style="${S.tab}${S.tabOff}">Examples</button>` +
-    `<button data-tab="slang"      style="${S.tab}${S.tabOff}">Slang</button>` +
-    `<button data-tab="search"     style="${S.tab}${S.tabOff}">Search</button>` +
+    `<button data-tab="definition" style="${S.tab}${activeTab === 'definition' ? S.tabOn : S.tabOff}">Definition</button>` +
+    `<button data-tab="forms"      style="${S.tab}${activeTab === 'forms' ? S.tabOn : S.tabOff}">Forms</button>` +
+    `<button data-tab="examples"   style="${S.tab}${activeTab === 'examples' ? S.tabOn : S.tabOff}">Examples</button>` +
+    `<button data-tab="slang"      style="${S.tab}${activeTab === 'slang' ? S.tabOn : S.tabOff}">Slang</button>` +
+    `<button data-tab="search"     style="${S.tab}${activeTab === 'search' ? S.tabOn : S.tabOff}">Search</button>` +
     `</div>` +
     // Body
-    `<div id="__ipa_body__" style="padding:10px 16px;min-height:42px;font-size:.84rem;color:#c7c3b5;line-height:1.55">` +
+    `<div id="__ipa_body__" style="padding:10px 16px;min-height:42px;max-height:200px;overflow-y:auto;font-size:.84rem;color:#c7c3b5;line-height:1.55">` +
     `<span style="color:#8c887a">Loading…</span>` +
     `</div>`
   );
 }
 
-function renderPosArea(posList: Array<{ pos: string; translations: string[] }>, lang: string): void {
+function renderPosArea(posList: Array<{ pos: string; translations: string[] }>, lang: string, mainTranslation?: string): void {
   const area = document.getElementById('__ipa_pos_area__');
   if (!area) return;
-  if (!posList.length || lang === 'none') { area.innerHTML = ''; return; }
-  area.innerHTML = posList.map(({ pos, translations }) =>
-    `<div style="display:flex;gap:10px;align-items:baseline">` +
-    `<span style="font-size:.72rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;min-width:32px;flex-shrink:0">${posAbbr(pos)}</span>` +
-    `<span style="color:#c7c3b5">${translations.join(', ')}</span>` +
-    `</div>`
-  ).join('');
+  if (lang === 'none') { area.innerHTML = ''; return; }
+
+  if (posList && posList.length > 0) {
+    area.innerHTML = posList.map(({ pos, translations }) =>
+      `<div style="display:flex;gap:10px;align-items:baseline">` +
+      `<span style="font-size:.72rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;min-width:32px;flex-shrink:0">${posAbbr(pos)}</span>` +
+      `<span style="color:#c7c3b5">${translations.join(', ')}</span>` +
+      `</div>`
+    ).join('');
+    return;
+  }
+
+  // Fallback if posList is empty
+  const queryWord = currentWord ? currentWord.toLowerCase().trim() : '';
+  const transWord = mainTranslation ? mainTranslation.toLowerCase().trim() : '';
+  if (transWord && transWord !== queryWord) {
+    area.innerHTML = `<div style="display:flex;gap:10px;align-items:baseline">` +
+      `<span style="font-size:.72rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;min-width:32px;flex-shrink:0">tr</span>` +
+      `<span style="color:#c7c3b5">${mainTranslation}</span>` +
+      `</div>`;
+    return;
+  }
+
+  area.innerHTML = '';
 }
 
 function renderSentence(translated: string): void {
@@ -612,6 +732,56 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
         });
       }
     }
+  } else if (tab === 'forms') {
+    body.innerHTML = '<span style="color:#8c887a">Loading forms...</span>';
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_RELATED_FORMS',
+        word: word,
+        dialect: activeDialect || 'nAmE'
+      }) as { forms?: string[]; dict?: Record<string, string>; error?: string } | undefined;
+
+      if (currentWord !== word) return;
+
+      if (response && response.forms) {
+        if (response.dict) {
+          Object.assign(dict, response.dict);
+        }
+
+        const forms = response.forms;
+        if (!forms.length) {
+          body.innerHTML = '<span style="color:#8c887a">No related forms found.</span>';
+          return;
+        }
+        let html = '<div style="display:flex;flex-wrap:wrap;margin:-4px;">';
+        for (const f of forms) {
+          const fLower = f.toLowerCase();
+          const arpa = dict[fLower] || '';
+          const ipa = toIPA(arpa);
+          const isActive = fLower === word.toLowerCase();
+
+          const pillStyle = isActive
+            ? `background:#3e3c33;border:1px solid #e8a351;border-radius:20px;padding:6px 12px;margin:4px;color:#e8a351;cursor:default;font-size:.8rem;display:inline-flex;align-items:center;gap:6px;`
+            : `background:#2d2a22;border:1px solid #3e3c33;border-radius:20px;padding:6px 12px;margin:4px;color:#fdfbf6;cursor:pointer;font-size:.8rem;transition:all .15s;display:inline-flex;align-items:center;gap:6px;`;
+
+          const hoverEvents = isActive
+            ? ''
+            : ` onmouseover="this.style.background='#3e3c33';this.style.borderColor='#e8a351'" onmouseout="this.style.background='#2d2a22';this.style.borderColor='#3e3c33'"`;
+
+          html += `<button class="__ipa_form_pill__" data-word="${f}" style="${pillStyle}"${hoverEvents}>` +
+            `<span style="font-weight:600;border-bottom:1px dotted #e8a351;">${f}</span>` +
+            (ipa ? `<span style="font-size:.7rem;color:#8c887a;font-style:italic;">${ipa}</span>` : '') +
+            `</button>`;
+        }
+        html += '</div>';
+        body.innerHTML = html;
+      } else {
+        body.innerHTML = '<span style="color:#8c887a">No related forms found.</span>';
+      }
+    } catch (e) {
+      console.error('[IPA Stylizer] Error fetching forms:', e);
+      body.innerHTML = '<span style="color:#8c887a">Error loading forms.</span>';
+    }
   } else if (tab === 'slang') {
     const udUrl = `https://www.urbandictionary.com/define.php?term=${encodeURIComponent(word)}`;
     body.innerHTML = `<a href="${udUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block;margin-bottom:8px">&#x1F4AC; Urban Dictionary: "${word}"</a>` +
@@ -634,7 +804,18 @@ async function fetchDictDef(word: string): Promise<void> {
     } catch { defCache[key] = null; }
   }
   if (currentWord === word) {
-    void renderTab('definition', word, defCache[key]);
+    let activeTabName = 'definition';
+    if (tip) {
+      const activeBtn = Array.from(tip.querySelectorAll('button[data-tab]')).find(
+        btn => (btn as HTMLElement).style.color === 'rgb(232, 163, 81)' || (btn as HTMLElement).style.color === '#e8a351'
+      ) as HTMLElement | null;
+      if (activeBtn) {
+        activeTabName = activeBtn.dataset.tab || 'definition';
+      }
+    }
+    if (activeTabName === 'definition' || activeTabName === 'examples') {
+      void renderTab(activeTabName, word, defCache[key]);
+    }
     const data = defCache[key];
     if (data) {
       const arr = data as Array<{ phonetic?: string; phonetics?: Array<{ text?: string }> }>;
@@ -680,72 +861,110 @@ function posTip(mouseX: number, mouseY: number): void {
 }
 
 function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
-  const t = getTip();
-  const word = wordEl.getAttribute('data-word');
-  const arpa = wordEl.getAttribute('data-arpa');
-  if (!word) return;
-  currentWord = word;
+  const originalWord = wordEl.getAttribute('data-word');
+  const originalArpa = wordEl.getAttribute('data-arpa');
+  if (!originalWord) return;
 
-  stopCurrent();
-  ttsActive = false;
   maybePauseVideo();
 
-  t.innerHTML = buildTipHTML(word, toIPA(arpa ?? ''));
-  t.style.pointerEvents = 'auto';
+  const renderContent = (displayWord: string, displayArpa: string) => {
+    currentWord = displayWord;
+    activeRenderContent = renderContent;
+    const t = getTip();
 
-  // Wire up speaker button
-  const speakBtn = t.querySelector('#__ipa_speak_btn__') as HTMLButtonElement | null;
-  if (speakBtn) {
-    speakBtn.addEventListener('click', e => { e.stopPropagation(); playPronunciation(word); });
-  }
+    const wLower = displayWord.toLowerCase();
+    const baseWord = (baseforms && baseforms[wLower]) ? baseforms[wLower] : null;
+    const hasBaseForm = baseWord && baseWord.toLowerCase() !== wLower;
 
-  // Wire up Anki button
-  const ankiBtn = t.querySelector('#__ipa_anki_btn__') as HTMLButtonElement | null;
-  if (ankiBtn) {
-    ankiBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      const ipaSpan = t.querySelector('#__ipa_header_ipa__');
-      const ipaVal = ipaSpan?.textContent || '';
-      void saveToAnki(word, ipaVal, defCache[word.toLowerCase()]);
+    let activeTabName = 'definition';
+    const activeBtn = Array.from(t.querySelectorAll('button[data-tab]')).find(
+      btn => (btn as HTMLElement).style.color === 'rgb(232, 163, 81)' || (btn as HTMLElement).style.color === '#e8a351'
+    ) as HTMLElement | null;
+    if (activeBtn) {
+      activeTabName = activeBtn.dataset.tab || 'definition';
+    }
+
+    t.innerHTML = buildTipHTML(displayWord, toIPA(displayArpa ?? ''), hasBaseForm ? baseWord : null, activeTabName);
+    t.style.pointerEvents = 'auto';
+
+    // Wire up speaker button
+    const speakBtn = t.querySelector('#__ipa_speak_btn__') as HTMLButtonElement | null;
+    if (speakBtn) {
+      speakBtn.addEventListener('click', e => { e.stopPropagation(); playPronunciation(displayWord); });
+    }
+
+    // Wire up Anki button
+    const ankiBtn = t.querySelector('#__ipa_anki_btn__') as HTMLButtonElement | null;
+    if (ankiBtn) {
+      ankiBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const ipaSpan = t.querySelector('#__ipa_header_ipa__');
+        const ipaVal = ipaSpan?.textContent || '';
+        void saveToAnki(displayWord, ipaVal, defCache[displayWord.toLowerCase()]);
+      });
+    }
+
+    // Wire up tabs
+    t.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        t.querySelectorAll('[data-tab]').forEach(b => ((b as HTMLElement).style.cssText = S.tab + S.tabOff));
+        (btn as HTMLElement).style.cssText = S.tab + S.tabOn;
+        void renderTab((btn as HTMLElement).dataset.tab!, displayWord, defCache[displayWord.toLowerCase()]);
+      });
     });
-  }
 
-  // Wire up tabs
-  t.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      t.querySelectorAll('[data-tab]').forEach(b => ((b as HTMLElement).style.cssText = S.tab + S.tabOff));
-      (btn as HTMLElement).style.cssText = S.tab + S.tabOn;
-      void renderTab((btn as HTMLElement).dataset.tab!, word, defCache[word.toLowerCase()]);
-    });
-  });
+    // Wire up baseform link if present
+    const baseformLink = t.querySelector('#__ipa_baseform_link__') as HTMLElement | null;
+    if (baseformLink && baseWord) {
+      baseformLink.addEventListener('click', e => {
+        e.stopPropagation();
+        const baseArpa = dict[baseWord.toLowerCase()] || '';
+        renderContent(baseWord, baseArpa);
+      });
+    }
 
-  // Ensure tip is in correct parent (body or fullscreen element)
-  const parent = tipParent();
-  if (tip && tip.parentElement !== parent) parent.appendChild(tip);
+    // Ensure tip is in correct parent (body or fullscreen element)
+    const parent = tipParent();
+    if (tip && tip.parentElement !== parent) parent.appendChild(tip);
 
-  posTip(mouseX, mouseY);
-  t.style.display = 'block';
+    posTip(mouseX, mouseY);
+    t.style.display = 'block';
+
+    // Parallel fetches
+    const lang = targetLanguage;
+
+    // Render active tab immediately if possible
+    if (activeTabName !== 'definition' && activeTabName !== 'examples') {
+      void renderTab(activeTabName, displayWord, defCache[wLower]);
+    } else if (wLower in defCache) {
+      void renderTab(activeTabName, displayWord, defCache[wLower]);
+    }
+
+    // 1. Definition (always)
+    void fetchDictDef(displayWord);
+
+    // 2. Word POS translations
+    if (lang && lang !== 'none') {
+      void fetchWordData(displayWord, lang).then(data => {
+        if (currentWord !== displayWord) return;
+        renderPosArea(data.posList, lang, data.mainTranslation);
+      });
+    }
+  };
+
+  const t = getTip();
+  renderContent(originalWord, originalArpa ?? '');
+
   t.style.transform = 'translateY(6px)'; t.style.opacity = '0';
   requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
 
-  // Parallel fetches
+  // 3. Sentence from DOM → translate (always based on original wordEl)
   const lang = targetLanguage;
-
-  // 1. Definition (always)
-  void fetchDictDef(word);
-
-  // 2. Word POS translations
   if (lang && lang !== 'none') {
-    void fetchWordData(word, lang).then(data => {
-      if (currentWord !== word) return;
-      renderPosArea(data.posList, lang);
-    });
-
-    // 3. Sentence from DOM → translate
     const sentence = extractSentence(wordEl);
     if (sentence) {
       void translate(sentence, lang).then(result => {
-        if (currentWord !== word) return;
+        if (!currentWord) return;
         renderSentence(result);
       });
     }
@@ -755,6 +974,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 function hideTip(): void {
   if (!tip) return;
   currentWord = null;
+  activeRenderContent = null;
   stopCurrent();
   ttsActive = false;
   maybeResumeVideo();
@@ -1102,10 +1322,68 @@ function walkSync(node: Node): void {
   for (const child of Array.from(node.childNodes)) walkSync(child);
 }
 
+function updateContainerPronunciations(container: Node): void {
+  if (container.nodeType !== Node.ELEMENT_NODE && container.nodeType !== Node.DOCUMENT_NODE && container.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return;
+  const el = container as Element;
+  const rpws = el.querySelectorAll('rp-w');
+  for (const rpw of Array.from(rpws)) {
+    const word = rpw.getAttribute('data-word');
+    if (!word) continue;
+
+    const oldArpa = rpw.getAttribute('data-arpa') ?? '';
+    const clean = word.replace(/^'+|'+$/g, '').toLowerCase();
+
+    let newArpa = dict?.[clean] ?? null;
+    if (!newArpa && baseforms) {
+      const base = baseforms[clean];
+      if (base) newArpa = dict?.[base.toLowerCase()] ?? null;
+    }
+
+    if (word.includes("'")) {
+      const apostIdx = word.indexOf("'");
+      const base = word.slice(0, apostIdx);
+      const suffix = word.slice(apostIdx);
+
+      let baseArpa = dict?.[base.toLowerCase()] ?? null;
+      if (!baseArpa && base.length > 2 && base.endsWith('n')) {
+        baseArpa = dict?.[base.slice(0, -1).toLowerCase()] ?? null;
+      }
+
+      const resolvedBaseArpa = baseArpa || '';
+      if (resolvedBaseArpa !== oldArpa) {
+        const newRpw = renderWordFrag(base || word, resolvedBaseArpa);
+        newRpw.setAttribute('data-word', word);
+        if (suffix) newRpw.appendChild(document.createTextNode(suffix));
+
+        if (rpw.parentNode) {
+          rpw.parentNode.replaceChild(newRpw, rpw);
+        }
+      }
+    } else {
+      if (!newArpa && (clean.length > 4 || clean.includes("'"))) {
+        newArpa = guessPronunciation(clean);
+      }
+      const resolvedArpa = newArpa || '';
+      if (resolvedArpa !== oldArpa) {
+        const newRpw = renderWordFrag(word, resolvedArpa);
+        if (rpw.parentNode) {
+          rpw.parentNode.replaceChild(newRpw, rpw);
+        }
+      }
+    }
+  }
+}
+
 async function walk(node: Node): Promise<void> {
   if (!isContextValid()) { teardown(); return; }
   if (!isInit) return;
+
+  const container = node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
   const words = gatherWords(node);
+
+  // Synchronous-first rendering (zero flicker)
+  walkSync(node);
+
   if (words.size > 0) {
     try {
       const response = await chrome.runtime.sendMessage({
@@ -1119,6 +1397,9 @@ async function walk(node: Node): Promise<void> {
         if (response.baseforms && baseforms) {
           Object.assign(baseforms, response.baseforms);
         }
+        if (container && container.isConnected) {
+          updateContainerPronunciations(container);
+        }
       }
     } catch (e: any) {
       const msg = e?.message || String(e);
@@ -1129,12 +1410,10 @@ async function walk(node: Node): Promise<void> {
       console.error('[IPA Stylizer] Dict lookup message failed:', e);
     }
   }
-  walkSync(node);
 }
 
 // ── Hover events ─────────────────────────────────────────────────
 
-let lastMoveX = 0, lastMoveY = 0;
 let fsHoverInterval: ReturnType<typeof setInterval> | null = null;
 
 // Track mouse at all times (needed for interval-based fullscreen detection)
