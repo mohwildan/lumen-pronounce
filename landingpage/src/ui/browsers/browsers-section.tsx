@@ -1,4 +1,7 @@
-const primaryBrowser = {
+"use client";
+import React from "react";
+
+const defaultBrowser = {
   letter: "C",
   name: "Chrome",
   ver: "v.116+ · Manifest V3",
@@ -8,14 +11,72 @@ const primaryBrowser = {
   color: "#C97A1E",
 };
 
+const browserConfigs = {
+  edge: {
+    letter: "E",
+    name: "Edge",
+    ver: "v.116+ · Manifest V3",
+    label: "Add to Edge — Free",
+    href: "#",
+    bg: "#D0E8FF",
+    color: "#1A73E8",
+  },
+  opera: {
+    letter: "O",
+    name: "Opera",
+    ver: "v.116+ · Manifest V3",
+    label: "Add to Opera — Free",
+    href: "#",
+    bg: "#FFE5F0",
+    color: "#FF1B6B",
+  },
+  firefox: {
+    letter: "F",
+    name: "Firefox",
+    ver: "v.109+ · Manifest V3",
+    label: "Add to Firefox — Free",
+    href: "#",
+    bg: "#FFF3E0",
+    color: "#FF9500",
+  },
+  safari: {
+    letter: "S",
+    name: "Safari",
+    ver: "v.17+ · Web Extensions",
+    label: "Add to Safari — Free",
+    href: "#",
+    bg: "#F0F0F0",
+    color: "#555555",
+  },
+  chrome: defaultBrowser,
+};
+
 const chromiumBrowsers = [
-  { letter: "E", name: "Edge", note: "Chromium-based · works now" },
-  { letter: "A", name: "Arc", note: "Chromium-based · works now" },
-  { letter: "B", name: "Brave", note: "Chromium-based · works now" },
-  { letter: "V", name: "Vivaldi", note: "Chromium-based · works now" },
+  { letter: "C", name: "Chrome and other Chromium-based browsers" },
+  { letter: "F", name: "Firefox and browsers using the Gecko engine" },
+];
+const notSupportedBrowsers = [
+  "Safari",
 ];
 
+function detectBrowser(userAgent: string): string {
+  if (/Edg\//.test(userAgent)) return "edge";
+  if (/OPR\//.test(userAgent)) return "opera";
+  if (/Firefox\//.test(userAgent)) return "firefox";
+  if (/Safari\//.test(userAgent) && !/Chrome/.test(userAgent)) return "safari";
+  return "chrome";
+}
+
 export default function BrowsersSection() {
+  const [primaryBrowser, setPrimaryBrowser] = React.useState(defaultBrowser);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const detectedBrowser = detectBrowser(navigator.userAgent);
+      setPrimaryBrowser(browserConfigs[detectedBrowser as keyof typeof browserConfigs]);
+    }
+  }, []);
+
   return (
     <section className="mx-auto max-w-[1240px] px-8 py-24" id="browsers">
       {/* Header */}
@@ -32,7 +93,7 @@ export default function BrowsersSection() {
         </p>
       </div>
 
-      {/* Chrome featured card */}
+      {/* Featured browser card */}
       <a
         href={primaryBrowser.href}
         className="mb-4 flex flex-col items-start rounded-[22px] border-2 border-moss bg-card p-8 transition-all hover:-translate-y-[2px] sm:flex-row sm:items-center sm:gap-8"
@@ -54,7 +115,7 @@ export default function BrowsersSection() {
 
       {/* Chromium others */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {chromiumBrowsers.map(({ letter, name, note }) => (
+        {chromiumBrowsers.map(({ letter, name }) => (
           <div
             key={name}
             className="flex flex-col items-start rounded-[16px] border border-[var(--line)] bg-card p-5"
@@ -65,13 +126,12 @@ export default function BrowsersSection() {
               {letter}
             </div>
             <div className="mt-3 font-fraunces text-[16px] font-bold tracking-tight">{name}</div>
-            <div className="mt-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.1em] text-moss">{note}</div>
           </div>
         ))}
       </div>
 
       <p className="mt-7 text-center font-mono text-[11.5px] font-semibold uppercase tracking-[0.16em] text-ink3">
-        Firefox &amp; Safari support · coming later · <a href="#" className="underline hover:text-moss">join the waitlist</a>
+        Safari support · coming later · <a href="#" className="underline hover:text-moss">join the waitlist</a>
       </p>
     </section>
   );

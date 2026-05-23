@@ -380,16 +380,7 @@ let activeRenderContent: ((word: string, arpa: string) => void) | null = null;
 let lastMoveX = 0, lastMoveY = 0;
 let lastClickTime = 0;
 
-function isMouseInTip(): boolean {
-  if (!tip || tip.style.display === 'none') return false;
-  const rect = tip.getBoundingClientRect();
-  return (
-    lastMoveX >= rect.left &&
-    lastMoveX <= rect.right &&
-    lastMoveY >= rect.top &&
-    lastMoveY <= rect.bottom
-  );
-}
+let mouseInTip = false;
 
 function isOwnEl(node: Node | null): boolean {
   if (!node) return false;
@@ -435,22 +426,25 @@ function getTip(): HTMLDivElement {
     'transition:opacity .15s,transform .15s',
     'opacity:0', 'transform:translateY(6px)', 'pointer-events:none',
   ].join(';');
-  tip.addEventListener('mouseenter', () => { if (hoverTimer) clearTimeout(hoverTimer); });
+  tip.addEventListener('mouseenter', () => {
+    mouseInTip = true;
+    if (hoverTimer) clearTimeout(hoverTimer);
+  });
   tip.addEventListener('mouseleave', e => {
+    mouseInTip = false;
     const rel = e.relatedTarget as Element | null;
     if (rel && (rel.closest?.('rp-w') || (tip && tip.contains(rel)))) return;
 
     const timePassed = Date.now() - lastClickTime;
     if (timePassed < 500) {
       setTimeout(() => {
-        if (!isMouseInTip() && currentWord) {
+        if (!mouseInTip && currentWord) {
           hideTip();
         }
       }, 500 - timePassed);
       return;
     }
 
-    if (isMouseInTip()) return;
     hideTip();
   });
   tip.addEventListener('click', e => {
@@ -973,6 +967,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
 function hideTip(): void {
   if (!tip) return;
+  mouseInTip = false;
   currentWord = null;
   activeRenderContent = null;
   stopCurrent();
@@ -1107,7 +1102,13 @@ document.addEventListener('mouseup', e => {
   }, 10);
 });
 
-document.addEventListener('mousedown', e => { if (!isOwnEl(e.target as Node)) hideSelUI(); });
+document.addEventListener('mousedown', e => {
+  if (!isOwnEl(e.target as Node)) {
+    hideSelUI();
+    const rpw = (e.target as Element).closest?.('rp-w');
+    if (!rpw) hideTip();
+  }
+});
 
 // ── Morphological Fallback ───────────────────────────────────────
 
@@ -1451,11 +1452,8 @@ function startFsHover(): void {
     const x = lastMoveX, y = lastMoveY;
 
     // Check if mouse is hovering over the tooltip itself
-    if (tip && tip.style.display !== 'none') {
-      const r = tip.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-        return; // keep it visible while mouse is inside
-      }
+    if (mouseInTip) {
+      return; // keep it visible while mouse is inside
     }
 
     const found = findRpwAtPoint(x, y, fs);

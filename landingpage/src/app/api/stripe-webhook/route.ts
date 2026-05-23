@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// ── IMPORTANT: Next.js App Router needs raw body for Stripe signature ──
 export const dynamic = 'force-dynamic';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
@@ -16,8 +15,7 @@ async function getStripe() {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Helper: extract customer id from any Stripe customer field shape
-function customerId(val: unknown): string | null {
+function findCustomerId(val: unknown): string | null {
   if (!val) return null;
   if (typeof val === 'string') return val;
   if (typeof val === 'object' && val !== null && 'id' in val) {
@@ -26,7 +24,6 @@ function customerId(val: unknown): string | null {
   return null;
 }
 
-// Helper: update profile by stripe_customer_id
 async function updateByCustomer(custId: string, patch: Record<string, unknown>) {
   const { error } = await supabase
     .from('profiles')
@@ -46,8 +43,6 @@ export async function POST(req: NextRequest) {
   console.log('- Body length:', body ? body.length : 0);
   console.log('- Body preview (first 100 chars):', body ? body.substring(0, 100) : 'empty');
 
-  // Verify Stripe signature
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let event: any;
   try {
     const stripe = await getStripe();
@@ -55,16 +50,12 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('[webhook] Signature verification failed:', err.message || err);
 
-    // ── FALLBACK UNTUK SANDBOX / TEST MODE ─────────────────────────────────
-    // Jika tanda tangan gagal tapi livemode = false (Sandbox), kita ijinkan lewat
-    // agar Anda tidak terhambat typo/masalah encoding saat testing lokal/sandbox.
     try {
-      const parsed = JSON.parse(body);
-      if (parsed && parsed.livemode === false) {
+      const parsing = JSON.parse(body);
+      if (parsing && parsing.livemode === false) {
         console.warn('[webhook] WARNING: Signature verification failed, but allowing event because livemode is FALSE (Sandbox/Test Mode)');
-        event = parsed;
+        event = parsing;
       } else {
-        // Jika livemode = true (Production), wajib tolak request ilegal!
         return NextResponse.json({ error: 'Invalid signature', details: err.message || String(err) }, { status: 400 });
       }
     } catch (parseErr) {
@@ -75,12 +66,10 @@ export async function POST(req: NextRequest) {
   console.log('[webhook] Received event:', event.type, event.id);
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const obj = event.data.object as any;
 
     switch (event.type as string) {
 
-      // ── User completes checkout ──────────────────────────────────────────
       case 'checkout.session.completed': {
         const userId = obj.metadata?.supabase_user_id as string | undefined;
         if (!userId) {
@@ -98,9 +87,8 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // ── Subscription updated (cancel, reactivate, trial end, etc.) ──────
       case 'customer.subscription.updated': {
-        const custId = customerId(obj.customer);
+        const custId = findCustomerId(obj.customer);
         if (!custId) break;
         const isActive = obj.status === 'active' || obj.status === 'trialing';
         await updateByCustomer(custId, {
@@ -111,9 +99,8 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // ── Subscription fully cancelled ─────────────────────────────────────
       case 'customer.subscription.deleted': {
-        const custId = customerId(obj.customer);
+        const custId = findCustomerId(obj.customer);
         if (!custId) break;
         await updateByCustomer(custId, {
           tier: 'free',
@@ -124,9 +111,8 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // ── Payment failed ───────────────────────────────────────────────────
       case 'invoice.payment_failed': {
-        const custId = customerId(obj.customer);
+        const custId = findCustomerId(obj.customer);
         if (!custId) break;
         await updateByCustomer(custId, {
           tier: 'free',
@@ -136,9 +122,8 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // ── Refund issued ────────────────────────────────────────────────────
       case 'charge.refunded': {
-        const custId = customerId(obj.customer);
+        const custId = findCustomerId(obj.customer);
         if (!custId) break;
         if (obj.amount_refunded >= obj.amount) {
           await updateByCustomer(custId, {
