@@ -367,7 +367,7 @@ async function fetchWordData(word: string, lang: string): Promise<WordData> {
 const TIP_W = 320;
 const S = {
   // Shared inline style fragments
-  tab: 'flex:1;padding:6px 2px;border:none;background:none;cursor:pointer;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:color .1s,border-color .1s;',
+  tab: 'flex:1;padding:6px 2px;border:none;background:none;cursor:pointer;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:color .1s,border-color .1s;',
   tabOn: 'color:#e8a351;border-bottom:2px solid #e8a351;',
   tabOff: 'color:#8c887a;border-bottom:2px solid transparent;',
 };
@@ -382,6 +382,7 @@ let lastClickTime = 0;
 
 let mouseInTip = false;
 let phrasalVerbsSet = new Set<string>();
+let phrasalParticlesSet = new Set<string>();
 
 async function loadPhrasalVerbs(): Promise<void> {
   try {
@@ -391,6 +392,18 @@ async function loadPhrasalVerbs(): Promise<void> {
     const text = await res.text();
     const lines = text.split('\n').map(l => l.trim().toLowerCase()).filter(Boolean);
     phrasalVerbsSet = new Set(lines);
+
+    phrasalParticlesSet.clear();
+    for (const line of lines) {
+      const parts = line.split(/\s+/);
+      if (parts.length > 1) {
+        for (let i = 1; i < parts.length; i++) {
+          if (parts[i]) {
+            phrasalParticlesSet.add(parts[i]);
+          }
+        }
+      }
+    }
   } catch (e) {
     console.error('[IPA Stylizer] Failed to load phrasal verbs:', e);
   }
@@ -428,6 +441,33 @@ function isOwnEl(node: Node | null): boolean {
 
 // ── Phrasal Verbs Detection ──────────────────────────────────────
 
+const PHRASAL_PARTICLES = phrasalParticlesSet;
+
+function findSentenceRpwSiblings(wordEl: Element, maxWords = 4): Element[] {
+  const siblings: Element[] = [];
+  let curr: Node | null = wordEl;
+  let textBetween = '';
+  while (curr && siblings.length < maxWords) {
+    curr = curr.nextSibling;
+    if (!curr) break;
+    if (curr.nodeType === Node.ELEMENT_NODE) {
+      const cel = curr as Element;
+      if (cel.tagName === 'RP-W') {
+        siblings.push(cel);
+      } else {
+        const found = cel.querySelectorAll('rp-w');
+        found.forEach(f => {
+          if (siblings.length < maxWords) siblings.push(f);
+        });
+      }
+    } else if (curr.nodeType === Node.TEXT_NODE) {
+      textBetween += curr.textContent || '';
+      if (/[.?!;]/.test(textBetween)) break; // stop at sentence boundary
+    }
+  }
+  return siblings;
+}
+
 function findNextRpw(el: Element, maxDistance = 3): Element | null {
   let curr: Node | null = el;
   let textBetween = '';
@@ -454,25 +494,50 @@ function getPhrasalCandidates(wordEl: Element): string[] {
   const cleanBase = base.replace(/^'+|'+$/g, '').toLowerCase();
   if (!cleanBase) return [];
 
-  const nextEl = findNextRpw(wordEl);
-  if (!nextEl) return [];
-  const nextWord = (nextEl.getAttribute('data-word') || nextEl.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
-  if (!nextWord) return [];
-
   const baseWordInflection = (baseforms && baseforms[cleanBase]) ? baseforms[cleanBase].toLowerCase() : cleanBase;
 
-  result.push(`${baseWordInflection} ${nextWord}`);
-  if (baseWordInflection !== cleanBase) {
-    result.push(`${cleanBase} ${nextWord}`);
+  // 1. Contiguous phrasal verb candidates (up to 3 words)
+  const nextEl = findNextRpw(wordEl);
+  if (nextEl) {
+    const nextWord = (nextEl.getAttribute('data-word') || nextEl.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+    if (nextWord) {
+      result.push(`${baseWordInflection} ${nextWord}`);
+      if (baseWordInflection !== cleanBase) {
+        result.push(`${cleanBase} ${nextWord}`);
+      }
+
+      const next2El = findNextRpw(nextEl);
+      if (next2El) {
+        const next2Word = (next2El.getAttribute('data-word') || next2El.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+        if (next2Word) {
+          result.push(`${baseWordInflection} ${nextWord} ${next2Word}`);
+          if (baseWordInflection !== cleanBase) {
+            result.push(`${cleanBase} ${nextWord} ${next2Word}`);
+          }
+        }
+      }
+    }
   }
 
-  const next2El = findNextRpw(nextEl);
-  if (next2El) {
-    const next2Word = (next2El.getAttribute('data-word') || next2El.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
-    if (next2Word) {
-      result.push(`${baseWordInflection} ${nextWord} ${next2Word}`);
+  // 2. Non-contiguous (separable) phrasal verb candidates
+  const siblings = findSentenceRpwSiblings(wordEl, 4);
+  for (let i = 0; i < siblings.length; i++) {
+    const sWord = (siblings[i].getAttribute('data-word') || siblings[i].textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+    if (PHRASAL_PARTICLES.has(sWord)) {
+      result.push(`${baseWordInflection} ${sWord}`);
       if (baseWordInflection !== cleanBase) {
-        result.push(`${cleanBase} ${nextWord} ${next2Word}`);
+        result.push(`${cleanBase} ${sWord}`);
+      }
+
+      // Check if there is a secondary particle right after it, e.g. "let ... in on"
+      if (i + 1 < siblings.length) {
+        const nextSWord = (siblings[i + 1].getAttribute('data-word') || siblings[i + 1].textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+        if (PHRASAL_PARTICLES.has(nextSWord)) {
+          result.push(`${baseWordInflection} ${sWord} ${nextSWord}`);
+          if (baseWordInflection !== cleanBase) {
+            result.push(`${cleanBase} ${sWord} ${nextSWord}`);
+          }
+        }
       }
     }
   }
@@ -708,8 +773,6 @@ function buildTipHTML(word: string, ipa: string, baseWord: string | null = null,
     `<button data-tab="definition" style="${S.tab}${activeTab === 'definition' ? S.tabOn : S.tabOff}">Definition</button>` +
     `<button data-tab="forms"      style="${S.tab}${activeTab === 'forms' ? S.tabOn : S.tabOff}">Forms</button>` +
     `<button data-tab="examples"   style="${S.tab}${activeTab === 'examples' ? S.tabOn : S.tabOff}">Examples</button>` +
-    `<button data-tab="slang"      style="${S.tab}${activeTab === 'slang' ? S.tabOn : S.tabOff}">Slang</button>` +
-    `<button data-tab="search"     style="${S.tab}${activeTab === 'search' ? S.tabOn : S.tabOff}">Search</button>` +
     `</div>` +
     // Body
     `<div id="__ipa_body__" style="padding:10px 16px;min-height:42px;max-height:200px;overflow-y:auto;font-size:.84rem;color:#c7c3b5;line-height:1.55">` +
@@ -858,12 +921,37 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
 
         const forms = response.forms;
         const wordLower = word.toLowerCase();
-        const verbParts = verbFormsMap.get(wordLower);
+        
+        let verbParts: string[] | undefined = verbFormsMap.get(wordLower);
+        let phrasalSuffix = '';
+
+        if (!verbParts && wordLower.includes(' ')) {
+          const wWords = wordLower.split(/\s+/);
+          const verbCandidate = wWords[0];
+          const baseConjugations = verbFormsMap.get(verbCandidate);
+          if (baseConjugations) {
+            phrasalSuffix = ' ' + wWords.slice(1).join(' ');
+            verbParts = baseConjugations.map(c => c + phrasalSuffix);
+          }
+        }
 
         const renderFormPill = (f: string, isActive: boolean) => {
           const fLower = f.toLowerCase();
           const arpa = dict[fLower] || '';
-          const ipa = toIPA(arpa);
+          let ipa = toIPA(arpa);
+          
+          if (!ipa && fLower.includes(' ')) {
+            const fWords = fLower.split(/\s+/);
+            const hasAllIpa = fWords.every(w => dict[w]);
+            if (hasAllIpa) {
+              const getWordIPA = (w: string) => {
+                const wArpa = dict[w] || '';
+                return wArpa ? toIPA(wArpa).replace(/^\/|\/$/g, '') : '';
+              };
+              ipa = '/' + fWords.map(w => getWordIPA(w)).join(' ') + '/';
+            }
+          }
+
           const pillStyle = isActive
             ? `background:#3e3c33;border:1px solid #e8a351;border-radius:20px;padding:6px 12px;margin:4px;color:#e8a351;cursor:default;font-size:.8rem;display:inline-flex;align-items:center;gap:6px;`
             : `background:#2d2a22;border:1px solid #3e3c33;border-radius:20px;padding:6px 12px;margin:4px;color:#fdfbf6;cursor:pointer;font-size:.8rem;transition:all .15s;display:inline-flex;align-items:center;gap:6px;`;
@@ -881,7 +969,13 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
         let html = '';
 
         if (verbParts) {
-          const missingWords = verbParts.filter(p => !dict[p]);
+          const missingWords: string[] = [];
+          for (const vp of verbParts) {
+            for (const vpWord of vp.split(/\s+/)) {
+              if (!dict[vpWord]) missingWords.push(vpWord);
+            }
+          }
+
           if (missingWords.length > 0) {
             try {
               const dictLookupRes = await chrome.runtime.sendMessage({
@@ -925,7 +1019,7 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
             `</div>` +
             `</div>`;
 
-          const verbFormsSet = new Set(verbParts);
+          const verbFormsSet = new Set(verbParts.map(vp => vp.toLowerCase()));
           const otherForms = forms.filter(f => !verbFormsSet.has(f.toLowerCase()));
 
           if (otherForms.length > 0) {
@@ -958,16 +1052,6 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
       console.error('[IPA Stylizer] Error fetching forms:', e);
       body.innerHTML = '<span style="color:#8c887a">Error loading forms.</span>';
     }
-  } else if (tab === 'slang') {
-    const udUrl = `https://www.urbandictionary.com/define.php?term=${encodeURIComponent(word)}`;
-    body.innerHTML = `<a href="${udUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block;margin-bottom:8px">&#x1F4AC; Urban Dictionary: "${word}"</a>` +
-      `<p style="color:#8c887a;font-size:.8rem">Slang, informal, and colloquial meanings.</p>`;
-  } else {
-    const gUrl = `https://www.google.com/search?q=${encodeURIComponent(word + ' pronunciation')}`;
-    const mUrl = `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word)}`;
-    body.innerHTML =
-      `<a href="${gUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block;margin-bottom:8px">&#x1F50D; Google: "${word} pronunciation"</a>` +
-      `<a href="${mUrl}" target="_blank" style="color:#e8a351;text-decoration:none;display:block">&#x1F4D6; Merriam-Webster</a>`;
   }
 }
 
