@@ -381,6 +381,20 @@ let lastMoveX = 0, lastMoveY = 0;
 let lastClickTime = 0;
 
 let mouseInTip = false;
+let phrasalVerbsSet = new Set<string>();
+
+async function loadPhrasalVerbs(): Promise<void> {
+  try {
+    const url = chrome.runtime.getURL('en-phrasal-verbs.txt');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch en-phrasal-verbs.txt');
+    const text = await res.text();
+    const lines = text.split('\n').map(l => l.trim().toLowerCase()).filter(Boolean);
+    phrasalVerbsSet = new Set(lines);
+  } catch (e) {
+    console.error('[IPA Stylizer] Failed to load phrasal verbs:', e);
+  }
+}
 
 function isOwnEl(node: Node | null): boolean {
   if (!node) return false;
@@ -446,9 +460,16 @@ function detectPhrasalVerb(wordEl: Element): string | null {
   const candidates = getPhrasalCandidates(wordEl);
   if (!candidates.length) return null;
 
-  // Check if candidate phrase exists in the loaded dictionary (from the .txt files)
+  // 1. Check if candidate phrase exists in the loaded dictionary (from the .txt files)
   for (const cand of [...candidates].reverse()) {
     if (dict && dict[cand]) {
+      return cand;
+    }
+  }
+
+  // 2. Check if candidate phrase exists in the loaded phrasal verbs list
+  for (const cand of [...candidates].reverse()) {
+    if (phrasalVerbsSet.has(cand)) {
       return cand;
     }
   }
@@ -1833,6 +1854,9 @@ async function init(): Promise<void> {
 
     dict = {};
     baseforms = enableBaseforms ? {} : null;
+    
+    await loadPhrasalVerbs();
+    
     isInit = true;
 
     void walk(document.body);

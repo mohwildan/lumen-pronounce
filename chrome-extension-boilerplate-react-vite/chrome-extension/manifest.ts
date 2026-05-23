@@ -54,6 +54,7 @@ const manifest = {
         'en-baseforms.txt',
         'en-BrE-audios.txt',
         'en-NAmE-audios.txt',
+        'en-phrasal-verbs.txt',
       ],
       matches: ['*://*/*'],
     },
