@@ -396,6 +396,30 @@ async function loadPhrasalVerbs(): Promise<void> {
   }
 }
 
+let verbFormsMap = new Map<string, string[]>();
+
+async function loadVerbForms(): Promise<void> {
+  try {
+    const url = chrome.runtime.getURL('en-verb-forms.txt');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch en-verb-forms.txt');
+    const text = await res.text();
+    const lines = text.split('\n').map(l => l.trim().toLowerCase()).filter(Boolean);
+    for (const line of lines) {
+      const parts = line.split('\t');
+      if (parts.length >= 5) {
+        for (const part of parts) {
+          if (part && !verbFormsMap.has(part)) {
+            verbFormsMap.set(part, parts);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[IPA Stylizer] Failed to load verb forms:', e);
+  }
+}
+
 function isOwnEl(node: Node | null): boolean {
   if (!node) return false;
   const el = node as Element;
@@ -833,17 +857,13 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
         }
 
         const forms = response.forms;
-        if (!forms.length) {
-          body.innerHTML = '<span style="color:#8c887a">No related forms found.</span>';
-          return;
-        }
-        let html = '<div style="display:flex;flex-wrap:wrap;margin:-4px;">';
-        for (const f of forms) {
+        const wordLower = word.toLowerCase();
+        const verbParts = verbFormsMap.get(wordLower);
+
+        const renderFormPill = (f: string, isActive: boolean) => {
           const fLower = f.toLowerCase();
           const arpa = dict[fLower] || '';
           const ipa = toIPA(arpa);
-          const isActive = fLower === word.toLowerCase();
-
           const pillStyle = isActive
             ? `background:#3e3c33;border:1px solid #e8a351;border-radius:20px;padding:6px 12px;margin:4px;color:#e8a351;cursor:default;font-size:.8rem;display:inline-flex;align-items:center;gap:6px;`
             : `background:#2d2a22;border:1px solid #3e3c33;border-radius:20px;padding:6px 12px;margin:4px;color:#fdfbf6;cursor:pointer;font-size:.8rem;transition:all .15s;display:inline-flex;align-items:center;gap:6px;`;
@@ -852,12 +872,84 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
             ? ''
             : ` onmouseover="this.style.background='#3e3c33';this.style.borderColor='#e8a351'" onmouseout="this.style.background='#2d2a22';this.style.borderColor='#3e3c33'"`;
 
-          html += `<button class="__ipa_form_pill__" data-word="${f}" style="${pillStyle}"${hoverEvents}>` +
+          return `<button class="__ipa_form_pill__" data-word="${f}" style="${pillStyle}"${hoverEvents}>` +
             `<span style="font-weight:600;border-bottom:1px dotted #e8a351;">${f}</span>` +
             (ipa ? `<span style="font-size:.7rem;color:#8c887a;font-style:italic;">${ipa}</span>` : '') +
             `</button>`;
+        };
+
+        let html = '';
+
+        if (verbParts) {
+          const missingWords = verbParts.filter(p => !dict[p]);
+          if (missingWords.length > 0) {
+            try {
+              const dictLookupRes = await chrome.runtime.sendMessage({
+                type: 'DICT_LOOKUP',
+                words: missingWords,
+                dialect: activeDialect || 'nAmE',
+                includeBaseforms: false
+              }) as { dict?: Record<string, string> } | undefined;
+
+              if (currentWord !== word) return;
+
+              if (dictLookupRes && dictLookupRes.dict) {
+                Object.assign(dict, dictLookupRes.dict);
+              }
+            } catch (err) {
+              console.warn('[IPA Stylizer] Dict lookup failed for verb parts:', err);
+            }
+          }
+
+          const [v1, v3s, v2, v3, vGer] = verbParts;
+
+          html += `<div style="margin-bottom:14px;">` +
+            `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px">Verb Conjugations</span>` +
+            `<div style="display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;background:#1e1d18;padding:12px;border-radius:10px;border:1px solid #3e3c33;">` +
+            
+            `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">Base (V1)</div>` +
+            `<div>${renderFormPill(v1, v1 === wordLower)}</div>` +
+
+            `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">Past (V2)</div>` +
+            `<div>${renderFormPill(v2, v2 === wordLower)}</div>` +
+
+            `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">Past Part. (V3)</div>` +
+            `<div>${renderFormPill(v3, v3 === wordLower)}</div>` +
+
+            `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">3rd Singular</div>` +
+            `<div>${renderFormPill(v3s, v3s === wordLower)}</div>` +
+
+            `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">Gerund (-ing)</div>` +
+            `<div>${renderFormPill(vGer, vGer === wordLower)}</div>` +
+            
+            `</div>` +
+            `</div>`;
+
+          const verbFormsSet = new Set(verbParts);
+          const otherForms = forms.filter(f => !verbFormsSet.has(f.toLowerCase()));
+
+          if (otherForms.length > 0) {
+            html += `<div style="border-top:1px solid #3e3c33;padding-top:10px;margin-top:10px;">` +
+              `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px">Other Related Words</span>` +
+              `<div style="display:flex;flex-wrap:wrap;margin:-4px;">`;
+            for (const f of otherForms) {
+              html += renderFormPill(f, f.toLowerCase() === wordLower);
+            }
+            html += `</div></div>`;
+          }
+        } else {
+          if (!forms.length) {
+            body.innerHTML = '<span style="color:#8c887a">No related forms found.</span>';
+            return;
+          }
+          html += `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px">Related Words</span>` +
+            `<div style="display:flex;flex-wrap:wrap;margin:-4px;">`;
+          for (const f of forms) {
+            html += renderFormPill(f, f.toLowerCase() === wordLower);
+          }
+          html += `</div>`;
         }
-        html += '</div>';
+
         body.innerHTML = html;
       } else {
         body.innerHTML = '<span style="color:#8c887a">No related forms found.</span>';
@@ -1856,6 +1948,7 @@ async function init(): Promise<void> {
     baseforms = enableBaseforms ? {} : null;
     
     await loadPhrasalVerbs();
+    await loadVerbForms();
     
     isInit = true;
 
