@@ -388,6 +388,130 @@ function isOwnEl(node: Node | null): boolean {
   return !!(el.id && IPA_ROOT_IDS.has(el.id)) || !!el.closest?.('[data-ipa-ui]');
 }
 
+// ── Phrasal Verbs Detection ──────────────────────────────────────
+
+const PHRASAL_PARTICLES = new Set([
+  'up', 'down', 'in', 'out', 'on', 'off', 'away', 'back', 'over', 'through',
+  'about', 'around', 'across', 'along', 'by', 'forward', 'to', 'with', 'into', 'onto', 'for', 'after', 'aside'
+]);
+
+const EXCLUDED_FIRST_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
+  'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+  'my', 'your', 'his', 'its', 'our', 'their', 'mine', 'yours', 'hers', 'ours', 'theirs',
+  'this', 'that', 'these', 'those', 'who', 'whom', 'whose', 'which', 'what',
+  'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about', 'like', 'through', 'over', 'before', 'between', 'after', 'since', 'without', 'under', 'within', 'along', 'following', 'against', 'during',
+  'very', 'too', 'so', 'not', 'no', 'yes', 'oh', 'ah', 'well'
+]);
+
+const COMMON_PHRASAL_VERBS = new Set([
+  'add up', 'ask around', 'back up', 'blow up', 'break down', 'break in', 'break up', 'bring up', 'call off', 'calm down',
+  'catch up', 'check in', 'check out', 'clean up', 'come across', 'cut off', 'drop off', 'end up', 'fall apart', 'figure out',
+  'find out', 'get along', 'get over', 'give up', 'go on', 'grow up', 'hang out', 'hold on', 'look after', 'look forward to',
+  'make up', 'pick up', 'put off', 'put up with', 'run out of', 'set up', 'show up', 'take off', 'turn down', 'work out',
+  'bring about', 'bring down', 'bring on', 'carry out', 'carry on', 'cheer up', 'close down', 'come along', 'come back', 'come down',
+  'come in', 'come out', 'come up', 'draw up', 'fall down', 'fall out', 'fill in', 'fill out', 'get away', 'get back',
+  'get down', 'get in', 'get off', 'get out', 'get up', 'give away', 'give back', 'give in', 'go back', 'go down',
+  'go in', 'go off', 'go out', 'go up', 'grow old', 'hand in', 'hand out', 'hang up', 'hold up', 'keep up',
+  'let down', 'look back', 'look down', 'look for', 'look forward', 'look in', 'look out', 'look up', 'make out', 'pass out',
+  'point out', 'pull off', 'pull through', 'put back', 'put down', 'put in', 'put on', 'put out', 'put up', 'run away',
+  'run into', 'run over', 'send back', 'set off', 'set out', 'shut down', 'take back', 'take in', 'take on', 'take out',
+  'take over', 'take up', 'throw away', 'turn back', 'turn in', 'turn off', 'turn on', 'turn out', 'turn up', 'wake up',
+  'walk away', 'walk in', 'walk out', 'warm up', 'watch out', 'wear off', 'wear out', 'wipe out', 'write down',
+  'look into', 'work around', 'narrow down', 'sort out', 'roll out', 'hand off', 'come up with', 'log in', 'log out', 'log on', 'log off',
+  'boot up', 'plug in'
+]);
+
+function findNextRpw(el: Element, maxDistance = 3): Element | null {
+  let curr: Node | null = el;
+  let textBetween = '';
+  while (curr && maxDistance > 0) {
+    curr = curr.nextSibling;
+    if (!curr) break;
+    if (curr.nodeType === Node.ELEMENT_NODE) {
+      const cel = curr as Element;
+      if (cel.tagName === 'RP-W') return cel;
+      const found = cel.querySelector('rp-w');
+      if (found) return found;
+      maxDistance--;
+    } else if (curr.nodeType === Node.TEXT_NODE) {
+      textBetween += curr.textContent || '';
+      if (/[.?!;]/.test(textBetween)) return null;
+    }
+  }
+  return null;
+}
+
+function getPhrasalCandidates(wordEl: Element): string[] {
+  const result: string[] = [];
+  const base = wordEl.getAttribute('data-word') || wordEl.textContent?.trim() || '';
+  const cleanBase = base.replace(/^'+|'+$/g, '').toLowerCase();
+  if (!cleanBase) return [];
+
+  const nextEl = findNextRpw(wordEl);
+  if (!nextEl) return [];
+  const nextWord = (nextEl.getAttribute('data-word') || nextEl.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+  if (!nextWord) return [];
+
+  const baseWordInflection = (baseforms && baseforms[cleanBase]) ? baseforms[cleanBase].toLowerCase() : cleanBase;
+
+  result.push(`${baseWordInflection} ${nextWord}`);
+  if (baseWordInflection !== cleanBase) {
+    result.push(`${cleanBase} ${nextWord}`);
+  }
+
+  const next2El = findNextRpw(nextEl);
+  if (next2El) {
+    const next2Word = (next2El.getAttribute('data-word') || next2El.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+    if (next2Word) {
+      result.push(`${baseWordInflection} ${nextWord} ${next2Word}`);
+      if (baseWordInflection !== cleanBase) {
+        result.push(`${cleanBase} ${nextWord} ${next2Word}`);
+      }
+    }
+  }
+
+  return result;
+}
+
+function detectPhrasalVerb(wordEl: Element): string | null {
+  const candidates = getPhrasalCandidates(wordEl);
+  if (!candidates.length) return null;
+
+  // 1. Check if the candidate exists in the loaded .txt dictionary (e.g. "take in")
+  for (const cand of [...candidates].reverse()) {
+    if (dict && dict[cand]) {
+      return cand;
+    }
+  }
+
+  // 2. Check if the candidate matches our common phrasal verbs list
+  for (const cand of [...candidates].reverse()) {
+    if (COMMON_PHRASAL_VERBS.has(cand)) {
+      return cand;
+    }
+  }
+
+  // 3. Dynamic pattern matching: [not EXCLUDED_FIRST_WORDS] + particle
+  for (const cand of [...candidates].reverse()) {
+    const parts = cand.split(' ');
+    const firstWord = parts[0];
+    if (EXCLUDED_FIRST_WORDS.has(firstWord)) continue;
+
+    if (parts.length === 3) {
+      if (PHRASAL_PARTICLES.has(parts[1]) && PHRASAL_PARTICLES.has(parts[2])) {
+        return cand;
+      }
+    } else if (parts.length === 2) {
+      if (PHRASAL_PARTICLES.has(parts[1])) {
+        return cand;
+      }
+    }
+  }
+
+  return null;
+}
+
 function getRelatedForms(word: string): string[] {
   const wLower = word.toLowerCase();
   const formsSet = new Set<string>();
@@ -556,7 +680,7 @@ async function playPronunciation(word: string): Promise<void> {
   });
 }
 
-function buildTipHTML(word: string, ipa: string, baseWord: string | null = null, activeTab = 'definition'): string {
+function buildTipHTML(word: string, ipa: string, baseWord: string | null = null, phrasalVerb: string | null = null, activeTab = 'definition'): string {
   return (
     // Style block for scrollbars
     `<style>` +
@@ -575,6 +699,7 @@ function buildTipHTML(word: string, ipa: string, baseWord: string | null = null,
     `<span style="font-size:1.25rem;font-weight:800;color:#fdfbf6;letter-spacing:.01em;font-family:'Fraunces', Georgia, serif">${word.toLowerCase()}</span>` +
     `</div>` +
     (baseWord ? `<div style="font-size:.72rem;color:#8c887a;margin-left:25px">Base: <span id="__ipa_baseform_link__" style="text-decoration:underline dotted;text-decoration-color:#e8a351;text-underline-offset:3px;cursor:pointer;color:#e8a351;font-weight:600">${baseWord.toLowerCase()}</span></div>` : '') +
+    (phrasalVerb ? `<div style="font-size:.72rem;color:#8c887a;margin-left:25px">Phrase: <span id="__ipa_phrasal_link__" style="text-decoration:underline dotted;text-decoration-color:#e8a351;text-underline-offset:3px;cursor:pointer;color:#e8a351;font-weight:600">${phrasalVerb.toLowerCase()}</span></div>` : '') +
     `</div>` +
     // Right: IPA & Anki
     `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">` +
@@ -861,6 +986,8 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
   maybePauseVideo();
 
+  const detectedPhrasal = detectPhrasalVerb(wordEl);
+
   const renderContent = (displayWord: string, displayArpa: string) => {
     currentWord = displayWord;
     activeRenderContent = renderContent;
@@ -869,6 +996,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
     const wLower = displayWord.toLowerCase();
     const baseWord = (baseforms && baseforms[wLower]) ? baseforms[wLower] : null;
     const hasBaseForm = baseWord && baseWord.toLowerCase() !== wLower;
+    const phrasalVerb = (displayWord.toLowerCase() === originalWord.toLowerCase()) ? detectedPhrasal : null;
 
     let activeTabName = 'definition';
     const activeBtn = Array.from(t.querySelectorAll('button[data-tab]')).find(
@@ -878,7 +1006,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
       activeTabName = activeBtn.dataset.tab || 'definition';
     }
 
-    t.innerHTML = buildTipHTML(displayWord, toIPA(displayArpa ?? ''), hasBaseForm ? baseWord : null, activeTabName);
+    t.innerHTML = buildTipHTML(displayWord, toIPA(displayArpa ?? ''), hasBaseForm ? baseWord : null, phrasalVerb, activeTabName);
     t.style.pointerEvents = 'auto';
 
     // Wire up speaker button
@@ -914,6 +1042,15 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
         e.stopPropagation();
         const baseArpa = dict[baseWord.toLowerCase()] || '';
         renderContent(baseWord, baseArpa);
+      });
+    }
+
+    // Wire up phrasal verb link if present
+    const phrasalLink = t.querySelector('#__ipa_phrasal_link__') as HTMLElement | null;
+    if (phrasalLink && phrasalVerb) {
+      phrasalLink.addEventListener('click', e => {
+        e.stopPropagation();
+        renderContent(phrasalVerb, '');
       });
     }
 
