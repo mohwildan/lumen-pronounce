@@ -390,38 +390,6 @@ function isOwnEl(node: Node | null): boolean {
 
 // ── Phrasal Verbs Detection ──────────────────────────────────────
 
-const PHRASAL_PARTICLES = new Set([
-  'up', 'down', 'in', 'out', 'on', 'off', 'away', 'back', 'over', 'through',
-  'about', 'around', 'across', 'along', 'by', 'forward', 'to', 'with', 'into', 'onto', 'for', 'after', 'aside'
-]);
-
-const EXCLUDED_FIRST_WORDS = new Set([
-  'the', 'a', 'an', 'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
-  'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
-  'my', 'your', 'his', 'its', 'our', 'their', 'mine', 'yours', 'hers', 'ours', 'theirs',
-  'this', 'that', 'these', 'those', 'who', 'whom', 'whose', 'which', 'what',
-  'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about', 'like', 'through', 'over', 'before', 'between', 'after', 'since', 'without', 'under', 'within', 'along', 'following', 'against', 'during',
-  'very', 'too', 'so', 'not', 'no', 'yes', 'oh', 'ah', 'well'
-]);
-
-const COMMON_PHRASAL_VERBS = new Set([
-  'add up', 'ask around', 'back up', 'blow up', 'break down', 'break in', 'break up', 'bring up', 'call off', 'calm down',
-  'catch up', 'check in', 'check out', 'clean up', 'come across', 'cut off', 'drop off', 'end up', 'fall apart', 'figure out',
-  'find out', 'get along', 'get over', 'give up', 'go on', 'grow up', 'hang out', 'hold on', 'look after', 'look forward to',
-  'make up', 'pick up', 'put off', 'put up with', 'run out of', 'set up', 'show up', 'take off', 'turn down', 'work out',
-  'bring about', 'bring down', 'bring on', 'carry out', 'carry on', 'cheer up', 'close down', 'come along', 'come back', 'come down',
-  'come in', 'come out', 'come up', 'draw up', 'fall down', 'fall out', 'fill in', 'fill out', 'get away', 'get back',
-  'get down', 'get in', 'get off', 'get out', 'get up', 'give away', 'give back', 'give in', 'go back', 'go down',
-  'go in', 'go off', 'go out', 'go up', 'grow old', 'hand in', 'hand out', 'hang up', 'hold up', 'keep up',
-  'let down', 'look back', 'look down', 'look for', 'look forward', 'look in', 'look out', 'look up', 'make out', 'pass out',
-  'point out', 'pull off', 'pull through', 'put back', 'put down', 'put in', 'put on', 'put out', 'put up', 'run away',
-  'run into', 'run over', 'send back', 'set off', 'set out', 'shut down', 'take back', 'take in', 'take on', 'take out',
-  'take over', 'take up', 'throw away', 'turn back', 'turn in', 'turn off', 'turn on', 'turn out', 'turn up', 'wake up',
-  'walk away', 'walk in', 'walk out', 'warm up', 'watch out', 'wear off', 'wear out', 'wipe out', 'write down',
-  'look into', 'work around', 'narrow down', 'sort out', 'roll out', 'hand off', 'come up with', 'log in', 'log out', 'log on', 'log off',
-  'boot up', 'plug in'
-]);
-
 function findNextRpw(el: Element, maxDistance = 3): Element | null {
   let curr: Node | null = el;
   let textBetween = '';
@@ -478,34 +446,10 @@ function detectPhrasalVerb(wordEl: Element): string | null {
   const candidates = getPhrasalCandidates(wordEl);
   if (!candidates.length) return null;
 
-  // 1. Check if the candidate exists in the loaded .txt dictionary (e.g. "take in")
+  // Check if candidate phrase exists in the loaded dictionary (from the .txt files)
   for (const cand of [...candidates].reverse()) {
     if (dict && dict[cand]) {
       return cand;
-    }
-  }
-
-  // 2. Check if the candidate matches our common phrasal verbs list
-  for (const cand of [...candidates].reverse()) {
-    if (COMMON_PHRASAL_VERBS.has(cand)) {
-      return cand;
-    }
-  }
-
-  // 3. Dynamic pattern matching: [not EXCLUDED_FIRST_WORDS] + particle
-  for (const cand of [...candidates].reverse()) {
-    const parts = cand.split(' ');
-    const firstWord = parts[0];
-    if (EXCLUDED_FIRST_WORDS.has(firstWord)) continue;
-
-    if (parts.length === 3) {
-      if (PHRASAL_PARTICLES.has(parts[1]) && PHRASAL_PARTICLES.has(parts[2])) {
-        return cand;
-      }
-    } else if (parts.length === 2) {
-      if (PHRASAL_PARTICLES.has(parts[1])) {
-        return cand;
-      }
     }
   }
 
