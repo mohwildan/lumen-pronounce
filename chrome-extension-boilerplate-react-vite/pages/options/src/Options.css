@@ -822,6 +822,100 @@ body {
 .opt-btn-google:hover { background: #f5f3ff; box-shadow: 0 6px 20px rgba(0,0,0,.3); transform: translateY(-1px); }
 .opt-btn-google:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
+.opt-auth-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-top: 12px;
+}
+
+.opt-auth-tabs button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: .78rem;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.opt-auth-tabs button.active {
+  background: var(--primary-dim);
+  color: var(--primary-lt);
+}
+
+.opt-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.opt-btn-auth {
+  background: var(--primary);
+  color: #1a1a1a;
+  border: none;
+  font-weight: 700;
+  font-size: .86rem;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity .15s, transform .15s;
+}
+
+.opt-btn-auth:hover { opacity: .9; transform: translateY(-1px); }
+.opt-btn-auth:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+.opt-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 6px;
+  color: var(--text-3);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.opt-auth-divider::before,
+.opt-auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.opt-success {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(77,130,61,.12);
+  color: #a3e851;
+  border: 1px solid rgba(77,130,61,.3);
+  font-size: .8rem;
+}
+
+.opt-password-card {
+  margin-top: 18px;
+}
+
+.opt-password-form {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.opt-password-status {
+  padding: 8px 12px 12px;
+  font-size: .8rem;
+  color: var(--text-3);
+}
+
 .opt-error {
   color: #fca5a5;
   font-size: .83rem;

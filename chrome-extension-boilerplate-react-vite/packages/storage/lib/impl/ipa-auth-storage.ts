@@ -24,6 +24,8 @@ const DEFAULT_AUTH: IpaAuthState = {
 export type IpaAuthStorageType = BaseStorageType<IpaAuthState> & {
   signIn: (email: string, password: string) => Promise<{ user?: IpaUser; error?: string }>;
   signUp: (email: string, password: string, name?: string) => Promise<{ user?: IpaUser; error?: string }>;
+  resetPassword: (email: string) => Promise<{ ok?: boolean; error?: string }>;
+  updatePassword: (password: string) => Promise<{ ok?: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ user?: IpaUser; error?: string }>;
   logout: () => Promise<void>;
   openCheckout: (interval: 'month' | 'year') => Promise<{ ok?: boolean; error?: string }>;
@@ -61,6 +63,16 @@ export const ipaAuthStorage: IpaAuthStorageType = {
 
   signUp: async (email, password, name) => {
     const res = await msg<AuthResponse>('SUPABASE_SIGN_UP', { email, password, name });
+    return res ?? { error: 'No response from background' };
+  },
+
+  resetPassword: async (email) => {
+    const res = await msg<{ ok?: boolean; error?: string }>('SUPABASE_RESET_PASSWORD', { email });
+    return res ?? { error: 'No response from background' };
+  },
+
+  updatePassword: async (password) => {
+    const res = await msg<{ ok?: boolean; error?: string }>('SUPABASE_UPDATE_PASSWORD', { password });
     return res ?? { error: 'No response from background' };
   },
 

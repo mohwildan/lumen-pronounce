@@ -166,6 +166,34 @@ async function handleLogout(sendResponse: (r: object) => void): Promise<void> {
   }
 }
 
+async function handleResetPassword(
+  msg: { email: string },
+  sendResponse: (r: object) => void,
+): Promise<void> {
+  try {
+    if (notConfigured()) { sendResponse({ error: 'Supabase not configured' }); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(msg.email);
+    if (error) { sendResponse({ error: error.message }); return; }
+    sendResponse({ ok: true });
+  } catch (e) {
+    sendResponse({ error: String(e) });
+  }
+}
+
+async function handleUpdatePassword(
+  msg: { password: string },
+  sendResponse: (r: object) => void,
+): Promise<void> {
+  try {
+    if (notConfigured()) { sendResponse({ error: 'Supabase not configured' }); return; }
+    const { error } = await supabase.auth.updateUser({ password: msg.password });
+    if (error) { sendResponse({ error: error.message }); return; }
+    sendResponse({ ok: true });
+  } catch (e) {
+    sendResponse({ error: String(e) });
+  }
+}
+
 async function handleGetSession(sendResponse: (r: object) => void): Promise<void> {
   try {
     const { data } = await supabase.auth.getSession();
@@ -648,6 +676,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'SUPABASE_GET_OAUTH_URL') { void handleGetOAuthUrl(sendResponse); return true; }
   if (msg.type === 'SUPABASE_SET_SESSION') { void handleSetSession(msg, sendResponse); return true; }
   if (msg.type === 'SUPABASE_LOGOUT') { void handleLogout(sendResponse); return true; }
+  if (msg.type === 'SUPABASE_RESET_PASSWORD') { void handleResetPassword(msg, sendResponse); return true; }
+  if (msg.type === 'SUPABASE_UPDATE_PASSWORD') { void handleUpdatePassword(msg, sendResponse); return true; }
   if (msg.type === 'SUPABASE_GET_SESSION') { void handleGetSession(sendResponse); return true; }
   if (msg.type === 'TTS_FETCH') { void handleTts(msg.word as string, sendResponse); return true; }
   if (msg.type === 'SYNC_TIER') { void handleSyncTier(sendResponse); return true; }

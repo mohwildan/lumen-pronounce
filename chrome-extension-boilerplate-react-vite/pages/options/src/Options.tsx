@@ -543,6 +543,15 @@ function AccountTab() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [interval, setInterval] = useState<'month' | 'year'>('year');
   const [error, setError] = useState('');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'reset'>('signin');
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [password2, setPassword2] = useState('');
+  const [resetHint, setResetHint] = useState('');
+  const [pwUpdate, setPwUpdate] = useState('');
+  const [pwUpdate2, setPwUpdate2] = useState('');
+  const [pwStatus, setPwStatus] = useState('');
 
   if (!auth) return null;
   const tier = auth.user?.tier ?? 'free';
@@ -581,6 +590,46 @@ function AccountTab() {
     setLoading(false);
   };
 
+  const handleEmailSignIn = async () => {
+    if (!email || !password) { setError('Email and password are required.'); return; }
+    setLoading(true); setError('');
+    const res = await ipaAuthStorage.signIn(email, password);
+    if (res.error) setError(res.error || 'Sign-in failed.');
+    setLoading(false);
+  };
+
+  const handleEmailSignUp = async () => {
+    if (!email || !password) { setError('Email and password are required.'); return; }
+    if (password !== password2) { setError('Passwords do not match.'); return; }
+    setLoading(true); setError('');
+    const res = await ipaAuthStorage.signUp(email, password, name);
+    if (res.error) setError(res.error || 'Sign-up failed.');
+    setLoading(false);
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) { setError('Email is required for reset.'); return; }
+    setLoading(true); setError(''); setResetHint('');
+    const res = await ipaAuthStorage.resetPassword(email);
+    if (res.error) setError(res.error || 'Reset failed.');
+    else setResetHint('Password reset email sent. Check your inbox.');
+    setLoading(false);
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!pwUpdate) { setPwStatus('Password is required.'); return; }
+    if (pwUpdate !== pwUpdate2) { setPwStatus('Passwords do not match.'); return; }
+    setLoading(true); setPwStatus('');
+    const res = await ipaAuthStorage.updatePassword(pwUpdate);
+    if (res.error) setPwStatus(res.error || 'Password update failed.');
+    else {
+      setPwStatus('Password updated.');
+      setPwUpdate('');
+      setPwUpdate2('');
+    }
+    setLoading(false);
+  };
+
   const handleLogout = async () => { setLoading(true); await ipaAuthStorage.logout(); setLoading(false); };
   const handleUpgrade = async () => { setBillingLoading(true); await ipaAuthStorage.openCheckout(interval); setBillingLoading(false); };
   const handleManageBilling = async () => { setBillingLoading(true); await ipaAuthStorage.openPortal(); setBillingLoading(false); };
@@ -616,6 +665,75 @@ function AccountTab() {
         </div>
 
         {error && <div className="opt-error">{error}</div>}
+        {resetHint && <div className="opt-success">{resetHint}</div>}
+
+        <div className="opt-auth-tabs">
+          <button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); setError(''); }}>
+            Sign In
+          </button>
+          <button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); setError(''); }}>
+            Create Account
+          </button>
+          <button className={authMode === 'reset' ? 'active' : ''} onClick={() => { setAuthMode('reset'); setError(''); }}>
+            Reset Password
+          </button>
+        </div>
+
+        <div className="opt-auth-form">
+          <input
+            className="opt-input"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
+          {authMode === 'signup' && (
+            <input
+              className="opt-input"
+              type="text"
+              placeholder="Full name (optional)"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          )}
+          {authMode !== 'reset' && (
+            <input
+              className="opt-input"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          )}
+          {authMode === 'signup' && (
+            <input
+              className="opt-input"
+              type="password"
+              placeholder="Confirm password"
+              value={password2}
+              onChange={e => setPassword2(e.target.value)}
+            />
+          )}
+          {authMode === 'signin' && (
+            <button className="opt-btn-auth" onClick={handleEmailSignIn} disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+          )}
+          {authMode === 'signup' && (
+            <button className="opt-btn-auth" onClick={handleEmailSignUp} disabled={loading}>
+              {loading ? 'Creating account…' : 'Create account'}
+            </button>
+          )}
+          {authMode === 'reset' && (
+            <button className="opt-btn-auth" onClick={handleResetPassword} disabled={loading}>
+              {loading ? 'Sending…' : 'Send reset email'}
+            </button>
+          )}
+        </div>
+
+        <div className="opt-auth-divider">
+          <span>or</span>
+        </div>
 
         <button className="opt-btn-google" onClick={handleGoogleLogin} disabled={loading}>
           {loading ? 'Signing in…' : (
@@ -658,6 +776,48 @@ function AccountTab() {
             {loading ? '…' : 'Sign out'}
           </button>
         </div>
+      </div>
+
+      {/* Password */}
+      <div className="opt-card opt-password-card">
+        <div className="opt-card-row">
+          <div>
+            <div className="opt-card-label">Password</div>
+            <div className="opt-card-sublabel">Create or update a password for email sign-in.</div>
+          </div>
+          <button
+            className="opt-btn-outline"
+            onClick={async () => {
+              setPwStatus('');
+              const res = await ipaAuthStorage.resetPassword(auth.user.email);
+              if (res.error) setPwStatus(res.error || 'Reset failed.');
+              else setPwStatus('Reset email sent.');
+            }}
+          >
+            Send reset email
+          </button>
+        </div>
+        <div className="opt-card-divider" />
+        <div className="opt-card-row opt-password-form">
+          <input
+            className="opt-input"
+            type="password"
+            placeholder="New password"
+            value={pwUpdate}
+            onChange={e => setPwUpdate(e.target.value)}
+          />
+          <input
+            className="opt-input"
+            type="password"
+            placeholder="Confirm new password"
+            value={pwUpdate2}
+            onChange={e => setPwUpdate2(e.target.value)}
+          />
+          <button className="opt-btn-auth" onClick={handleUpdatePassword} disabled={loading}>
+            {loading ? 'Saving…' : 'Update password'}
+          </button>
+        </div>
+        {pwStatus && <div className="opt-password-status">{pwStatus}</div>}
       </div>
 
       {/* Billing */}
