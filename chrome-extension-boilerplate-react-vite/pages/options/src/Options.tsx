@@ -3,7 +3,7 @@ import '@src/Options.css';
 import '../../../chrome-extension/public/content.css';
 import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
 import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
-import type { IpaOpts } from '@extension/storage';
+import type { IpaOpts, IpaColorMap, IpaPopupMode } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
 declare module 'react' {
@@ -57,16 +57,32 @@ const PRO_OPT_IDS = new Set<keyof IpaOpts>([
   'th_t', 'th_d', 'tmark', 'zmark', 'phonemes',
 ]);
 
-type SettingRow = { id: keyof IpaOpts; label: string; desc: string; swatch?: string };
+type SettingRow = {
+  id: keyof IpaOpts;
+  label: string;
+  desc: string;
+  swatch?: string;
+  colorKey: keyof IpaColorMap;
+  defaultColor?: string;
+};
+
+const DEFAULT_COLOR_MAP: Required<IpaColorMap> = {
+  red: '#e53935',
+  green: '#2e7d32',
+  purple: '#8e24aa',
+  pink: '#d81b60',
+  teal: '#00838f',
+  orange: '#e65100',
+};
 
 const COLOR_OPTS: SettingRow[] = [
   { id: 'silent', label: 'Ghost Letters', desc: 'Fade silent letters to show which characters are unpronounced' },
-  { id: 'color_e', label: '/ɛ/ Red', desc: 'bed, head, said — short e sound', swatch: '#e53935' },
-  { id: 'color_i', label: '/i/ Green', desc: 'receipt, ski — long ee sound', swatch: '#2e7d32' },
-  { id: 'color_u_alt', label: '/ʌ/ Purple', desc: 'some, blood, love — uh vowel', swatch: '#8e24aa' },
-  { id: 'color_a', label: '/æ/ Pink', desc: 'cat, trap, hand — short a sound', swatch: '#d81b60' },
-  { id: 'color_u', label: '/u/ Teal', desc: 'tomb, blue, shoe — long oo sound', swatch: '#00838f' },
-  { id: 'color_o', label: '/ɔ/ Amber', desc: 'quarter, law, thought — aw sound', swatch: '#e65100' },
+  { id: 'color_e', label: '/ɛ/ Red', desc: 'bed, head, said — short e sound', colorKey: 'red', defaultColor: DEFAULT_COLOR_MAP.red },
+  { id: 'color_i', label: '/i/ Green', desc: 'receipt, ski — long ee sound', colorKey: 'green', defaultColor: DEFAULT_COLOR_MAP.green },
+  { id: 'color_u_alt', label: '/ʌ/ Purple', desc: 'some, blood, love — uh vowel', colorKey: 'purple', defaultColor: DEFAULT_COLOR_MAP.purple },
+  { id: 'color_a', label: '/æ/ Pink', desc: 'cat, trap, hand — short a sound', colorKey: 'pink', defaultColor: DEFAULT_COLOR_MAP.pink },
+  { id: 'color_u', label: '/u/ Teal', desc: 'tomb, blue, shoe — long oo sound', colorKey: 'teal', defaultColor: DEFAULT_COLOR_MAP.teal },
+  { id: 'color_o', label: '/ɔ/ Amber', desc: 'quarter, law, thought — aw sound', colorKey: 'orange', defaultColor: DEFAULT_COLOR_MAP.orange },
 ];
 
 const PHONETIC_OPTS: SettingRow[] = [
@@ -80,6 +96,16 @@ const PHONETIC_OPTS: SettingRow[] = [
   { id: 'tmark', label: 'T-Sound Morph', desc: 'Show ᵗ when T is spelled differently — asked, debt' },
   { id: 'zmark', label: 'Z-Sound Lines', desc: 'Underline letters that make a Z sound — visit, dogs' },
   { id: 'phonemes', label: 'Hidden Phonemes', desc: 'Superscript for unpronounced letters — one → ʷone' },
+];
+
+const POPUP_MODE_OPTS: Array<{ id: IpaPopupMode; label: string; desc: string }> = [
+  { id: 'hover_or_click', label: 'Hover or click', desc: 'Open when you hover a word, or click/tap it.' },
+  { id: 'hover_only', label: 'Hover only', desc: 'Open only while hovering a word.' },
+  { id: 'click_only', label: 'Click only', desc: 'Open only on click or tap.' },
+  { id: 'option_click', label: 'Option/Alt + click', desc: 'Require Option (Alt) + click to open.' },
+  { id: 'cmd_hover', label: 'Hold Command to hover', desc: 'Show only while holding Command (Cmd).' },
+  { id: 'ctrl_hover', label: 'Hold Control to hover', desc: 'Show only while holding Control (Ctrl).' },
+  { id: 'disabled', label: 'Disable pop-up', desc: 'Never show word pop-ups.' },
 ];
 
 /* ─── Icons ─── */
@@ -133,11 +159,23 @@ function SettingsTab() {
   const settings = useStorage(ipaSettingsStorage);
   const auth = useStorage(ipaAuthStorage);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [overrideQuery, setOverrideQuery] = useState('');
 
   if (!settings || !auth) return null;
   const tier = auth.user?.tier ?? 'free';
+  const resolvedColorMap: Required<IpaColorMap> = {
+    ...DEFAULT_COLOR_MAP,
+    ...(settings.colorMap ?? {}),
+  };
+  const hasCustomColors = !!settings.colorMap && Object.keys(settings.colorMap).length > 0;
+  const popupMode = settings.popupMode ?? 'hover_or_click';
+  const hoverDelayMs = settings.hoverDelayMs ?? 380;
 
   const siteOverrideEntries = Object.entries(settings.siteOverrides ?? {});
+  const normalizedOverrideQuery = overrideQuery.trim().toLowerCase();
+  const filteredOverrides = normalizedOverrideQuery
+    ? siteOverrideEntries.filter(([host]) => host.toLowerCase().includes(normalizedOverrideQuery))
+    : siteOverrideEntries;
 
   return (
     <div className="opt-section">
@@ -161,21 +199,35 @@ function SettingsTab() {
       {siteOverrideEntries.length > 0 && (
         <div className="opt-overrides">
           <SectionLabel>Site Overrides</SectionLabel>
-          <div className="opt-override-pills">
-            {siteOverrideEntries.map(([host, enabled]) => (
-              <div key={host} className={`opt-pill${enabled ? ' opt-pill-on' : ' opt-pill-off'}`}>
-                <span className="opt-pill-dot" />
-                <span>{host}</span>
-                <button
-                  className="opt-pill-remove"
-                  title="Remove override"
-                  onClick={() => ipaSettingsStorage.clearSiteOverride(host)}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+          <div className="opt-override-toolbar">
+            <input
+              className="opt-override-search"
+              type="search"
+              placeholder="Search domains"
+              value={overrideQuery}
+              onChange={e => setOverrideQuery(e.target.value)}
+            />
+            <span className="opt-override-count">{filteredOverrides.length}/{siteOverrideEntries.length}</span>
           </div>
+          {filteredOverrides.length > 0 ? (
+            <div className="opt-override-pills opt-override-scroll">
+              {filteredOverrides.map(([host, enabled]) => (
+                <div key={host} className={`opt-pill${enabled ? ' opt-pill-on' : ' opt-pill-off'}`}>
+                  <span className="opt-pill-dot" />
+                  <span>{host}</span>
+                  <button
+                    className="opt-pill-remove"
+                    title="Remove override"
+                    onClick={() => ipaSettingsStorage.clearSiteOverride(host)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="opt-override-empty">No matches for that search.</div>
+          )}
           <p className="opt-overrides-hint">
             Override set from the popup while browsing. Force a site on or off regardless of global setting.
           </p>
@@ -188,8 +240,8 @@ function SettingsTab() {
         {COLOR_OPTS.map(row => (
           <div key={row.id} className="opt-row">
             <div className="opt-row-body">
-              {row.swatch
-                ? <span className="opt-swatch" style={{ background: row.swatch }} />
+              {row.colorKey
+                ? <span className="opt-swatch" style={{ background: resolvedColorMap[row.colorKey] }} />
                 : <span className="opt-swatch opt-swatch-ghost" />
               }
               <div className="opt-row-text">
@@ -197,9 +249,35 @@ function SettingsTab() {
                 <small>{row.desc}</small>
               </div>
             </div>
+            {row.colorKey && (
+              <label className="opt-color-picker" title="Pick color">
+                <input
+                  className="opt-color-input"
+                  type="color"
+                  value={resolvedColorMap[row.colorKey]}
+                  onChange={e => ipaSettingsStorage.setColor(row.colorKey, e.target.value)}
+                />
+              </label>
+            )}
             <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
           </div>
         ))}
+        <div className="opt-row opt-row-tight">
+          <div className="opt-row-body">
+            <span className="opt-swatch opt-swatch-ghost" />
+            <div className="opt-row-text">
+              <span className="opt-row-name">Reset custom colors</span>
+              <small>Restore default pronunciation colors</small>
+            </div>
+          </div>
+          <button
+            className="opt-reset-colors"
+            onClick={() => ipaSettingsStorage.clearColorMap()}
+            disabled={!hasCustomColors}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {/* Phonetic Markers */}
@@ -243,6 +321,29 @@ function SettingsTab() {
         })}
       </div>
 
+      {/* Pop-up Trigger */}
+      <SectionLabel>Pop-up Trigger</SectionLabel>
+      <div className="opt-rows">
+        {POPUP_MODE_OPTS.map(opt => (
+          <label key={opt.id} className={`opt-row opt-row-radio${popupMode === opt.id ? ' opt-row-selected' : ''}`}>
+            <div className="opt-row-body">
+              <span className="opt-swatch opt-swatch-ghost" />
+              <div className="opt-row-text">
+                <span className="opt-row-name">{opt.label}</span>
+                <small>{opt.desc}</small>
+              </div>
+            </div>
+            <input
+              className="opt-radio"
+              type="radio"
+              name="popup-mode"
+              checked={popupMode === opt.id}
+              onChange={() => ipaSettingsStorage.setPopupMode(opt.id)}
+            />
+          </label>
+        ))}
+      </div>
+
       {/* Behavior */}
       <SectionLabel>Behavior</SectionLabel>
       <div className="opt-rows">
@@ -277,6 +378,28 @@ function SettingsTab() {
             checked={settings.pauseOnHover ?? false}
             onChange={v => ipaSettingsStorage.setPauseOnHover(v)}
           />
+        </div>
+
+        <div className="opt-row">
+          <div className="opt-row-body">
+            <span className="opt-swatch opt-swatch-ghost" />
+            <div className="opt-row-text">
+              <span className="opt-row-name">Hover delay</span>
+              <small>Wait before showing the pop-up</small>
+            </div>
+          </div>
+          <div className="opt-delay">
+            <input
+              className="opt-delay-range"
+              type="range"
+              min={120}
+              max={900}
+              step={40}
+              value={hoverDelayMs}
+              onChange={e => ipaSettingsStorage.setHoverDelayMs(Number(e.target.value))}
+            />
+            <span className="opt-delay-value">{hoverDelayMs}ms</span>
+          </div>
         </div>
       </div>
 
@@ -388,13 +511,13 @@ function TranslationTab() {
                 </button>
               </div>
               {translationResult && (
-                <div 
-                  className="opt-trans-result" 
-                  style={{ 
-                    marginTop: '12px', 
-                    padding: '12px', 
-                    background: '#121224', 
-                    borderRadius: '6px', 
+                <div
+                  className="opt-trans-result"
+                  style={{
+                    marginTop: '12px',
+                    padding: '12px',
+                    background: '#121224',
+                    borderRadius: '6px',
                     border: '1px solid #222',
                     color: '#fff',
                     fontSize: '14px',
@@ -776,7 +899,7 @@ function guessPronunciationSandbox(word: string, dict: Record<string, string>, b
   if (w.endsWith('ily')) { const s = getStem(w.slice(0, -3) + 'y'); if (s) { const t = s.split(/\s+/); const l = t.pop(); return t.join(' ') + ' ' + l + ' L IY0'; } }
   if (w.endsWith('able')) { const s = getStem(w.slice(0, -4) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' AX0 B L -'); }
   if (w.endsWith('ible')) { const s = getStem(w.slice(0, -4) + 'e'); if (s) return s.replace(/\s+-\s*$/, ' IH0 B L -'); }
-  
+
   const SUFFIXES = [
     { s: "'s", t: '- Z' }, { s: "'ve", t: '- V' }, { s: "'re", t: '- ER0' },
     { s: "'ll", t: '- L' }, { s: "'d", t: '- D' }, { s: "'m", t: 'M' }, { s: "'t", t: 'T' },
@@ -836,7 +959,7 @@ function DictionaryTab() {
             if (clean.endsWith('ily')) wordsToLookup.add(clean.slice(0, -3) + 'y');
             if (clean.endsWith('able')) wordsToLookup.add(clean.slice(0, -4) + 'e');
             if (clean.endsWith('ible')) wordsToLookup.add(clean.slice(0, -4) + 'e');
-            
+
             const SUFFIXES = [
               { s: "'s", t: '- Z' }, { s: "'ve", t: '- V' }, { s: "'re", t: '- ER0' },
               { s: "'ll", t: '- L' }, { s: "'d", t: '- D' }, { s: "'m", t: 'M' }, { s: "'t", t: 'T' },
@@ -1029,13 +1152,13 @@ function DictionaryTab() {
       {loadError && <div className="opt-dict-error">Failed to load dictionary file.</div>}
 
       {result && (
-        <div 
+        <div
           className="opt-sandbox-result"
-          style={{ 
-            background: 'var(--bg-deep)', 
-            border: '1px solid var(--border)', 
-            borderRadius: '12px', 
-            padding: '20px', 
+          style={{
+            background: 'var(--bg-deep)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '20px',
             minHeight: '100px',
             boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)'
           }}
@@ -1052,18 +1175,18 @@ function DictionaryTab() {
                   </span>
                 );
               }
-              
+
               const pre = tok.token.match(/^'+/)?.[0] ?? '';
               const post = tok.token.match(/'+$/)?.[0] ?? '';
               const mainWord = tok.word;
 
               return (
-                <span 
-                  key={idx} 
-                  style={{ 
-                    display: 'inline-flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
+                <span
+                  key={idx}
+                  style={{
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     margin: '0 2px',
                     position: 'relative'
                   }}
@@ -1759,12 +1882,12 @@ function ShortcutInput({
           onKeyDown={handleKeyDown}
         />
         {isRecording && (
-          <span 
-            style={{ 
-              position: 'absolute', 
-              right: '12px', 
-              fontSize: '11px', 
-              color: 'var(--primary-lt)', 
+          <span
+            style={{
+              position: 'absolute',
+              right: '12px',
+              fontSize: '11px',
+              color: 'var(--primary-lt)',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.5px'

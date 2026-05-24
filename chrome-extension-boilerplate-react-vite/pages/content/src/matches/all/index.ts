@@ -52,6 +52,24 @@ type IpaOpts = {
   diph_ei_oi: boolean; phonemes: boolean; th_d: boolean; diph_ou_au: boolean; length: boolean;
 };
 
+type IpaPopupMode =
+  | 'hover_or_click'
+  | 'hover_only'
+  | 'click_only'
+  | 'option_click'
+  | 'cmd_hover'
+  | 'ctrl_hover'
+  | 'disabled';
+
+type IpaColorMap = {
+  red?: string;
+  green?: string;
+  purple?: string;
+  pink?: string;
+  teal?: string;
+  orange?: string;
+};
+
 let dict: Record<string, string> = {};
 let baseforms: Record<string, string> | null = null;
 let activeDialect: 'nAmE' | 'brE' | null = null;
@@ -78,10 +96,65 @@ let opts: IpaOpts = {
 let targetLanguage = 'id';
 let translatePerSentence = true;
 let pauseOnHover = false;
+let popupMode: IpaPopupMode = 'hover_or_click';
+let hoverDelayMs = 380;
 let ankiEnabled = false;
 let ankiOfflineEnabled = true;
 let hasProcessed = false;
 let videoShortcuts = { rewind: 'a', forward: 'd', playPause: 's' };
+
+const modKeys = { ctrl: false, meta: false };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Control') modKeys.ctrl = true;
+  if (e.key === 'Meta') modKeys.meta = true;
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'Control') modKeys.ctrl = false;
+  if (e.key === 'Meta') modKeys.meta = false;
+});
+
+function isHoverMode(): boolean {
+  return popupMode === 'hover_or_click'
+    || popupMode === 'hover_only'
+    || popupMode === 'cmd_hover'
+    || popupMode === 'ctrl_hover';
+}
+
+function isClickMode(): boolean {
+  return popupMode === 'hover_or_click'
+    || popupMode === 'click_only'
+    || popupMode === 'option_click';
+}
+
+function allowHover(e?: MouseEvent): boolean {
+  if (!isHoverMode()) return false;
+  if (popupMode === 'cmd_hover') return e?.metaKey ?? modKeys.meta;
+  if (popupMode === 'ctrl_hover') return e?.ctrlKey ?? modKeys.ctrl;
+  return true;
+}
+
+function allowClick(e?: MouseEvent): boolean {
+  if (!isClickMode()) return false;
+  if (popupMode === 'option_click') return !!e?.altKey;
+  return true;
+}
+
+function applyColorMap(colorMap?: IpaColorMap): void {
+  const root = document.documentElement;
+  const map: [keyof IpaColorMap, string][] = [
+    ['red', '--ipa-red'],
+    ['green', '--ipa-green'],
+    ['purple', '--ipa-purple'],
+    ['pink', '--ipa-pink'],
+    ['teal', '--ipa-teal'],
+    ['orange', '--ipa-orange'],
+  ];
+  for (const [key, cssVar] of map) {
+    const value = colorMap?.[key];
+    if (value) root.style.setProperty(cssVar, value);
+    else root.style.removeProperty(cssVar);
+  }
+}
 
 // ── ARPAbet ──────────────────────────────────────────────────────
 
@@ -1870,13 +1943,14 @@ function findRpwAtPoint(x: number, y: number, container: Element): Element | nul
   return null;
 }
 
-// Fullscreen: poll every 120ms. Only show after hovering same word 400ms (anti-jitter).
+// Fullscreen: poll every 120ms. Only show after hovering same word for the configured delay.
 let fsHoverWord: string | null = null;
 let fsHoverSince = 0;
 
 function startFsHover(): void {
   if (fsHoverInterval) return;
   fsHoverInterval = setInterval(() => {
+    if (!allowHover()) return;
     const fs = document.fullscreenElement;
     if (!fs) { stopFsHover(); return; }
     const x = lastMoveX, y = lastMoveY;
@@ -1895,8 +1969,8 @@ function startFsHover(): void {
       fsHoverSince = Date.now();
       if (hoverTimer) clearTimeout(hoverTimer);
       if (!word) hoverTimer = setTimeout(hideTip, 150);
-    } else if (word && word !== currentWord && Date.now() - fsHoverSince >= 400) {
-      // Stayed on same word for 400ms — show
+    } else if (word && word !== currentWord && Date.now() - fsHoverSince >= hoverDelayMs) {
+      // Stayed on same word for the configured delay — show
       showTip(found!, x, y);
       fsHoverSince = Infinity; // prevent re-triggering until word changes
     }
@@ -1927,20 +2001,38 @@ document.addEventListener('fullscreenchange', () => {
 // Normal mode: standard event-driven hover
 document.addEventListener('mouseover', e => {
   if (document.fullscreenElement) return; // handled by interval above
+  if (!allowHover(e as MouseEvent)) return;
   const rpw = (e.target as Element).closest?.('rp-w');
   if (!rpw) return;
   if (hoverTimer) clearTimeout(hoverTimer);
-  hoverTimer = setTimeout(() => showTip(rpw, (e as MouseEvent).clientX, (e as MouseEvent).clientY), 380);
+  hoverTimer = setTimeout(() => showTip(rpw, (e as MouseEvent).clientX, (e as MouseEvent).clientY), hoverDelayMs);
 }, { capture: true });
 
 document.addEventListener('mouseout', e => {
   if (document.fullscreenElement) return;
+  if (!isHoverMode()) return;
   const rpw = (e.target as Element).closest?.('rp-w');
   if (!rpw) return;
   const rel = e.relatedTarget as Element | null;
   if (rel?.closest?.('[data-ipa-ui]')) return;
   if (hoverTimer) clearTimeout(hoverTimer);
   hoverTimer = setTimeout(hideTip, 80);
+}, { capture: true });
+
+document.addEventListener('click', e => {
+  if (!isClickMode()) return;
+  const target = e.target as Element | null;
+  if (!target) return;
+  if (target.closest?.('[data-ipa-ui]')) return;
+  const rpw = target.closest?.('rp-w');
+  if (rpw) {
+    if (!allowClick(e as MouseEvent)) return;
+    if (hoverTimer) clearTimeout(hoverTimer);
+    lastClickTime = Date.now();
+    showTip(rpw, (e as MouseEvent).clientX, (e as MouseEvent).clientY);
+    return;
+  }
+  hideTip();
 }, { capture: true });
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip(); hideSelUI(); } });
@@ -2062,6 +2154,9 @@ async function checkActivation(): Promise<void> {
     const tier = await getUserTier();
     opts = { ...opts, ...applyTierGating({ ...opts, ...s.opts }, tier) };
   }
+  applyColorMap(s?.colorMap);
+  if (s?.popupMode) popupMode = s.popupMode;
+  if (s?.hoverDelayMs !== undefined) hoverDelayMs = s.hoverDelayMs;
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
   if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
   if (s?.ankiOfflineEnabled !== undefined) ankiOfflineEnabled = s.ankiOfflineEnabled;
@@ -2181,6 +2276,9 @@ async function init(): Promise<void> {
     const tier = await getUserTier();
     opts = { ...opts, ...applyTierGating({ ...opts, ...s.opts }, tier) };
   }
+  applyColorMap(s?.colorMap);
+  if (s?.popupMode) popupMode = s.popupMode;
+  if (s?.hoverDelayMs !== undefined) hoverDelayMs = s.hoverDelayMs;
   if (s?.targetLanguage) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;

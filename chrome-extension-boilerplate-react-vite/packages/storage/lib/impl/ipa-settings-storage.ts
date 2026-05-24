@@ -21,6 +21,24 @@ export type IpaOpts = {
   length: boolean;
 };
 
+export type IpaColorMap = {
+  red?: string;
+  green?: string;
+  purple?: string;
+  pink?: string;
+  teal?: string;
+  orange?: string;
+};
+
+export type IpaPopupMode =
+  | 'hover_or_click'
+  | 'hover_only'
+  | 'click_only'
+  | 'option_click'
+  | 'cmd_hover'
+  | 'ctrl_hover'
+  | 'disabled';
+
 export type IpaShortcuts = {
   rewind: string;
   forward: string;
@@ -30,6 +48,9 @@ export type IpaShortcuts = {
 export type IpaSettingsState = {
   enabled: boolean;
   opts: IpaOpts;
+  colorMap?: IpaColorMap;
+  popupMode: IpaPopupMode;
+  hoverDelayMs: number;
   /** Per-site overrides. true = force active, false = force disabled. Missing = follow global. */
   siteOverrides: Record<string, boolean>;
   /** @deprecated use siteOverrides */
@@ -76,6 +97,8 @@ const DEFAULT_STATE: IpaSettingsState = {
   opts: DEFAULT_OPTS,
   siteOverrides: {},
   blacklist: [],
+  popupMode: 'hover_or_click',
+  hoverDelayMs: 380,
   targetLanguage: 'en',
   translatePerSentence: true,
   pauseOnHover: false,
@@ -100,6 +123,10 @@ const DEFAULT_STATE: IpaSettingsState = {
 export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setEnabled: (enabled: boolean) => Promise<void>;
   setOpt: (key: keyof IpaOpts, value: boolean) => Promise<void>;
+  setColor: (key: keyof IpaColorMap, value: string) => Promise<void>;
+  clearColorMap: () => Promise<void>;
+  setPopupMode: (mode: IpaPopupMode) => Promise<void>;
+  setHoverDelayMs: (delayMs: number) => Promise<void>;
   /** Set explicit on/off override for a site. */
   setSiteEnabled: (host: string, enabled: boolean) => Promise<void>;
   /** Remove per-site override — site follows global again. */
@@ -142,6 +169,21 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setOpt: async (key: keyof IpaOpts, value: boolean) => {
     await storage.set(prev => ({ ...prev, opts: { ...prev.opts, [key]: value } }));
+  },
+  setColor: async (key: keyof IpaColorMap, value: string) => {
+    await storage.set(prev => ({
+      ...prev,
+      colorMap: { ...(prev.colorMap ?? {}), [key]: value },
+    }));
+  },
+  clearColorMap: async () => {
+    await storage.set(prev => ({ ...prev, colorMap: undefined }));
+  },
+  setPopupMode: async (popupMode: IpaPopupMode) => {
+    await storage.set(prev => ({ ...prev, popupMode }));
+  },
+  setHoverDelayMs: async (hoverDelayMs: number) => {
+    await storage.set(prev => ({ ...prev, hoverDelayMs }));
   },
   setSiteEnabled: async (host: string, enabled: boolean) => {
     await storage.set(prev => ({

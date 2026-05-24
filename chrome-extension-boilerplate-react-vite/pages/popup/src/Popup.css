@@ -241,6 +241,10 @@ body {
   gap: 8px;
 }
 
+.ipa-row-tight {
+  padding-top: 8px;
+}
+
 .ipa-row-label {
   display: flex;
   align-items: center;
@@ -268,6 +272,52 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.ipa-color-picker {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.ipa-color-input {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border-lt);
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ipa-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 5px;
+}
+
+.ipa-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.ipa-reset-colors {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: .7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+
+.ipa-reset-colors:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+.ipa-reset-colors:not(:disabled):hover {
+  border-color: var(--primary);
+  color: var(--primary-lt);
 }
 
 /* ─── Toggle switch ─── */

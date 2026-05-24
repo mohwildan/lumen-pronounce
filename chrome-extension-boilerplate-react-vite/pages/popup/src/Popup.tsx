@@ -2,19 +2,35 @@ import { useState, useEffect } from 'react';
 import '@src/Popup.css';
 import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
 import { ipaSettingsStorage, ipaAuthStorage } from '@extension/storage';
-import type { IpaOpts } from '@extension/storage';
+import type { IpaOpts, IpaColorMap } from '@extension/storage';
 import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 
-type ToggleRow = { id: keyof IpaOpts; label: string; example: string; swatch?: string };
+type ToggleRow = {
+  id: keyof IpaOpts;
+  label: string;
+  example: string | ((color: string) => string);
+  swatch?: string;
+  colorKey?: keyof IpaColorMap;
+  defaultColor?: string;
+};
+
+const DEFAULT_COLOR_MAP: Required<IpaColorMap> = {
+  red: '#e53935',
+  green: '#2e7d32',
+  purple: '#8e24aa',
+  pink: '#d81b60',
+  teal: '#00838f',
+  orange: '#e65100',
+};
 
 const VISUAL_ROWS: ToggleRow[] = [
-  { id: 'silent',     label: 'Ghost Letters',  example: 's<span style="opacity:0.3">w</span>ord' },
-  { id: 'color_e',    label: '/ɛ/ Red',        example: 's<span style="color:#e53935">e</span>cond',   swatch: '#e53935' },
-  { id: 'color_i',    label: '/i/ Green',      example: 'r<span style="color:#2e7d32">e</span>ceipt',  swatch: '#2e7d32' },
-  { id: 'color_u_alt',label: '/ʌ/ Purple',     example: 's<span style="color:#8e24aa">o</span>me',     swatch: '#8e24aa' },
-  { id: 'color_a',    label: '/æ/ Pink',        example: 'c<span style="color:#d81b60">a</span>t',      swatch: '#d81b60' },
-  { id: 'color_u',    label: '/u/ Teal',        example: 't<span style="color:#00838f">o</span>mb',     swatch: '#00838f' },
-  { id: 'color_o',    label: '/ɔ/ Amber',       example: 'qu<span style="color:#e65100">a</span>rter',  swatch: '#e65100' },
+  { id: 'silent',      label: 'Ghost Letters', example: 's<span style="opacity:0.3">w</span>ord' },
+  { id: 'color_e',     label: '/ɛ/ Red',       example: (hex: string) => `s<span style="color:${hex}">e</span>cond`, colorKey: 'red', defaultColor: DEFAULT_COLOR_MAP.red },
+  { id: 'color_i',     label: '/i/ Green',     example: (hex: string) => `r<span style="color:${hex}">e</span>ceipt`, colorKey: 'green', defaultColor: DEFAULT_COLOR_MAP.green },
+  { id: 'color_u_alt', label: '/ʌ/ Purple',    example: (hex: string) => `s<span style="color:${hex}">o</span>me`, colorKey: 'purple', defaultColor: DEFAULT_COLOR_MAP.purple },
+  { id: 'color_a',     label: '/æ/ Pink',      example: (hex: string) => `c<span style="color:${hex}">a</span>t`, colorKey: 'pink', defaultColor: DEFAULT_COLOR_MAP.pink },
+  { id: 'color_u',     label: '/u/ Teal',      example: (hex: string) => `t<span style="color:${hex}">o</span>mb`, colorKey: 'teal', defaultColor: DEFAULT_COLOR_MAP.teal },
+  { id: 'color_o',     label: '/ɔ/ Amber',     example: (hex: string) => `qu<span style="color:${hex}">a</span>rter`, colorKey: 'orange', defaultColor: DEFAULT_COLOR_MAP.orange },
 ];
 
 const MOD_ROWS: ToggleRow[] = [
@@ -230,17 +246,23 @@ const Popup = () => {
 
   if (!settings || !auth) return null;
 
+  const resolvedColorMap: Required<IpaColorMap> = {
+    ...DEFAULT_COLOR_MAP,
+    ...(settings.colorMap ?? {}),
+  };
+  const hasCustomColors = !!settings.colorMap && Object.keys(settings.colorMap).length > 0;
+
   const getInitials = (name: string, email: string) => {
     const source = name || email;
     if (!source) return 'U';
-    
+
     if (source.includes('@')) {
       const username = source.split('@')[0];
       const parts = username.split(/[\._-]/);
       if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
       return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
-    
+
     const parts = source.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
@@ -366,24 +388,52 @@ const Popup = () => {
         </div>
       </div>
 
-      {/* ── Visuals & Colors ── */}
+      {/* ── Appearance ── */}
       <div className="ipa-section">
-        <div className="ipa-section-title"><IconPalette />Visuals &amp; Colors</div>
-        {VISUAL_ROWS.map(row => (
-          <div key={row.id} className="ipa-row">
-            <div className="ipa-row-label">
-              {row.swatch && <span className="ipa-swatch" style={{ background: row.swatch }} />}
-              <span>
-                {row.label}{' '}
-                <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
-              </span>
+        <div className="ipa-section-title"><IconPalette />Appearance</div>
+        {VISUAL_ROWS.map(row => {
+          const colorValue = row.colorKey ? resolvedColorMap[row.colorKey] : undefined;
+          const exampleHtml = typeof row.example === 'function'
+            ? row.example(colorValue ?? row.defaultColor ?? '#999999')
+            : row.example;
+          return (
+            <div key={row.id} className="ipa-row">
+              <div className="ipa-row-label">
+                {row.colorKey && <span className="ipa-swatch" style={{ background: colorValue }} />}
+                <span>
+                  {row.label}{' '}
+                  <small dangerouslySetInnerHTML={{ __html: `(${exampleHtml})` }} />
+                </span>
+              </div>
+              {row.colorKey && (
+                <label className="ipa-color-picker" title="Pick color">
+                  <input
+                    className="ipa-color-input"
+                    type="color"
+                    value={colorValue}
+                    onChange={e => ipaSettingsStorage.setColor(row.colorKey, e.target.value)}
+                  />
+                </label>
+              )}
+              <Switch
+                checked={settings.opts[row.id]}
+                onChange={v => ipaSettingsStorage.setOpt(row.id, v)}
+              />
             </div>
-            <Switch
-              checked={settings.opts[row.id]}
-              onChange={v => ipaSettingsStorage.setOpt(row.id, v)}
-            />
+          );
+        })}
+        <div className="ipa-row ipa-row-tight">
+          <div className="ipa-row-label">
+            <span>Reset custom colors</span>
           </div>
-        ))}
+          <button
+            className="ipa-reset-colors"
+            onClick={() => ipaSettingsStorage.clearColorMap()}
+            disabled={!hasCustomColors}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {/* ── Modifications ── */}
