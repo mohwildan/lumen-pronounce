@@ -247,6 +247,129 @@ async function handleOpenPortal(sendResponse: (r: object) => void): Promise<void
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
+// ── Anki Offline Queue ──────────────────────────────────────────
+
+type AnkiQueueItem = { word: string; ipa: string; definition: string; addedAt: number };
+const QUEUE_KEY = 'ipa-anki-queue';
+
+async function getQueue(): Promise<AnkiQueueItem[]> {
+  const raw = await chrome.storage.local.get(QUEUE_KEY);
+  return (raw[QUEUE_KEY] as AnkiQueueItem[] | undefined) ?? [];
+}
+
+async function saveQueue(queue: AnkiQueueItem[]): Promise<void> {
+  await chrome.storage.local.set({ [QUEUE_KEY]: queue });
+}
+
+async function handleAnkiQueueAdd(
+  msg: { word: string; ipa: string; definition: string },
+  sendResponse: (r: any) => void
+): Promise<void> {
+  try {
+    const queue = await getQueue();
+    // Avoid duplicate words in queue
+    if (!queue.some(i => i.word.toLowerCase() === msg.word.toLowerCase())) {
+      queue.push({ word: msg.word, ipa: msg.ipa, definition: msg.definition, addedAt: Date.now() });
+      await saveQueue(queue);
+    }
+    sendResponse({ ok: true, queueSize: queue.length });
+  } catch (e: any) {
+    sendResponse({ error: e.message });
+  }
+}
+
+async function handleAnkiQueueGet(sendResponse: (r: any) => void): Promise<void> {
+  try {
+    const queue = await getQueue();
+    sendResponse({ queue, queueSize: queue.length });
+  } catch (e: any) {
+    sendResponse({ error: e.message, queue: [], queueSize: 0 });
+  }
+}
+
+async function handleAnkiQueueSync(sendResponse: (r: any) => void): Promise<void> {
+  try {
+    const queue = await getQueue();
+    if (queue.length === 0) { sendResponse({ ok: true, synced: 0, failed: 0, remaining: 0 }); return; }
+
+    const raw = await chrome.storage.sync.get('ipa-settings');
+    const settings = raw['ipa-settings'] || {};
+    const ankiEndpoint = settings.ankiEndpoint || 'http://localhost:8765';
+
+    // Quick ping to check connectivity
+    try {
+      const ping = await fetch(ankiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'version', version: 6 }),
+      });
+      if (!ping.ok) { sendResponse({ ok: false, error: 'Anki not reachable', remaining: queue.length }); return; }
+    } catch {
+      sendResponse({ ok: false, error: 'Anki not reachable', remaining: queue.length }); return;
+    }
+
+    let synced = 0;
+    let failed = 0;
+    const remaining: AnkiQueueItem[] = [];
+
+    for (const item of queue) {
+      try {
+        // Re-use the existing handleAnkiAdd logic by calling it inline
+        await new Promise<void>((resolve) => {
+          void handleAnkiAdd(
+            { word: item.word, ipa: item.ipa, definition: item.definition },
+            (res: { ok?: boolean; error?: string }) => {
+              if (res.ok || res.error === 'Card already exists in Anki') {
+                synced++;
+              } else {
+                failed++;
+                remaining.push(item);
+              }
+              resolve();
+            }
+          );
+        });
+      } catch {
+        failed++;
+        remaining.push(item);
+      }
+    }
+
+    await saveQueue(remaining);
+    sendResponse({ ok: true, synced, failed, remaining: remaining.length });
+  } catch (e: any) {
+    sendResponse({ error: e.message });
+  }
+}
+
+async function handleAnkiCheckConnection(
+  sendResponse: (response: any) => void
+): Promise<void> {
+  try {
+    const raw = await chrome.storage.sync.get('ipa-settings');
+    const settings = raw['ipa-settings'] || {};
+    const ankiEndpoint = settings.ankiEndpoint || 'http://localhost:8765';
+    const res = await fetch(ankiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'version', version: 6 }),
+    });
+    if (!res.ok) { sendResponse({ connected: false }); return; }
+    const data = await res.json() as { result?: number; error?: string | null };
+    const connected = !data.error && typeof data.result === 'number';
+    sendResponse({ connected });
+    // Auto-sync queue in background if connected
+    if (connected) {
+      const queue = await getQueue();
+      if (queue.length > 0) {
+        void handleAnkiQueueSync(() => { /* fire-and-forget */ });
+      }
+    }
+  } catch {
+    sendResponse({ connected: false });
+  }
+}
+
 async function handleAnkiAdd(
   msg: { word: string; ipa: string; definition: string },
   sendResponse: (response: any) => void
@@ -530,6 +653,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'SYNC_TIER') { void handleSyncTier(sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_CHECKOUT') { void handleOpenCheckout(msg as { interval: 'month' | 'year' }, sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
+  if (msg.type === 'ANKI_CHECK_CONNECTION') { void handleAnkiCheckConnection(sendResponse); return true; }
+  if (msg.type === 'ANKI_QUEUE_ADD') { void handleAnkiQueueAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
+  if (msg.type === 'ANKI_QUEUE_GET') { void handleAnkiQueueGet(sendResponse); return true; }
+  if (msg.type === 'ANKI_QUEUE_SYNC') { void handleAnkiQueueSync(sendResponse); return true; }
   if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
   if (msg.type === 'DICT_LOOKUP') { void handleDictLookup(msg.words as string[], msg.dialect as 'nAmE' | 'brE', msg.includeBaseforms as boolean, sendResponse); return true; }
   if (msg.type === 'GET_RELATED_FORMS') { void handleGetRelatedForms(msg.word as string, msg.dialect as 'nAmE' | 'brE', sendResponse); return true; }

@@ -79,6 +79,7 @@ let targetLanguage = 'id';
 let translatePerSentence = true;
 let pauseOnHover = false;
 let ankiEnabled = false;
+let ankiOfflineEnabled = true;
 let hasProcessed = false;
 let videoShortcuts = { rewind: 'a', forward: 'd', playPause: 's' };
 
@@ -839,7 +840,8 @@ function buildTipHTML(word: string, ipa: string, baseWord: string | null = null,
     // Right: IPA & Anki
     `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">` +
     `<span id="__ipa_header_ipa__" style="font-size:.9rem;color:#c7c3b5;font-style:italic;letter-spacing:.02em;white-space:nowrap;padding-top:4px">${ipa}</span>` +
-    (ankiEnabled ? `<button id="__ipa_anki_btn__" title="Save to Anki" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:flex;align-items:center;transition:color .15s,transform .15s;margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : '') +
+    (ankiEnabled ? `<button id="__ipa_anki_btn__" title="Save to Anki" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:none;align-items:center;transition:color .15s,transform .15s;margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : '') +
+    (ankiEnabled ? `<button id="__ipa_anki_queue_btn__" title="Save to offline queue (sync when Anki connects)" style="background:none;border:none;cursor:pointer;color:#8c887a;padding:2px;display:none;align-items:center;transition:color .15s,transform .15s;margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg></button>` : '') +
     `</div>` +
     `</div>` +
     // POS translations area
@@ -1254,6 +1256,8 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
     // Wire up Anki button
     const ankiBtn = t.querySelector('#__ipa_anki_btn__') as HTMLButtonElement | null;
+    const ankiQueueBtn = t.querySelector('#__ipa_anki_queue_btn__') as HTMLButtonElement | null;
+
     if (ankiBtn) {
       ankiBtn.addEventListener('click', e => {
         e.stopPropagation();
@@ -1262,6 +1266,51 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
         void saveToAnki(cleanWord, ipaVal, defCache[lookupWord]);
       });
     }
+
+    if (ankiQueueBtn) {
+      ankiQueueBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const ipaSpan = t.querySelector('#__ipa_header_ipa__');
+        const ipaVal = ipaSpan?.textContent || '';
+        let defText = '';
+        const data = defCache[lookupWord];
+        if (data) {
+          const arr = data as Array<{ meanings?: Array<{ definitions?: Array<{ definition?: string }> }> }>;
+          defText = arr[0]?.meanings?.[0]?.definitions?.[0]?.definition ?? '';
+        }
+        if (!isContextValid()) return;
+        ankiQueueBtn.style.color = '#e8a351';
+        ankiQueueBtn.style.transform = 'scale(1.15)';
+        chrome.runtime.sendMessage(
+          { type: 'ANKI_QUEUE_ADD', word: cleanWord, ipa: ipaVal, definition: defText },
+          (res: { ok?: boolean; queueSize?: number; error?: string } | undefined) => {
+            if (res?.ok) {
+              ankiQueueBtn.style.color = '#a3e851';
+              ankiQueueBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`;
+              ankiQueueBtn.title = `Queued (${res.queueSize ?? ''} items pending sync)`;
+            } else {
+              ankiQueueBtn.style.color = '#e34d52';
+              ankiQueueBtn.title = res?.error ?? 'Error adding to queue';
+            }
+            setTimeout(() => { ankiQueueBtn.style.transform = 'scale(1)'; }, 200);
+          }
+        );
+      });
+    }
+
+    // Check Anki connection and show/hide buttons accordingly
+    if (isContextValid() && (ankiBtn || ankiQueueBtn)) {
+      chrome.runtime.sendMessage({ type: 'ANKI_CHECK_CONNECTION' }, (res: { connected?: boolean } | undefined) => {
+        if (res?.connected) {
+          // Anki online: show add button only
+          if (ankiBtn) ankiBtn.style.display = 'flex';
+        } else if (ankiOfflineEnabled) {
+          // Anki offline + offline queue enabled: show queue button
+          if (ankiQueueBtn) ankiQueueBtn.style.display = 'flex';
+        }
+      });
+    }
+
 
     // Wire up tabs
     t.querySelectorAll('[data-tab]').forEach(btn => {
@@ -2015,6 +2064,7 @@ async function checkActivation(): Promise<void> {
   }
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
   if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
+  if (s?.ankiOfflineEnabled !== undefined) ankiOfflineEnabled = s.ankiOfflineEnabled;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
   if (s?.shortcuts !== undefined) videoShortcuts = s.shortcuts;
@@ -2135,6 +2185,7 @@ async function init(): Promise<void> {
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;
   if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
+  if (s?.ankiOfflineEnabled !== undefined) ankiOfflineEnabled = s.ankiOfflineEnabled;
   if (s?.shortcuts !== undefined) videoShortcuts = s.shortcuts;
   syncBodyClasses();
 

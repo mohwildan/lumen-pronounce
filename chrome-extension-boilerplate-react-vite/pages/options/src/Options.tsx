@@ -1142,6 +1142,9 @@ function AnkiTab() {
   const [decks, setDecks] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [modelFields, setModelFields] = useState<string[]>([]);
+  const [queueCount, setQueueCount] = useState(0);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
+  const [syncResult, setSyncResult] = useState<string>('');
 
   if (!settings || !auth) return null;
   const tier = auth.user?.tier ?? 'free';
@@ -1231,7 +1234,27 @@ function AnkiTab() {
     if (settings.ankiEnabled) {
       testAnki();
     }
+    // Load queue count on mount
+    chrome.runtime.sendMessage({ type: 'ANKI_QUEUE_GET' }, (res: { queueSize?: number } | undefined) => {
+      setQueueCount(res?.queueSize ?? 0);
+    });
   }, []);
+
+  const syncQueue = async () => {
+    setSyncStatus('syncing');
+    setSyncResult('');
+    chrome.runtime.sendMessage({ type: 'ANKI_QUEUE_SYNC' }, (res: { ok?: boolean; synced?: number; remaining?: number; error?: string } | undefined) => {
+      if (res?.ok) {
+        setQueueCount(res.remaining ?? 0);
+        setSyncStatus('done');
+        setSyncResult(`✓ Synced ${res.synced} card${(res.synced ?? 0) !== 1 ? 's' : ''}${(res.remaining ?? 0) > 0 ? `, ${res.remaining} still pending` : ''}`);
+      } else {
+        setSyncStatus('error');
+        setSyncResult(res?.error ?? 'Failed to sync');
+      }
+      setTimeout(() => { setSyncStatus('idle'); setSyncResult(''); }, 4000);
+    });
+  };
 
   return (
     <div className="opt-section">
@@ -1350,7 +1373,67 @@ function AnkiTab() {
 
             <div className="opt-card-divider" />
             <div style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div>
+                  <label className="opt-card-label" style={{ display: 'block', marginBottom: '2px' }}>
+                    Offline Queue
+                    {queueCount > 0 && (
+                      <span style={{
+                        marginLeft: '8px',
+                        background: '#e8a351',
+                        color: '#1a1915',
+                        borderRadius: '10px',
+                        padding: '1px 7px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        verticalAlign: 'middle',
+                      }}>
+                        {queueCount} pending
+                      </span>
+                    )}
+                  </label>
+                  <small style={{ color: '#8c887a' }}>Save words to a local queue when Anki is offline. They sync automatically when Anki reconnects.</small>
+                </div>
+                <Switch
+                  checked={settings.ankiOfflineEnabled ?? true}
+                  onChange={v => ipaSettingsStorage.setAnkiOfflineEnabled(v)}
+                  disabled={!isPro}
+                />
+              </div>
+              {(settings.ankiOfflineEnabled ?? true) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={syncQueue}
+                    disabled={!isPro || syncStatus === 'syncing' || queueCount === 0}
+                    style={{
+                      padding: '6px 14px',
+                      background: syncStatus === 'done' ? '#2e7d32' : syncStatus === 'error' ? '#bf360c' : '#3e3c33',
+                      color: syncStatus === 'done' || syncStatus === 'error' ? '#fff' : '#e8a351',
+                      border: `1px solid ${syncStatus === 'done' ? '#2e7d32' : syncStatus === 'error' ? '#bf360c' : '#e8a351'}`,
+                      borderRadius: '6px',
+                      cursor: !isPro || syncStatus === 'syncing' || queueCount === 0 ? 'not-allowed' : 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      opacity: !isPro || queueCount === 0 ? 0.5 : 1,
+                      transition: 'all .2s',
+                    }}
+                  >
+                    {syncStatus === 'syncing' ? '⟳ Syncing…' : syncStatus === 'done' ? '✓ Synced' : syncStatus === 'error' ? '✗ Failed' : `↑ Sync Queue (${queueCount})`}
+                  </button>
+                  {syncResult && (
+                    <small style={{ color: syncStatus === 'error' ? '#e34d52' : '#a3e851' }}>{syncResult}</small>
+                  )}
+                  {queueCount === 0 && syncStatus === 'idle' && (
+                    <small style={{ color: '#8c887a' }}>Queue is empty</small>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="opt-card-divider" />
+            <div style={{ padding: '16px' }}>
               <label className="opt-card-label" style={{ display: 'block', marginBottom: '8px' }}>Card Templates</label>
+
 
               {modelFields.length > 0 ? (
                 <div>

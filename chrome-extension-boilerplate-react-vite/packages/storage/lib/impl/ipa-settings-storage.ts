@@ -45,6 +45,7 @@ export type IpaSettingsState = {
   ankiModelName: string;
   ankiFieldTemplates?: Record<string, string>;
   ankiAllowDuplicate?: boolean;
+  ankiOfflineEnabled?: boolean;
   shortcuts: IpaShortcuts;
   pronunciationDialect: 'nAmE' | 'brE';
   enableBaseforms: boolean;
@@ -86,6 +87,7 @@ const DEFAULT_STATE: IpaSettingsState = {
   ankiModelName: 'Basic',
   ankiFieldTemplates: {},
   ankiAllowDuplicate: false,
+  ankiOfflineEnabled: true,
   shortcuts: {
     rewind: 'a',
     forward: 'd',
@@ -121,6 +123,7 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   setAnkiModelName: (val: string) => Promise<void>;
   setAnkiFieldTemplates: (val: Record<string, string>) => Promise<void>;
   setAnkiAllowDuplicate: (val: boolean) => Promise<void>;
+  setAnkiOfflineEnabled: (val: boolean) => Promise<void>;
   setShortcuts: (val: IpaShortcuts) => Promise<void>;
   setPronunciationDialect: (val: 'nAmE' | 'brE') => Promise<void>;
   setEnableBaseforms: (val: boolean) => Promise<void>;
@@ -206,6 +209,9 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setAnkiAllowDuplicate: async (ankiAllowDuplicate: boolean) => {
     await storage.set(prev => ({ ...prev, ankiAllowDuplicate }));
+  },
+  setAnkiOfflineEnabled: async (ankiOfflineEnabled: boolean) => {
+    await storage.set(prev => ({ ...prev, ankiOfflineEnabled }));
   },
   setShortcuts: async (shortcuts: IpaShortcuts) => {
     await storage.set(prev => ({ ...prev, shortcuts }));
