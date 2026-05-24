@@ -31,7 +31,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // ── Profile helpers ──────────────────────────────────────────────
 
-type Profile = { id: string; email: string; name: string; avatar_url: string; tier: 'free' | 'pro' };
+type Profile = { id: string; email: string; name: string; avatar_url: string; tier: 'free' | 'pro'; is_developer?: boolean };
 
 async function upsertProfile(user: User): Promise<Profile> {
   // Always fetch fresh from DB to get latest tier
@@ -57,6 +57,7 @@ async function upsertProfile(user: User): Promise<Profile> {
     name: user.user_metadata?.full_name ?? '',
     avatar_url: user.user_metadata?.avatar_url ?? '',
     tier: 'free',
+    is_developer: false,
   };
 }
 
@@ -96,7 +97,7 @@ async function handleSignIn(
     if (error || !data.user) { sendResponse({ error: error?.message ?? 'Sign-in failed' }); return; }
     const profile = await upsertProfile(data.user);
     await saveAuthState(data.user, profile);
-    sendResponse({ user: { id: data.user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier } });
+    sendResponse({ user: { id: data.user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier, is_developer: profile.is_developer } });
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
@@ -115,7 +116,7 @@ async function handleSignUp(
     if (!data.user) { sendResponse({ error: 'Check your email to confirm sign-up' }); return; }
     const profile = await upsertProfile(data.user);
     await saveAuthState(data.user, profile);
-    sendResponse({ user: { id: data.user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier } });
+    sendResponse({ user: { id: data.user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier, is_developer: profile.is_developer } });
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
@@ -152,7 +153,7 @@ async function handleSetSession(
     if (!user) { sendResponse({ error: 'No user from session' }); return; }
     const profile = await upsertProfile(user);
     await saveAuthState(user, profile);
-    sendResponse({ user: { id: user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier } });
+    sendResponse({ user: { id: user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier, is_developer: profile.is_developer } });
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
@@ -200,7 +201,7 @@ async function handleGetSession(sendResponse: (r: object) => void): Promise<void
     if (!data.session) { sendResponse({ user: null }); return; }
     const profile = await upsertProfile(data.session.user);
     await saveAuthState(data.session.user, profile);
-    sendResponse({ user: { id: data.session.user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier } });
+    sendResponse({ user: { id: data.session.user.id, email: profile.email, name: profile.name, picture: profile.avatar_url, tier: profile.tier, is_developer: profile.is_developer } });
   } catch (e) {
     sendResponse({ error: String(e) });
   }
@@ -683,6 +684,80 @@ async function handleGetRelatedForms(
   }
 }
 
+// ── Chat handlers ───────────────────────────────────────────────
+
+async function handleChatGetMessages(
+  msg: { userId: string },
+  sendResponse: (r: object) => void
+): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ error: 'Not logged in' }); return; }
+    
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*, sender:profiles!messages_sender_id_fkey(name, is_developer)')
+      .eq('user_id', msg.userId)
+      .order('created_at', { ascending: true });
+      
+    if (error) { sendResponse({ error: error.message }); return; }
+    sendResponse({ messages: data });
+  } catch (e) {
+    sendResponse({ error: String(e) });
+  }
+}
+
+async function handleChatSendMessage(
+  msg: { content: string, userId: string },
+  sendResponse: (r: object) => void
+): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ error: 'Not logged in' }); return; }
+
+    const { error } = await supabase.from('messages').insert({
+      user_id: msg.userId,
+      sender_id: session.user.id,
+      content: msg.content
+    });
+
+    if (error) { sendResponse({ error: error.message }); return; }
+    sendResponse({ ok: true });
+  } catch (e) {
+    sendResponse({ error: String(e) });
+  }
+}
+
+async function handleChatGetUsers(
+  sendResponse: (r: object) => void
+): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ error: 'Not logged in' }); return; }
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('user_id, profiles!messages_user_id_fkey(name, email, is_developer)')
+      .order('created_at', { ascending: false });
+
+    if (error) { sendResponse({ error: error.message }); return; }
+    
+    const usersMap = new Map();
+    for (const msg of data) {
+      if (!usersMap.has(msg.user_id) && msg.profiles) {
+        usersMap.set(msg.user_id, {
+          id: msg.user_id,
+          name: (msg.profiles as any).name,
+          email: (msg.profiles as any).email,
+        });
+      }
+    }
+    sendResponse({ users: Array.from(usersMap.values()) });
+  } catch (e) {
+    sendResponse({ error: String(e) });
+  }
+}
+
 // ── Message router ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -705,6 +780,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string; sentence?: string; partsOfSpeech?: string; translation?: string }, sendResponse); return true; }
   if (msg.type === 'DICT_LOOKUP') { void handleDictLookup(msg.words as string[], msg.dialect as 'nAmE' | 'brE', msg.includeBaseforms as boolean, sendResponse); return true; }
   if (msg.type === 'GET_RELATED_FORMS') { void handleGetRelatedForms(msg.word as string, msg.dialect as 'nAmE' | 'brE', sendResponse); return true; }
+  if (msg.type === 'CHAT_GET_MESSAGES') { void handleChatGetMessages(msg as any, sendResponse); return true; }
+  if (msg.type === 'CHAT_SEND_MESSAGE') { void handleChatSendMessage(msg as any, sendResponse); return true; }
+  if (msg.type === 'CHAT_GET_USERS') { void handleChatGetUsers(sendResponse); return true; }
   return false;
 });
 

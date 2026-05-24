@@ -759,6 +759,21 @@ function AccountTab() {
             </>
           )}
         </button>
+
+        <div style={{ marginTop: '16px', textAlign: 'left' }}>
+          <button
+            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-muted, #888)', fontSize: '0.85rem', textDecoration: 'underline', cursor: 'pointer' }}
+            onClick={() => {
+              chrome.windows.getCurrent((win) => {
+                if (win.id) {
+                  chrome.sidePanel.open({ windowId: win.id });
+                }
+              });
+            }}
+          >
+            Need help? Contact Support
+          </button>
+        </div>
       </div>
     );
   }
@@ -880,6 +895,21 @@ function AccountTab() {
           </button>
         </div>
       )}
+
+      <div style={{ marginTop: '24px', textAlign: 'left' }}>
+        <button
+          style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-muted, #888)', fontSize: '0.85rem', textDecoration: 'underline', cursor: 'pointer' }}
+          onClick={() => {
+            chrome.windows.getCurrent((win) => {
+              if (win.id) {
+                chrome.sidePanel.open({ windowId: win.id });
+              }
+            });
+          }}
+        >
+          Need help? Contact Support
+        </button>
+      </div>
     </div>
   );
 }
@@ -1104,7 +1134,7 @@ function DictionaryTab() {
     setQuery('');
   }, [settings?.pronunciationDialect]);
 
-  const loadDict = () => {};
+  const loadDict = () => { };
 
   const handleQuery = async (val: string) => {
     setQuery(val);
@@ -1398,22 +1428,22 @@ const IconAnki = () => (
 
 // All supported template variables with labels
 const TEMPLATE_VARS: { value: string; label: string; pro?: boolean }[] = [
-  { value: '{{word}}',                  label: '{{word}} — Word' },
-  { value: '{{word.phonetic}}',          label: '{{word.phonetic}} — IPA' },
-  { value: '{{word.baseform}}',          label: '{{word.baseform}} — Base form' },
-  { value: '{{word.parts-of-speech}}',   label: '{{word.parts-of-speech}} — Part of speech' },
-  { value: '{{definitions}}',            label: '{{definitions}} — Definitions' },
-  { value: '{{definitions.numbered}}',   label: '{{definitions.numbered}} — Numbered defs' },
+  { value: '{{word}}', label: '{{word}} — Word' },
+  { value: '{{word.phonetic}}', label: '{{word.phonetic}} — IPA' },
+  { value: '{{word.baseform}}', label: '{{word.baseform}} — Base form' },
+  { value: '{{word.parts-of-speech}}', label: '{{word.parts-of-speech}} — Part of speech' },
+  { value: '{{definitions}}', label: '{{definitions}} — Definitions' },
+  { value: '{{definitions.numbered}}', label: '{{definitions.numbered}} — Numbered defs' },
   { value: '{{definitions.translated}}', label: '{{definitions.translated}} — Translated defs' },
-  { value: '{{sentence}}',               label: '{{sentence}} — Context sentence' },
-  { value: '{{sentence.phonetic}}',      label: '{{sentence.phonetic}} — Sentence IPA' },
-  { value: '{{language}}',               label: '{{language}} — Language' },
-  { value: '{{links}}',                  label: '{{links}} — External links' },
-  { value: '{{word.audio}}',             label: '{{word.audio}} — Audio', pro: true },
-  { value: '{{word.image}}',             label: '{{word.image}} — Image', pro: true },
-  { value: '{{screenshot.video}}',       label: '{{screenshot.video}} — Video screenshot', pro: true },
-  { value: '{{ai.text.definition}}',     label: '{{ai.text.definition}} — AI definition', pro: true },
-  { value: '{{ai.word.image}}',          label: '{{ai.word.image}} — AI image', pro: true },
+  { value: '{{sentence}}', label: '{{sentence}} — Context sentence' },
+  { value: '{{sentence.phonetic}}', label: '{{sentence.phonetic}} — Sentence IPA' },
+  { value: '{{language}}', label: '{{language}} — Language' },
+  { value: '{{links}}', label: '{{links}} — External links' },
+  { value: '{{word.audio}}', label: '{{word.audio}} — Audio', pro: true },
+  { value: '{{word.image}}', label: '{{word.image}} — Image', pro: true },
+  { value: '{{screenshot.video}}', label: '{{screenshot.video}} — Video screenshot', pro: true },
+  { value: '{{ai.text.definition}}', label: '{{ai.text.definition}} — AI definition', pro: true },
+  { value: '{{ai.word.image}}', label: '{{ai.word.image}} — AI image', pro: true },
 ];
 
 const getAutoMapping = (fieldName: string): string => {
@@ -2159,34 +2189,34 @@ const Options = () => {
       {(() => {
         const { version } = chrome.runtime.getManifest();
         return (
-      <div className="opt-sidebar">
-        <div className="opt-logo">
-          <div className="opt-logo-icon">
-            <img src={chrome.runtime.getURL('icon-128.png')} alt="Logo" style={{ width: 24, height: 24, borderRadius: 6, display: 'block' }} />
-          </div>
-          <div className="opt-logo-text">
-            <span className="opt-logo-name">Lumen</span>
-            <span className="opt-logo-sub">Pronunciation</span>
-          </div>
-        </div>
+          <div className="opt-sidebar">
+            <div className="opt-logo">
+              <div className="opt-logo-icon">
+                <img src={chrome.runtime.getURL('icon-128.png')} alt="Logo" style={{ width: 24, height: 24, borderRadius: 6, display: 'block' }} />
+              </div>
+              <div className="opt-logo-text">
+                <span className="opt-logo-name">Lumen</span>
+                <span className="opt-logo-sub">Pronunciation</span>
+              </div>
+            </div>
 
-        <nav>
-          {NAV.map(n => (
-            <button
-              key={n.id}
-              className={tab === n.id ? 'active' : ''}
-              onClick={() => setTab(n.id)}
-            >
-              {n.icon}
-              {n.label}
-            </button>
-          ))}
-        </nav>
+            <nav>
+              {NAV.map(n => (
+                <button
+                  key={n.id}
+                  className={tab === n.id ? 'active' : ''}
+                  onClick={() => setTab(n.id)}
+                >
+                  {n.icon}
+                  {n.label}
+                </button>
+              ))}
+            </nav>
 
-        <div className="opt-sidebar-footer">
-          <span>v{version} · Lumen</span>
-        </div>
-      </div>
+            <div className="opt-sidebar-footer">
+              <span>v{version} · Lumen</span>
+            </div>
+          </div>
         );
       })()}
 
