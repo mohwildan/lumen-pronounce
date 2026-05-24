@@ -277,7 +277,7 @@ async function handleOpenPortal(sendResponse: (r: object) => void): Promise<void
 
 // ── Anki Offline Queue ──────────────────────────────────────────
 
-type AnkiQueueItem = { word: string; ipa: string; definition: string; addedAt: number };
+type AnkiQueueItem = { word: string; ipa: string; definition: string; sentence?: string; partsOfSpeech?: string; translation?: string; addedAt: number };
 const QUEUE_KEY = 'ipa-anki-queue';
 
 async function getQueue(): Promise<AnkiQueueItem[]> {
@@ -290,14 +290,22 @@ async function saveQueue(queue: AnkiQueueItem[]): Promise<void> {
 }
 
 async function handleAnkiQueueAdd(
-  msg: { word: string; ipa: string; definition: string },
+  msg: { word: string; ipa: string; definition: string; sentence?: string; partsOfSpeech?: string; translation?: string },
   sendResponse: (r: any) => void
 ): Promise<void> {
   try {
     const queue = await getQueue();
     // Avoid duplicate words in queue
     if (!queue.some(i => i.word.toLowerCase() === msg.word.toLowerCase())) {
-      queue.push({ word: msg.word, ipa: msg.ipa, definition: msg.definition, addedAt: Date.now() });
+      queue.push({ 
+        word: msg.word, 
+        ipa: msg.ipa, 
+        definition: msg.definition, 
+        sentence: msg.sentence,
+        partsOfSpeech: msg.partsOfSpeech,
+        translation: msg.translation,
+        addedAt: Date.now() 
+      });
       await saveQueue(queue);
     }
     sendResponse({ ok: true, queueSize: queue.length });
@@ -345,7 +353,14 @@ async function handleAnkiQueueSync(sendResponse: (r: any) => void): Promise<void
         // Re-use the existing handleAnkiAdd logic by calling it inline
         await new Promise<void>((resolve) => {
           void handleAnkiAdd(
-            { word: item.word, ipa: item.ipa, definition: item.definition },
+            { 
+              word: item.word, 
+              ipa: item.ipa, 
+              definition: item.definition, 
+              sentence: item.sentence, 
+              partsOfSpeech: item.partsOfSpeech,
+              translation: item.translation
+            },
             (res: { ok?: boolean; error?: string }) => {
               if (res.ok || res.error === 'Card already exists in Anki') {
                 synced++;
@@ -399,7 +414,7 @@ async function handleAnkiCheckConnection(
 }
 
 async function handleAnkiAdd(
-  msg: { word: string; ipa: string; definition: string },
+  msg: { word: string; ipa: string; definition: string; sentence?: string; partsOfSpeech?: string; translation?: string },
   sendResponse: (response: any) => void
 ): Promise<void> {
   try {
@@ -436,17 +451,17 @@ async function handleAnkiAdd(
         .replace(/\{\{word\}\}/g, msg.word || '')
         .replace(/\{\{word\.phonetic\}\}/g, msg.ipa || '')
         .replace(/\{\{definitions\}\}/g, msg.definition || 'No definition saved.')
-        .replace(/\{\{translations\}\}/g, '')
-        .replace(/\{\{sentence\}\}/g, '')
+        .replace(/\{\{translations\}\}/g, msg.translation || '')
+        .replace(/\{\{sentence\}\}/g, msg.sentence || '')
         .replace(/\{\{sentence\.phonetic\}\}/g, '')
         .replace(/\{\{word\.audio\}\}/g, '')
         .replace(/\{\{word\.image\}\}/g, '')
         .replace(/\{\{links\}\}/g, '')
         .replace(/\{\{word\.baseform\}\}/g, '')
-        .replace(/\{\{word\.parts-of-speech\}\}/g, '')
+        .replace(/\{\{word\.parts-of-speech\}\}/g, msg.partsOfSpeech || '')
         .replace(/\{\{language\}\}/g, 'English')
         .replace(/\{\{definitions\.numbered\}\}/g, msg.definition ? `1. ${msg.definition}` : 'No definition saved.')
-        .replace(/\{\{definitions\.translated\}\}/g, '')
+        .replace(/\{\{definitions\.translated\}\}/g, msg.translation || '')
         .replace(/\{\{screenshot\.video\}\}/g, '')
         .replace(/\{\{ai\.text\.definition\}\}/g, '')
         .replace(/\{\{ai\.word\.image\}\}/g, '');
@@ -684,10 +699,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'STRIPE_OPEN_CHECKOUT') { void handleOpenCheckout(msg as { interval: 'month' | 'year' }, sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
   if (msg.type === 'ANKI_CHECK_CONNECTION') { void handleAnkiCheckConnection(sendResponse); return true; }
-  if (msg.type === 'ANKI_QUEUE_ADD') { void handleAnkiQueueAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
+  if (msg.type === 'ANKI_QUEUE_ADD') { void handleAnkiQueueAdd(msg as { word: string; ipa: string; definition: string; sentence?: string; partsOfSpeech?: string; translation?: string }, sendResponse); return true; }
   if (msg.type === 'ANKI_QUEUE_GET') { void handleAnkiQueueGet(sendResponse); return true; }
   if (msg.type === 'ANKI_QUEUE_SYNC') { void handleAnkiQueueSync(sendResponse); return true; }
-  if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string }, sendResponse); return true; }
+  if (msg.type === 'ANKI_ADD_CARD') { void handleAnkiAdd(msg as { word: string; ipa: string; definition: string; sentence?: string; partsOfSpeech?: string; translation?: string }, sendResponse); return true; }
   if (msg.type === 'DICT_LOOKUP') { void handleDictLookup(msg.words as string[], msg.dialect as 'nAmE' | 'brE', msg.includeBaseforms as boolean, sendResponse); return true; }
   if (msg.type === 'GET_RELATED_FORMS') { void handleGetRelatedForms(msg.word as string, msg.dialect as 'nAmE' | 'brE', sendResponse); return true; }
   return false;

@@ -1344,7 +1344,17 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
         e.stopPropagation();
         const ipaSpan = t.querySelector('#__ipa_header_ipa__');
         const ipaVal = ipaSpan?.textContent || '';
-        void saveToAnki(cleanWord, ipaVal, defCache[lookupWord]);
+        const data = defCache[lookupWord];
+        const sentence = extractSentence(wordEl) || '';
+        let partsOfSpeech = '';
+        if (data) {
+          const arr = data as Array<{ meanings?: Array<{ partOfSpeech?: string }> }>;
+          const posList = arr[0]?.meanings?.map(m => m.partOfSpeech).filter(Boolean) || [];
+          partsOfSpeech = Array.from(new Set(posList)).join(', ');
+        }
+        const wd = wordDataCache[`${targetLanguage}:${lookupWord}`];
+        const translation = wd?.mainTranslation || '';
+        void saveToAnki(cleanWord, ipaVal, data, sentence, partsOfSpeech, translation);
       });
     }
 
@@ -1355,15 +1365,21 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
         const ipaVal = ipaSpan?.textContent || '';
         let defText = '';
         const data = defCache[lookupWord];
+        let partsOfSpeech = '';
         if (data) {
-          const arr = data as Array<{ meanings?: Array<{ definitions?: Array<{ definition?: string }> }> }>;
+          const arr = data as Array<{ meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string }> }> }>;
           defText = arr[0]?.meanings?.[0]?.definitions?.[0]?.definition ?? '';
+          const posList = arr[0]?.meanings?.map(m => m.partOfSpeech).filter(Boolean) || [];
+          partsOfSpeech = Array.from(new Set(posList)).join(', ');
         }
+        const sentence = extractSentence(wordEl) || '';
         if (!isContextValid()) return;
         ankiQueueBtn.style.color = '#e8a351';
         ankiQueueBtn.style.transform = 'scale(1.15)';
+        const wd = wordDataCache[`${targetLanguage}:${lookupWord}`];
+        const translation = wd?.mainTranslation || '';
         chrome.runtime.sendMessage(
-          { type: 'ANKI_QUEUE_ADD', word: cleanWord, ipa: ipaVal, definition: defText },
+          { type: 'ANKI_QUEUE_ADD', word: cleanWord, ipa: ipaVal, definition: defText, sentence, partsOfSpeech, translation },
           (res: { ok?: boolean; queueSize?: number; error?: string } | undefined) => {
             if (res?.ok) {
               ankiQueueBtn.style.color = '#a3e851';
@@ -1482,7 +1498,7 @@ function hideTip(): void {
   setTimeout(() => { if (!currentWord && tip) tip.style.display = 'none'; }, 150);
 }
 
-async function saveToAnki(word: string, ipa: string, data: unknown): Promise<void> {
+async function saveToAnki(word: string, ipa: string, data: unknown, sentence: string, partsOfSpeech: string, translation: string): Promise<void> {
   const ankiBtn = document.getElementById('__ipa_anki_btn__') as HTMLButtonElement | null;
   if (ankiBtn) {
     ankiBtn.style.color = '#e8a351';
@@ -1496,7 +1512,7 @@ async function saveToAnki(word: string, ipa: string, data: unknown): Promise<voi
   }
 
   if (!isContextValid()) return;
-  chrome.runtime.sendMessage({ type: 'ANKI_ADD_CARD', word, ipa, definition: defText }, (response: { error?: string; ok?: boolean; isDuplicate?: boolean } | undefined) => {
+  chrome.runtime.sendMessage({ type: 'ANKI_ADD_CARD', word, ipa, definition: defText, sentence, partsOfSpeech, translation }, (response: { error?: string; ok?: boolean; isDuplicate?: boolean } | undefined) => {
     if (ankiBtn) {
       if (response?.ok) {
         if (response.isDuplicate) {
