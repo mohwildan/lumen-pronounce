@@ -42,7 +42,7 @@ const SKIP_TAGS = new Set([
 const BLOCK_TAGS = new Set([
   'P', 'LI', 'DIV', 'ARTICLE', 'SECTION', 'TD', 'TH',
   'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'FIGCAPTION',
-  'CAPTION', 'SUMMARY', 'DT', 'DD',
+  'CAPTION', 'SUMMARY', 'DT', 'DD', 'TR', 'TABLE', 'BR', 'UL', 'OL', 'PRE',
 ]);
 
 type IpaOpts = {
@@ -386,7 +386,8 @@ let phrasalParticlesSet = new Set<string>();
 
 const VALID_PARTICLES = new Set([
   'up', 'down', 'in', 'out', 'on', 'off', 'away', 'back', 'over', 'through',
-  'about', 'around', 'across', 'along', 'by', 'forward', 'to', 'with', 'into', 'onto', 'for', 'after', 'aside'
+  'about', 'around', 'across', 'along', 'by', 'forward', 'to', 'with', 'into', 'onto', 'for', 'after', 'aside',
+  'apart', 'together', 'behind', 'against', 'without', 'under'
 ]);
 
 async function loadPhrasalVerbs(): Promise<void> {
@@ -472,6 +473,9 @@ function getInOrderRpws(wordEl: Element, direction: 'forward' | 'backward', maxW
 
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as Element;
+      if (BLOCK_TAGS.has(el.tagName) && !el.contains(wordEl)) {
+        break; // stop when entering a sibling block/line boundary
+      }
       if (el.tagName === 'RP-W') {
         result.push(el);
       }
@@ -493,36 +497,23 @@ function findSentenceRpwPredecessors(wordEl: Element, maxWords = 4): Element[] {
   return getInOrderRpws(wordEl, 'backward', maxWords);
 }
 
-function findNextRpw(el: Element, maxDistance = 3): Element | null {
-  const root = el.closest('p, div, h1, h2, h3, h4, h5, h6, li, td, th, section, article, tr, table') || document.body;
-  const walker = document.createTreeWalker(
-    root,
-    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
-    null
-  );
-  walker.currentNode = el;
-  let textBetween = '';
-  let distance = 0;
-  while (distance < maxDistance) {
-    const node = walker.nextNode();
-    if (!node) break;
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const cel = node as Element;
-      if (cel.tagName === 'RP-W') return cel;
-      distance++;
-    } else if (node.nodeType === Node.TEXT_NODE) {
-      textBetween += node.textContent || '';
-      if (/[.?!;]/.test(textBetween)) return null;
-    }
-  }
-  return null;
+function findNextRpw(el: Element): Element | null {
+  const siblings = getInOrderRpws(el, 'forward', 1);
+  return siblings[0] || null;
 }
 
-function getPhrasalCandidates(wordEl: Element): string[] {
-  const result: string[] = [];
+interface PhrasalCandidates {
+  contiguous: string[];
+  separable: string[];
+}
+
+function getPhrasalCandidates(wordEl: Element): PhrasalCandidates {
+  const contiguous: string[] = [];
+  const separable: string[] = [];
+  
   const base = wordEl.getAttribute('data-word') || wordEl.textContent?.trim() || '';
   const cleanBase = cleanStressMarks(base).toLowerCase();
-  if (!cleanBase) return [];
+  if (!cleanBase) return { contiguous, separable };
 
   const baseWordInflection = (baseforms && baseforms[cleanBase]) ? baseforms[cleanBase].toLowerCase() : cleanBase;
 
@@ -532,9 +523,9 @@ function getPhrasalCandidates(wordEl: Element): string[] {
     const nextWordRaw = nextEl.getAttribute('data-word') || nextEl.textContent?.trim() || '';
     const nextWord = cleanStressMarks(nextWordRaw).toLowerCase();
     if (nextWord) {
-      result.push(`${baseWordInflection} ${nextWord}`);
+      contiguous.push(`${baseWordInflection} ${nextWord}`);
       if (baseWordInflection !== cleanBase) {
-        result.push(`${cleanBase} ${nextWord}`);
+        contiguous.push(`${cleanBase} ${nextWord}`);
       }
 
       const next2El = findNextRpw(nextEl);
@@ -542,9 +533,9 @@ function getPhrasalCandidates(wordEl: Element): string[] {
         const next2WordRaw = next2El.getAttribute('data-word') || next2El.textContent?.trim() || '';
         const next2Word = cleanStressMarks(next2WordRaw).toLowerCase();
         if (next2Word) {
-          result.push(`${baseWordInflection} ${nextWord} ${next2Word}`);
+          contiguous.push(`${baseWordInflection} ${nextWord} ${next2Word}`);
           if (baseWordInflection !== cleanBase) {
-            result.push(`${cleanBase} ${nextWord} ${next2Word}`);
+            contiguous.push(`${cleanBase} ${nextWord} ${next2Word}`);
           }
         }
       }
@@ -558,9 +549,10 @@ function getPhrasalCandidates(wordEl: Element): string[] {
     const sWord = cleanStressMarks(sWordRaw).toLowerCase();
     const isParticle = PHRASAL_PARTICLES.has(sWord);
     if (isParticle) {
-      result.push(`${baseWordInflection} ${sWord}`);
+      const targetList = (i === 0) ? contiguous : separable;
+      targetList.push(`${baseWordInflection} ${sWord}`);
       if (baseWordInflection !== cleanBase) {
-        result.push(`${cleanBase} ${sWord}`);
+        targetList.push(`${cleanBase} ${sWord}`);
       }
 
       // Check if there is a secondary particle right after it, e.g. "let ... in on"
@@ -568,9 +560,10 @@ function getPhrasalCandidates(wordEl: Element): string[] {
         const nextSWordRaw = siblings[i + 1].getAttribute('data-word') || siblings[i + 1].textContent?.trim() || '';
         const nextSWord = cleanStressMarks(nextSWordRaw).toLowerCase();
         if (PHRASAL_PARTICLES.has(nextSWord)) {
-          result.push(`${baseWordInflection} ${sWord} ${nextSWord}`);
+          const doubleTargetList = (i === 0) ? contiguous : separable;
+          doubleTargetList.push(`${baseWordInflection} ${sWord} ${nextSWord}`);
           if (baseWordInflection !== cleanBase) {
-            result.push(`${cleanBase} ${sWord} ${nextSWord}`);
+            doubleTargetList.push(`${cleanBase} ${sWord} ${nextSWord}`);
           }
         }
       }
@@ -588,14 +581,15 @@ function getPhrasalCandidates(wordEl: Element): string[] {
       const pBase = (baseforms && baseforms[pWord]) ? baseforms[pWord].toLowerCase() : pWord;
 
       if (pWord) {
-        result.push(`${pBase} ${cleanBase}`);
+        const targetList = (i === 0) ? contiguous : separable;
+        targetList.push(`${pBase} ${cleanBase}`);
         if (pBase !== pWord) {
-          result.push(`${pWord} ${cleanBase}`);
+          targetList.push(`${pWord} ${cleanBase}`);
         }
         if (cleanBase !== baseWordInflection) {
-          result.push(`${pBase} ${baseWordInflection}`);
+          targetList.push(`${pBase} ${baseWordInflection}`);
           if (pBase !== pWord) {
-            result.push(`${pWord} ${baseWordInflection}`);
+            targetList.push(`${pWord} ${baseWordInflection}`);
           }
         }
       }
@@ -607,14 +601,15 @@ function getPhrasalCandidates(wordEl: Element): string[] {
         const prevWord = cleanStressMarks(prevWordRaw).toLowerCase();
         const prevBase = (baseforms && baseforms[prevWord]) ? baseforms[prevWord].toLowerCase() : prevWord;
         if (prevWord) {
-          result.push(`${prevBase} ${pWord} ${cleanBase}`);
+          const targetList = (i === 0) ? contiguous : separable;
+          targetList.push(`${prevBase} ${pWord} ${cleanBase}`);
           if (prevBase !== prevWord) {
-            result.push(`${prevWord} ${pWord} ${cleanBase}`);
+            targetList.push(`${prevWord} ${pWord} ${cleanBase}`);
           }
           if (cleanBase !== baseWordInflection) {
-            result.push(`${prevBase} ${pWord} ${baseWordInflection}`);
+            targetList.push(`${prevBase} ${pWord} ${baseWordInflection}`);
             if (prevBase !== prevWord) {
-              result.push(`${prevWord} ${pWord} ${baseWordInflection}`);
+              targetList.push(`${prevWord} ${pWord} ${baseWordInflection}`);
             }
           }
         }
@@ -622,26 +617,29 @@ function getPhrasalCandidates(wordEl: Element): string[] {
     }
   }
 
-  return result;
+  return {
+    contiguous: Array.from(new Set(contiguous)),
+    separable: Array.from(new Set(separable))
+  };
 }
 
 function detectPhrasalVerb(wordEl: Element): string | null {
-  const candidates = getPhrasalCandidates(wordEl);
-  if (!candidates.length) return null;
+  const { contiguous, separable } = getPhrasalCandidates(wordEl);
 
-  // 1. Check if candidate phrase exists in the loaded dictionary (from the .txt files)
-  for (const cand of [...candidates].reverse()) {
-    if (dict && dict[cand]) {
-      return cand;
-    }
+  // Phase 1: Check contiguous candidates (longer first)
+  for (const cand of [...contiguous].reverse()) {
+    if (dict && dict[cand]) return cand;
+  }
+  for (const cand of [...contiguous].reverse()) {
+    if (phrasalVerbsSet.has(cand)) return cand;
   }
 
-  // 2. Check if candidate phrase exists in the loaded phrasal verbs list
-  for (const cand of [...candidates].reverse()) {
-    const hasPh = phrasalVerbsSet.has(cand);
-    if (hasPh) {
-      return cand;
-    }
+  // Phase 2: Check separable candidates (longer first)
+  for (const cand of [...separable].reverse()) {
+    if (dict && dict[cand]) return cand;
+  }
+  for (const cand of [...separable].reverse()) {
+    if (phrasalVerbsSet.has(cand)) return cand;
   }
 
   return null;
