@@ -1102,36 +1102,51 @@ const IconAnki = () => (
   </svg>
 );
 
+// All supported template variables with labels
+const TEMPLATE_VARS: { value: string; label: string; pro?: boolean }[] = [
+  { value: '{{word}}',                  label: '{{word}} — Word' },
+  { value: '{{word.phonetic}}',          label: '{{word.phonetic}} — IPA' },
+  { value: '{{word.baseform}}',          label: '{{word.baseform}} — Base form' },
+  { value: '{{word.parts-of-speech}}',   label: '{{word.parts-of-speech}} — Part of speech' },
+  { value: '{{definitions}}',            label: '{{definitions}} — Definitions' },
+  { value: '{{definitions.numbered}}',   label: '{{definitions.numbered}} — Numbered defs' },
+  { value: '{{definitions.translated}}', label: '{{definitions.translated}} — Translated defs' },
+  { value: '{{sentence}}',               label: '{{sentence}} — Context sentence' },
+  { value: '{{sentence.phonetic}}',      label: '{{sentence.phonetic}} — Sentence IPA' },
+  { value: '{{language}}',               label: '{{language}} — Language' },
+  { value: '{{links}}',                  label: '{{links}} — External links' },
+  { value: '{{word.audio}}',             label: '{{word.audio}} — Audio', pro: true },
+  { value: '{{word.image}}',             label: '{{word.image}} — Image', pro: true },
+  { value: '{{screenshot.video}}',       label: '{{screenshot.video}} — Video screenshot', pro: true },
+  { value: '{{ai.text.definition}}',     label: '{{ai.text.definition}} — AI definition', pro: true },
+  { value: '{{ai.word.image}}',          label: '{{ai.word.image}} — AI image', pro: true },
+];
+
 const getAutoMapping = (fieldName: string): string => {
-  const normalized = fieldName.toLowerCase().trim().replace(/[-_]/g, ' ');
-  
-  if (normalized.includes('word') || normalized.includes('vocabulary') || normalized === 'term') {
-    return '{{word}}';
-  }
-  if (normalized.includes('transcription') || normalized.includes('phonetic') || normalized.includes('ipa') || normalized.includes('pronunciation')) {
-    return '{{word.phonetic}}';
-  }
-  if (normalized.includes('translation') || normalized.includes('definition') || normalized.includes('meaning')) {
-    return '{{definitions}}';
-  }
-  if (normalized.includes('context') || normalized.includes('sentence') || normalized.includes('example')) {
-    return '{{sentence}}';
-  }
-  if (normalized.includes('part of speech') || normalized === 'pos') {
-    return '{{word.parts-of-speech}}';
-  }
-  if (normalized.includes('audio')) {
-    return '{{word.audio}}';
-  }
-  if (normalized.includes('image') || normalized === 'picture') {
-    return '{{word.image}}';
-  }
-  if (normalized === 'front') {
-    return '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>';
-  }
-  if (normalized === 'back') {
-    return '{{definitions}}';
-  }
+  const n = fieldName.toLowerCase().trim().replace(/[-_+]/g, ' ');
+
+  // Exact field matches first (common Anki note type naming)
+  if (n === 'word' || n === 'vocabulary' || n === 'term' || n === 'expression') return '{{word}}';
+  if (n === 'front') return '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>';
+  if (n === 'back') return '{{definitions}}';
+  if (n === 'ipa' || n === 'transcription' || n === 'phonetic' || n === 'pronunciation') return '{{word.phonetic}}';
+  if (n === 'definition' || n === 'meaning' || n === 'translation') return '{{definitions}}';
+  if (n === 'pos' || n === 'part of speech') return '{{word.parts-of-speech}}';
+  if (n === 'context' || n === 'sentence' || n === 'example') return '{{sentence}}';
+  if (n === 'audio') return '{{word.audio}}';
+  if (n === 'image' || n === 'picture') return '{{word.image}}';
+
+  // Substring matches (order matters — more specific first)
+  if (n.includes('part') && n.includes('speech')) return '{{word.parts-of-speech}}';
+  if (n.includes('phonetic') || n.includes('transcription') || n.includes('ipa') || n.includes('pronunciation')) return '{{word.phonetic}}';
+  if (n.includes('definition') || n.includes('meaning')) return '{{definitions}}';
+  if (n.includes('translation') || n.includes('translate')) return '{{definitions}}';
+  if (n.includes('context') || n.includes('sentence') || n.includes('example')) return '{{sentence}}';
+  if (n.includes('word') || n.includes('vocab') || n.includes('term')) return '{{word}}';
+  if (n.includes('audio') || n.includes('sound')) return '{{word.audio}}';
+  if (n.includes('image') || n.includes('picture') || n.includes('photo')) return '{{word.image}}';
+  if (n.includes('additional') || n.includes('extra') || n.includes('note') || n.includes('remark')) return '';
+
   return '';
 };
 
@@ -1150,7 +1165,7 @@ function AnkiTab() {
   const tier = auth.user?.tier ?? 'free';
   const isPro = tier === 'pro';
 
-  const fetchModelFields = async (modelName: string) => {
+  const fetchModelFields = async (modelName: string, forceReset = false) => {
     try {
       const url = settings?.ankiEndpoint || 'http://localhost:8765';
       const res = await fetch(url, {
@@ -1167,20 +1182,15 @@ function AnkiTab() {
         const fields = data.result as string[];
         setModelFields(fields);
 
-        // Auto-populate empty mappings
-        const currentTemplates = { ...(settings.ankiFieldTemplates || {}) };
-        let updated = false;
-        
+        // Always auto-map when switching model (forceReset) or for any missing/empty field
+        const currentTemplates = forceReset ? {} : { ...(settings.ankiFieldTemplates || {}) };
+        const newTemplates: Record<string, string> = { ...currentTemplates };
         fields.forEach(field => {
-          if (currentTemplates[field] === undefined || currentTemplates[field] === '') {
-            currentTemplates[field] = getAutoMapping(field);
-            updated = true;
+          if (forceReset || newTemplates[field] === undefined || newTemplates[field] === '') {
+            newTemplates[field] = getAutoMapping(field);
           }
         });
-        
-        if (updated) {
-          await ipaSettingsStorage.setAnkiFieldTemplates(currentTemplates);
-        }
+        await ipaSettingsStorage.setAnkiFieldTemplates(newTemplates);
       }
     } catch (err) {
       console.error('Failed to fetch model fields', err);
@@ -1345,7 +1355,8 @@ function AnkiTab() {
                   onChange={async e => {
                     const modelName = e.target.value;
                     await ipaSettingsStorage.setAnkiModelName(modelName);
-                    await fetchModelFields(modelName);
+                    // forceReset=true so templates auto-update for the new model
+                    await fetchModelFields(modelName, true);
                   }}
                   disabled={!isPro}
                 >
@@ -1432,82 +1443,149 @@ function AnkiTab() {
 
             <div className="opt-card-divider" />
             <div style={{ padding: '16px' }}>
-              <label className="opt-card-label" style={{ display: 'block', marginBottom: '8px' }}>Card Templates</label>
-
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div>
+                  <label className="opt-card-label" style={{ display: 'block', marginBottom: '2px' }}>Card Field Mapping</label>
+                  <small style={{ color: '#8c887a' }}>
+                    {modelFields.length > 0
+                      ? <><span>Each field in </span><strong style={{ color: '#e8a351' }}>{settings.ankiModelName || 'Basic'}</strong><span> mapped to a Lumen variable.</span></>
+                      : 'Connect to Anki first to load fields automatically.'}
+                  </small>
+                </div>
+                {modelFields.length > 0 && (
+                  <button
+                    onClick={async () => { await fetchModelFields(settings.ankiModelName || 'Basic', true); }}
+                    disabled={!isPro}
+                    title="Re-run auto-mapping for all fields"
+                    style={{
+                      padding: '4px 10px', background: 'none',
+                      border: '1px solid #3e3c33', borderRadius: '6px',
+                      color: '#e8a351', fontSize: '0.75rem', cursor: 'pointer',
+                      whiteSpace: 'nowrap', opacity: !isPro ? 0.5 : 1,
+                    }}
+                  >
+                    ↺ Auto-map all
+                  </button>
+                )}
+              </div>
 
               {modelFields.length > 0 ? (
-                <div>
-                  <p style={{ color: '#8c887a', fontSize: '0.8rem', marginBottom: '12px' }}>
-                    Configure the value templates for each field in your selected Anki Note Type (<strong>{settings.ankiModelName || 'Basic'}</strong>).
-                  </p>
-                  {modelFields.map(field => (
-                    <div key={field} style={{ marginBottom: '12px' }}>
-                      <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>{field}</label>
-                      <textarea
-                        className="opt-input"
-                        style={{ width: '100%', minHeight: '40px', fontFamily: 'monospace', padding: '8px' }}
-                        value={settings.ankiFieldTemplates?.[field] ?? (field === modelFields[0] ? (settings.ankiFrontTemplate ?? '') : field === modelFields[1] ? (settings.ankiBackTemplate ?? '') : '')}
-                        onChange={async e => {
-                          const newVal = e.target.value;
-                          const currentTemplates = settings.ankiFieldTemplates ?? {};
-                          await ipaSettingsStorage.setAnkiFieldTemplates({
-                            ...currentTemplates,
-                            [field]: newVal
-                          });
-                        }}
-                        disabled={!isPro}
-                      />
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {modelFields.map(field => {
+                    const currentVal = settings.ankiFieldTemplates?.[field] ?? '';
+                    const autoVal = getAutoMapping(field);
+                    return (
+                      <div key={field} style={{ background: '#1a1915', border: '1px solid #2e2c28', borderRadius: '10px', padding: '12px', position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fdfbf6', letterSpacing: '.02em' }}>{field}</span>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {autoVal && currentVal !== autoVal && (
+                              <button
+                                onClick={async () => {
+                                  const t = { ...(settings.ankiFieldTemplates ?? {}), [field]: autoVal };
+                                  await ipaSettingsStorage.setAnkiFieldTemplates(t);
+                                }}
+                                disabled={!isPro}
+                                title="Use suggested mapping"
+                                style={{ padding: '2px 8px', background: 'none', border: '1px solid #3e3c33', borderRadius: '4px', color: '#8c887a', fontSize: '0.7rem', cursor: 'pointer' }}
+                              >
+                                Use suggested: <code style={{ color: '#e8a351' }}>{autoVal}</code>
+                              </button>
+                            )}
+                            {currentVal && (
+                              <button
+                                onClick={async () => {
+                                  const t = { ...(settings.ankiFieldTemplates ?? {}), [field]: '' };
+                                  await ipaSettingsStorage.setAnkiFieldTemplates(t);
+                                }}
+                                disabled={!isPro}
+                                title="Clear this field"
+                                style={{ padding: '2px 6px', background: 'none', border: '1px solid #3e3c33', borderRadius: '4px', color: '#666', fontSize: '0.7rem', cursor: 'pointer' }}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick-pick variable pills */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                          {TEMPLATE_VARS.map(v => (
+                            <button
+                              key={v.value}
+                              onClick={async () => {
+                                if (!isPro) return;
+                                const t = { ...(settings.ankiFieldTemplates ?? {}), [field]: v.value };
+                                await ipaSettingsStorage.setAnkiFieldTemplates(t);
+                              }}
+                              disabled={!isPro}
+                              title={v.label}
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                border: 'none',
+                                fontSize: '0.68rem',
+                                fontFamily: 'monospace',
+                                cursor: isPro ? 'pointer' : 'not-allowed',
+                                fontWeight: currentVal === v.value ? 700 : 400,
+                                background: currentVal === v.value
+                                  ? '#e8a351'
+                                  : v.pro ? '#2a2218' : '#2e2c28',
+                                color: currentVal === v.value
+                                  ? '#1a1915'
+                                  : v.pro ? '#b07830' : '#c7c3b5',
+                                outline: currentVal === v.value ? '2px solid #e8a351' : 'none',
+                                transition: 'all .15s',
+                              }}
+                            >
+                              {v.value}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Custom textarea for advanced templates */}
+                        <textarea
+                          className="opt-input"
+                          rows={currentVal.includes('<') || currentVal.length > 30 ? 3 : 1}
+                          placeholder={autoVal ? `Suggested: ${autoVal}` : 'Leave empty to skip this field'}
+                          style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.78rem', padding: '6px 8px', resize: 'vertical', background: '#111', color: currentVal ? '#fdfbf6' : '#555' }}
+                          value={currentVal}
+                          onChange={async e => {
+                            const t = { ...(settings.ankiFieldTemplates ?? {}), [field]: e.target.value };
+                            await ipaSettingsStorage.setAnkiFieldTemplates(t);
+                          }}
+                          disabled={!isPro}
+                        />
+                        {!currentVal && autoVal && (
+                          <small style={{ color: '#666', fontSize: '0.68rem' }}>⚠ Empty — click a variable above or this field will be blank in Anki</small>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <div>
-                  <div style={{ marginBottom: '12px' }}>
-                    <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Front Template</label>
-                    <textarea
-                      className="opt-input"
-                      style={{ width: '100%', minHeight: '50px', fontFamily: 'monospace', padding: '8px' }}
-                      value={settings.ankiFrontTemplate ?? '<h2>{{word}}</h2><br><i>{{word.phonetic}}</i>'}
-                      onChange={e => ipaSettingsStorage.setAnkiFrontTemplate(e.target.value)}
-                      disabled={!isPro}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: '12px' }}>
-                    <label className="opt-row-name" style={{ fontSize: '0.85rem', marginBottom: '4px', display: 'block' }}>Back Template</label>
-                    <textarea
-                      className="opt-input"
-                      style={{ width: '100%', minHeight: '70px', fontFamily: 'monospace', padding: '8px' }}
-                      value={settings.ankiBackTemplate ?? '{{definitions}}'}
-                      onChange={e => ipaSettingsStorage.setAnkiBackTemplate(e.target.value)}
-                      disabled={!isPro}
-                    />
-                  </div>
+                <div style={{ background: '#1a1915', border: '1px dashed #3e3c33', borderRadius: '10px', padding: '20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🔌</div>
+                  <p style={{ color: '#8c887a', fontSize: '0.85rem', margin: 0 }}>Connect to Anki and click <strong style={{ color: '#e8a351' }}>Connect</strong> above to load note type fields automatically.</p>
                 </div>
               )}
 
-              <div style={{ background: '#1e1d1a', padding: '10px', borderRadius: '4px', fontSize: '0.8rem' }}>
-                <strong style={{ color: '#e8a351', display: 'block', marginBottom: '4px' }}>Supported Variables:</strong>
-                <div style={{ color: '#8c887a', lineHeight: '1.4' }}>
-                  <code>{"{{word}}"}</code> - Word or phrasal noun/verb<br />
-                  <code>{"{{word.phonetic}}"}</code> - Phonetic pronunciation (IPA)<br />
-                  <code>{"{{word.baseform}}"}</code> - Base form of a word<br />
-                  <code>{"{{word.parts-of-speech}}"}</code> - Parts of speech<br />
-                  <code>{"{{language}}"}</code> - Language of a word (e.g., English)<br />
-                  <code>{"{{definitions}}"}</code> - List of definitions<br />
-                  <code>{"{{definitions.numbered}}"}</code> - Numbered list of definitions<br />
-                  <code>{"{{definitions.translated}}"}</code> - Translated definitions<br />
-                  <code>{"{{sentence}}"}</code> - Sentence in which word was encountered<br />
-                  <code>{"{{sentence.phonetic}}"}</code> - Phonetic pronunciation of sentence<br />
-                  <code>{"{{links}}"}</code> - List of external links<br />
-                  <div style={{ color: '#e8a351', marginTop: '6px', marginBottom: '2px' }}><strong>Pro / AI Features (Placeholders):</strong></div>
-                  <code>{"{{word.audio}}"}</code> - Audio pronunciation<br />
-                  <code>{"{{word.image}}"}</code> - Image of a word<br />
-                  <code>{"{{screenshot.video}}"}</code> - Screenshot of a video<br />
-                  <code>{"{{ai.text.definition}}"}</code> - Contextual definition by AI<br />
-                  <code>{"{{ai.word.image}}"}</code> - Stylized image by AI
+              {/* Collapsible variables reference */}
+              <details style={{ marginTop: '12px' }}>
+                <summary style={{ color: '#8c887a', fontSize: '0.78rem', cursor: 'pointer', userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.7rem' }}>▶</span> All supported variables reference
+                </summary>
+                <div style={{ background: '#1e1d1a', padding: '10px 12px', borderRadius: '6px', fontSize: '0.78rem', marginTop: '8px', lineHeight: 1.7 }}>
+                  {TEMPLATE_VARS.filter(v => !v.pro).map(v => (
+                    <div key={v.value}><code style={{ color: '#e8a351' }}>{v.value}</code> <span style={{ color: '#8c887a' }}>— {v.label.split(' — ')[1]}</span></div>
+                  ))}
+                  <div style={{ color: '#b07830', marginTop: '8px', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '.05em' }}>Pro / AI (placeholders)</div>
+                  {TEMPLATE_VARS.filter(v => v.pro).map(v => (
+                    <div key={v.value}><code style={{ color: '#b07830' }}>{v.value}</code> <span style={{ color: '#6a6660' }}>— {v.label.split(' — ')[1]}</span></div>
+                  ))}
                 </div>
-              </div>
+              </details>
+
               <div style={{ marginTop: '12px', textAlign: 'right' }}>
                 <button
                   style={{
