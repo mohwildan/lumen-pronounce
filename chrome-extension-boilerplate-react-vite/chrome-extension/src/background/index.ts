@@ -972,8 +972,11 @@ async function handleTts(word: string, sendResponse: (r: object) => void): Promi
   sendResponse({ error: 'all_failed' });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[IPA Stylizer] Extension installed');
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('[IPA Stylizer] Extension installed', details.reason);
+  if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+    chrome.tabs.create({ url: chrome.runtime.getURL('options/index.html?onboarding=true') });
+  }
 });
 
 // Sync tier from DB on service worker startup

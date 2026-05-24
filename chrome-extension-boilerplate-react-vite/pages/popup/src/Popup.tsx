@@ -25,12 +25,12 @@ const DEFAULT_COLOR_MAP: Required<IpaColorMap> = {
 
 const VISUAL_ROWS: ToggleRow[] = [
   { id: 'silent', label: 'Ghost Letters', example: 's<span style="opacity:0.3">w</span>ord' },
-  { id: 'color_e', label: '/ɛ/ Red', example: (hex: string) => `s<span style="color:${hex}">e</span>cond`, colorKey: 'red', defaultColor: DEFAULT_COLOR_MAP.red },
-  { id: 'color_i', label: '/i/ Green', example: (hex: string) => `r<span style="color:${hex}">e</span>ceipt`, colorKey: 'green', defaultColor: DEFAULT_COLOR_MAP.green },
-  { id: 'color_u_alt', label: '/ʌ/ Purple', example: (hex: string) => `s<span style="color:${hex}">o</span>me`, colorKey: 'purple', defaultColor: DEFAULT_COLOR_MAP.purple },
-  { id: 'color_a', label: '/æ/ Pink', example: (hex: string) => `c<span style="color:${hex}">a</span>t`, colorKey: 'pink', defaultColor: DEFAULT_COLOR_MAP.pink },
-  { id: 'color_u', label: '/u/ Teal', example: (hex: string) => `t<span style="color:${hex}">o</span>mb`, colorKey: 'teal', defaultColor: DEFAULT_COLOR_MAP.teal },
-  { id: 'color_o', label: '/ɔ/ Amber', example: (hex: string) => `qu<span style="color:${hex}">a</span>rter`, colorKey: 'orange', defaultColor: DEFAULT_COLOR_MAP.orange },
+  { id: 'color_e', label: '/ɛ/', example: (hex: string) => `s<span style="color:${hex}">e</span>cond`, colorKey: 'red', defaultColor: DEFAULT_COLOR_MAP.red },
+  { id: 'color_i', label: '/i/', example: (hex: string) => `r<span style="color:${hex}">e</span>ceipt`, colorKey: 'green', defaultColor: DEFAULT_COLOR_MAP.green },
+  { id: 'color_u_alt', label: '/ʌ/', example: (hex: string) => `s<span style="color:${hex}">o</span>me`, colorKey: 'purple', defaultColor: DEFAULT_COLOR_MAP.purple },
+  { id: 'color_a', label: '/æ/', example: (hex: string) => `c<span style="color:${hex}">a</span>t`, colorKey: 'pink', defaultColor: DEFAULT_COLOR_MAP.pink },
+  { id: 'color_u', label: '/u/', example: (hex: string) => `t<span style="color:${hex}">o</span>mb`, colorKey: 'teal', defaultColor: DEFAULT_COLOR_MAP.teal },
+  { id: 'color_o', label: '/ɔ/', example: (hex: string) => `qu<span style="color:${hex}">a</span>rter`, colorKey: 'orange', defaultColor: DEFAULT_COLOR_MAP.orange },
 ];
 
 const MOD_ROWS: ToggleRow[] = [

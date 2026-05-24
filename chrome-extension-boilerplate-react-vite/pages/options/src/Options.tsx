@@ -29,9 +29,9 @@ const PRO_OPT_IDS = new Set<keyof IpaOpts>([
 type SettingRow = {
   id: keyof IpaOpts;
   label: string;
-  desc: string;
+  desc: string | ((color: string) => string);
   swatch?: string;
-  colorKey: keyof IpaColorMap;
+  colorKey?: keyof IpaColorMap;
   defaultColor?: string;
 };
 
@@ -46,12 +46,12 @@ const DEFAULT_COLOR_MAP: Required<IpaColorMap> = {
 
 const COLOR_OPTS: SettingRow[] = [
   { id: 'silent', label: 'Ghost Letters', desc: 'Fade silent letters to show which characters are unpronounced' },
-  { id: 'color_e', label: '/ɛ/ Red', desc: 'bed, head, said — short e sound', colorKey: 'red', defaultColor: DEFAULT_COLOR_MAP.red },
-  { id: 'color_i', label: '/i/ Green', desc: 'receipt, ski — long ee sound', colorKey: 'green', defaultColor: DEFAULT_COLOR_MAP.green },
-  { id: 'color_u_alt', label: '/ʌ/ Purple', desc: 'some, blood, love — uh vowel', colorKey: 'purple', defaultColor: DEFAULT_COLOR_MAP.purple },
-  { id: 'color_a', label: '/æ/ Pink', desc: 'cat, trap, hand — short a sound', colorKey: 'pink', defaultColor: DEFAULT_COLOR_MAP.pink },
-  { id: 'color_u', label: '/u/ Teal', desc: 'tomb, blue, shoe — long oo sound', colorKey: 'teal', defaultColor: DEFAULT_COLOR_MAP.teal },
-  { id: 'color_o', label: '/ɔ/ Amber', desc: 'quarter, law, thought — aw sound', colorKey: 'orange', defaultColor: DEFAULT_COLOR_MAP.orange },
+  { id: 'color_e', label: '/ɛ/', desc: (c) => `b<span style="color:${c}">e</span>d, h<span style="color:${c}">ea</span>d, s<span style="color:${c}">ai</span>d — short e sound`, colorKey: 'red', defaultColor: DEFAULT_COLOR_MAP.red },
+  { id: 'color_i', label: '/i/', desc: (c) => `r<span style="color:${c}">e</span>ceipt, sk<span style="color:${c}">i</span> — long ee sound`, colorKey: 'green', defaultColor: DEFAULT_COLOR_MAP.green },
+  { id: 'color_u_alt', label: '/ʌ/', desc: (c) => `s<span style="color:${c}">o</span>me, bl<span style="color:${c}">oo</span>d, l<span style="color:${c}">o</span>ve — uh vowel`, colorKey: 'purple', defaultColor: DEFAULT_COLOR_MAP.purple },
+  { id: 'color_a', label: '/æ/', desc: (c) => `c<span style="color:${c}">a</span>t, tr<span style="color:${c}">a</span>p, h<span style="color:${c}">a</span>nd — short a sound`, colorKey: 'pink', defaultColor: DEFAULT_COLOR_MAP.pink },
+  { id: 'color_u', label: '/u/', desc: (c) => `t<span style="color:${c}">o</span>mb, bl<span style="color:${c}">ue</span>, sh<span style="color:${c}">oe</span> — long oo sound`, colorKey: 'teal', defaultColor: DEFAULT_COLOR_MAP.teal },
+  { id: 'color_o', label: '/ɔ/', desc: (c) => `qu<span style="color:${c}">a</span>rter, l<span style="color:${c}">aw</span>, th<span style="color:${c}">ough</span>t — aw sound`, colorKey: 'orange', defaultColor: DEFAULT_COLOR_MAP.orange },
 ];
 
 const PHONETIC_OPTS: SettingRow[] = [
@@ -176,31 +176,35 @@ function SettingsTab() {
       {/* Color Coding */}
       <SectionLabel>Color Coding</SectionLabel>
       <div className="opt-rows">
-        {COLOR_OPTS.map(row => (
-          <div key={row.id} className="opt-row">
-            <div className="opt-row-body">
-              {row.colorKey
-                ? <span className="opt-swatch" style={{ background: resolvedColorMap[row.colorKey] }} />
-                : <span className="opt-swatch opt-swatch-ghost" />
-              }
-              <div className="opt-row-text">
-                <span className="opt-row-name">{row.label}</span>
-                <small>{row.desc}</small>
+        {COLOR_OPTS.map(row => {
+          const colorValue = row.colorKey ? resolvedColorMap[row.colorKey] : undefined;
+          const descHtml = typeof row.desc === 'function' ? row.desc(colorValue ?? row.defaultColor ?? '#999999') : row.desc;
+          
+          return (
+            <div key={row.id} className="opt-row">
+              <div className="opt-row-body">
+                {row.colorKey
+                  ? <span className="opt-swatch" style={{ background: colorValue }} />
+                  : <span className="opt-swatch opt-swatch-ghost" />
+                }
+                <div className="opt-row-text">
+                  <span className="opt-row-name">{row.label}</span>
+                  <small dangerouslySetInnerHTML={{ __html: descHtml }} />
+                </div>
               </div>
-            </div>
             {row.colorKey && (
               <label className="opt-color-picker" title="Pick color">
                 <input
                   className="opt-color-input"
                   type="color"
-                  value={resolvedColorMap[row.colorKey]}
-                  onChange={e => ipaSettingsStorage.setColor(row.colorKey, e.target.value)}
+                  value={colorValue}
+                  onChange={e => ipaSettingsStorage.setColor(row.colorKey!, e.target.value)}
                 />
               </label>
             )}
             <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
           </div>
-        ))}
+        )})}
         <div className="opt-row opt-row-tight">
           <div className="opt-row-body">
             <span className="opt-swatch opt-swatch-ghost" />
@@ -242,7 +246,7 @@ function SettingsTab() {
                     <span className="opt-row-name">{row.label}</span>
                     {PRO_OPT_IDS.has(row.id) && <span className="opt-pro-badge">Pro</span>}
                   </div>
-                  <small>{row.desc}</small>
+                  <small dangerouslySetInnerHTML={{ __html: typeof row.desc === 'function' ? row.desc('#999') : row.desc }} />
                 </div>
               </div>
               {locked ? (
@@ -2153,9 +2157,54 @@ const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'shortcuts', label: 'Shortcuts', icon: <IconKeyboard /> },
 ];
 
+function Onboarding({ onComplete }: { onComplete: () => void }) {
+  const settings = useStorage(ipaSettingsStorage);
+  const [lang, setLang] = useState(settings?.targetLanguage || 'id'); // Default to 'id' (Indonesian) or similar based on locale, but let's use 'en' as default or whatever is in settings
+
+  useEffect(() => {
+    if (settings?.targetLanguage) setLang(settings.targetLanguage);
+  }, [settings?.targetLanguage]);
+
+  return (
+    <div className="opt-onboarding-wrapper">
+      <div className="opt-onboarding-modal">
+        <div className="opt-onboarding-icon">
+          <img src={chrome.runtime.getURL('icon-128.png')} alt="Logo" width="48" height="48" />
+        </div>
+        <h2>Welcome to Lumen</h2>
+        <p>Before we start, select your native language so we can translate words for you.</p>
+        <div className="opt-onboarding-field">
+          <label>Native Language</label>
+          <div className="opt-select-wrapper">
+            <select value={lang} onChange={(e) => setLang(e.target.value)}>
+              {LANGUAGES.map(l => (
+                <option key={l.code} value={l.code}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button className="opt-onboarding-btn" onClick={() => {
+          ipaSettingsStorage.setLanguage(lang);
+          onComplete();
+        }}>
+          Get Started
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const Options = () => {
   const [tab, setTab] = useState<Tab>('settings');
   const settings = useStorage(ipaSettingsStorage);
+  const [isOnboarding, setIsOnboarding] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('onboarding') === 'true') {
+      setIsOnboarding(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!settings?.opts) return;
@@ -2183,6 +2232,17 @@ const Options = () => {
       b.classList.toggle(cls, !!settings.opts[key]);
     }
   }, [settings?.opts]);
+
+  if (isOnboarding) {
+    return (
+      <Onboarding onComplete={() => {
+        setIsOnboarding(false);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('onboarding');
+        window.history.replaceState({}, '', url.toString());
+      }} />
+    );
+  }
 
   return (
     <div className="opt-app">
