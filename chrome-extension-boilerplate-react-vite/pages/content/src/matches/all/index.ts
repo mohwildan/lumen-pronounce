@@ -384,6 +384,11 @@ let mouseInTip = false;
 let phrasalVerbsSet = new Set<string>();
 let phrasalParticlesSet = new Set<string>();
 
+const VALID_PARTICLES = new Set([
+  'up', 'down', 'in', 'out', 'on', 'off', 'away', 'back', 'over', 'through',
+  'about', 'around', 'across', 'along', 'by', 'forward', 'to', 'with', 'into', 'onto', 'for', 'after', 'aside'
+]);
+
 async function loadPhrasalVerbs(): Promise<void> {
   try {
     const url = chrome.runtime.getURL('en-phrasal-verbs.txt');
@@ -398,8 +403,9 @@ async function loadPhrasalVerbs(): Promise<void> {
       const parts = line.split(/\s+/);
       if (parts.length > 1) {
         for (let i = 1; i < parts.length; i++) {
-          if (parts[i]) {
-            phrasalParticlesSet.add(parts[i]);
+          const part = parts[i];
+          if (part && VALID_PARTICLES.has(part)) {
+            phrasalParticlesSet.add(part);
           }
         }
       }
@@ -443,45 +449,69 @@ function isOwnEl(node: Node | null): boolean {
 
 const PHRASAL_PARTICLES = phrasalParticlesSet;
 
-function findSentenceRpwSiblings(wordEl: Element, maxWords = 4): Element[] {
-  const siblings: Element[] = [];
-  let curr: Node | null = wordEl;
+function cleanStressMarks(word: string): string {
+  return word.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^'+|'+$/g, '');
+}
+
+function getInOrderRpws(wordEl: Element, direction: 'forward' | 'backward', maxWords = 4): Element[] {
+  const result: Element[] = [];
+  const root = wordEl.closest('p, div, h1, h2, h3, h4, h5, h6, li, td, th, section, article, tr, table') || document.body;
+
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    null
+  );
+
+  walker.currentNode = wordEl;
+
   let textBetween = '';
-  while (curr && siblings.length < maxWords) {
-    curr = curr.nextSibling;
-    if (!curr) break;
-    if (curr.nodeType === Node.ELEMENT_NODE) {
-      const cel = curr as Element;
-      if (cel.tagName === 'RP-W') {
-        siblings.push(cel);
-      } else {
-        const found = cel.querySelectorAll('rp-w');
-        found.forEach(f => {
-          if (siblings.length < maxWords) siblings.push(f);
-        });
+  while (result.length < maxWords) {
+    const node = direction === 'forward' ? walker.nextNode() : walker.previousNode();
+    if (!node) break;
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      if (el.tagName === 'RP-W') {
+        result.push(el);
       }
-    } else if (curr.nodeType === Node.TEXT_NODE) {
-      textBetween += curr.textContent || '';
-      if (/[.?!;]/.test(textBetween)) break; // stop at sentence boundary
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      textBetween += node.textContent || '';
+      if (/[.?!;]/.test(textBetween)) {
+        break; // stop at sentence boundary
+      }
     }
   }
-  return siblings;
+  return result;
+}
+
+function findSentenceRpwSiblings(wordEl: Element, maxWords = 4): Element[] {
+  return getInOrderRpws(wordEl, 'forward', maxWords);
+}
+
+function findSentenceRpwPredecessors(wordEl: Element, maxWords = 4): Element[] {
+  return getInOrderRpws(wordEl, 'backward', maxWords);
 }
 
 function findNextRpw(el: Element, maxDistance = 3): Element | null {
-  let curr: Node | null = el;
+  const root = el.closest('p, div, h1, h2, h3, h4, h5, h6, li, td, th, section, article, tr, table') || document.body;
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    null
+  );
+  walker.currentNode = el;
   let textBetween = '';
-  while (curr && maxDistance > 0) {
-    curr = curr.nextSibling;
-    if (!curr) break;
-    if (curr.nodeType === Node.ELEMENT_NODE) {
-      const cel = curr as Element;
+  let distance = 0;
+  while (distance < maxDistance) {
+    const node = walker.nextNode();
+    if (!node) break;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const cel = node as Element;
       if (cel.tagName === 'RP-W') return cel;
-      const found = cel.querySelector('rp-w');
-      if (found) return found;
-      maxDistance--;
-    } else if (curr.nodeType === Node.TEXT_NODE) {
-      textBetween += curr.textContent || '';
+      distance++;
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      textBetween += node.textContent || '';
       if (/[.?!;]/.test(textBetween)) return null;
     }
   }
@@ -491,7 +521,7 @@ function findNextRpw(el: Element, maxDistance = 3): Element | null {
 function getPhrasalCandidates(wordEl: Element): string[] {
   const result: string[] = [];
   const base = wordEl.getAttribute('data-word') || wordEl.textContent?.trim() || '';
-  const cleanBase = base.replace(/^'+|'+$/g, '').toLowerCase();
+  const cleanBase = cleanStressMarks(base).toLowerCase();
   if (!cleanBase) return [];
 
   const baseWordInflection = (baseforms && baseforms[cleanBase]) ? baseforms[cleanBase].toLowerCase() : cleanBase;
@@ -499,7 +529,8 @@ function getPhrasalCandidates(wordEl: Element): string[] {
   // 1. Contiguous phrasal verb candidates (up to 3 words)
   const nextEl = findNextRpw(wordEl);
   if (nextEl) {
-    const nextWord = (nextEl.getAttribute('data-word') || nextEl.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+    const nextWordRaw = nextEl.getAttribute('data-word') || nextEl.textContent?.trim() || '';
+    const nextWord = cleanStressMarks(nextWordRaw).toLowerCase();
     if (nextWord) {
       result.push(`${baseWordInflection} ${nextWord}`);
       if (baseWordInflection !== cleanBase) {
@@ -508,7 +539,8 @@ function getPhrasalCandidates(wordEl: Element): string[] {
 
       const next2El = findNextRpw(nextEl);
       if (next2El) {
-        const next2Word = (next2El.getAttribute('data-word') || next2El.textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+        const next2WordRaw = next2El.getAttribute('data-word') || next2El.textContent?.trim() || '';
+        const next2Word = cleanStressMarks(next2WordRaw).toLowerCase();
         if (next2Word) {
           result.push(`${baseWordInflection} ${nextWord} ${next2Word}`);
           if (baseWordInflection !== cleanBase) {
@@ -522,8 +554,10 @@ function getPhrasalCandidates(wordEl: Element): string[] {
   // 2. Non-contiguous (separable) phrasal verb candidates
   const siblings = findSentenceRpwSiblings(wordEl, 4);
   for (let i = 0; i < siblings.length; i++) {
-    const sWord = (siblings[i].getAttribute('data-word') || siblings[i].textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
-    if (PHRASAL_PARTICLES.has(sWord)) {
+    const sWordRaw = siblings[i].getAttribute('data-word') || siblings[i].textContent?.trim() || '';
+    const sWord = cleanStressMarks(sWordRaw).toLowerCase();
+    const isParticle = PHRASAL_PARTICLES.has(sWord);
+    if (isParticle) {
       result.push(`${baseWordInflection} ${sWord}`);
       if (baseWordInflection !== cleanBase) {
         result.push(`${cleanBase} ${sWord}`);
@@ -531,11 +565,57 @@ function getPhrasalCandidates(wordEl: Element): string[] {
 
       // Check if there is a secondary particle right after it, e.g. "let ... in on"
       if (i + 1 < siblings.length) {
-        const nextSWord = (siblings[i + 1].getAttribute('data-word') || siblings[i + 1].textContent?.trim() || '').replace(/^'+|'+$/g, '').toLowerCase();
+        const nextSWordRaw = siblings[i + 1].getAttribute('data-word') || siblings[i + 1].textContent?.trim() || '';
+        const nextSWord = cleanStressMarks(nextSWordRaw).toLowerCase();
         if (PHRASAL_PARTICLES.has(nextSWord)) {
           result.push(`${baseWordInflection} ${sWord} ${nextSWord}`);
           if (baseWordInflection !== cleanBase) {
             result.push(`${cleanBase} ${sWord} ${nextSWord}`);
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Backward lookup for phrasal verb candidates (if hovered word is a particle)
+  const isBaseParticle = PHRASAL_PARTICLES.has(cleanBase) || PHRASAL_PARTICLES.has(baseWordInflection);
+  if (isBaseParticle) {
+    const predecessors = findSentenceRpwPredecessors(wordEl, 4);
+    for (let i = 0; i < predecessors.length; i++) {
+      const pEl = predecessors[i];
+      const pWordRaw = pEl.getAttribute('data-word') || pEl.textContent?.trim() || '';
+      const pWord = cleanStressMarks(pWordRaw).toLowerCase();
+      const pBase = (baseforms && baseforms[pWord]) ? baseforms[pWord].toLowerCase() : pWord;
+
+      if (pWord) {
+        result.push(`${pBase} ${cleanBase}`);
+        if (pBase !== pWord) {
+          result.push(`${pWord} ${cleanBase}`);
+        }
+        if (cleanBase !== baseWordInflection) {
+          result.push(`${pBase} ${baseWordInflection}`);
+          if (pBase !== pWord) {
+            result.push(`${pWord} ${baseWordInflection}`);
+          }
+        }
+      }
+
+      // Check for 3-word combos: prevWord (predecessors[i+1]) + pWord (predecessors[i]) + hovered (cleanBase)
+      if (i + 1 < predecessors.length) {
+        const prevEl = predecessors[i + 1];
+        const prevWordRaw = prevEl.getAttribute('data-word') || prevEl.textContent?.trim() || '';
+        const prevWord = cleanStressMarks(prevWordRaw).toLowerCase();
+        const prevBase = (baseforms && baseforms[prevWord]) ? baseforms[prevWord].toLowerCase() : prevWord;
+        if (prevWord) {
+          result.push(`${prevBase} ${pWord} ${cleanBase}`);
+          if (prevBase !== prevWord) {
+            result.push(`${prevWord} ${pWord} ${cleanBase}`);
+          }
+          if (cleanBase !== baseWordInflection) {
+            result.push(`${prevBase} ${pWord} ${baseWordInflection}`);
+            if (prevBase !== prevWord) {
+              result.push(`${prevWord} ${pWord} ${baseWordInflection}`);
+            }
           }
         }
       }
@@ -558,7 +638,8 @@ function detectPhrasalVerb(wordEl: Element): string | null {
 
   // 2. Check if candidate phrase exists in the loaded phrasal verbs list
   for (const cand of [...candidates].reverse()) {
-    if (phrasalVerbsSet.has(cand)) {
+    const hasPh = phrasalVerbsSet.has(cand);
+    if (hasPh) {
       return cand;
     }
   }
@@ -1056,14 +1137,15 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
 }
 
 async function fetchDictDef(word: string): Promise<void> {
-  const key = word.toLowerCase();
+  const cleanWord = cleanStressMarks(word);
+  const key = cleanWord.toLowerCase();
   if (!(key in defCache)) {
     try {
       const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(key)}`);
       defCache[key] = r.ok ? await r.json() : null;
     } catch { defCache[key] = null; }
   }
-  if (currentWord === word) {
+  if (currentWord === cleanWord) {
     let activeTabName = 'definition';
     if (tip) {
       const activeBtn = Array.from(tip.querySelectorAll('button[data-tab]')).find(
@@ -1074,7 +1156,7 @@ async function fetchDictDef(word: string): Promise<void> {
       }
     }
     if (activeTabName === 'definition' || activeTabName === 'examples') {
-      void renderTab(activeTabName, word, defCache[key]);
+      void renderTab(activeTabName, cleanWord, defCache[key]);
     }
     const data = defCache[key];
     if (data) {
@@ -1100,7 +1182,6 @@ function posTip(mouseX: number, mouseY: number): void {
   const PAD = 10, H = 280;
   const fs = document.fullscreenElement;
   if (fs && fs.tagName !== 'VIDEO') {
-    // Inside fullscreen el: use absolute coords relative to its bounding rect
     const r = fs.getBoundingClientRect();
     const W = r.width || window.innerWidth;
     const Ht = r.height || window.innerHeight;
@@ -1121,23 +1202,29 @@ function posTip(mouseX: number, mouseY: number): void {
 }
 
 function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
-  const originalWord = wordEl.getAttribute('data-word');
+  const originalWordRaw = wordEl.getAttribute('data-word') || wordEl.textContent?.trim() || '';
+  const originalWordClean = cleanStressMarks(originalWordRaw);
   const originalArpa = wordEl.getAttribute('data-arpa');
-  if (!originalWord) return;
+  if (!originalWordClean) return;
 
   maybePauseVideo();
 
   const detectedPhrasal = detectPhrasalVerb(wordEl);
+  let currentSentenceTranslation = '';
 
   const renderContent = (displayWord: string, displayArpa: string) => {
-    currentWord = displayWord;
+    const cleanWord = cleanStressMarks(displayWord);
+    currentWord = cleanWord;
     activeRenderContent = renderContent;
     const t = getTip();
 
-    const wLower = displayWord.toLowerCase();
+    const wLower = cleanWord.toLowerCase();
     const baseWord = (baseforms && baseforms[wLower]) ? baseforms[wLower] : null;
     const hasBaseForm = baseWord && baseWord.toLowerCase() !== wLower;
-    const phrasalVerb = (displayWord.toLowerCase() === originalWord.toLowerCase()) ? detectedPhrasal : null;
+    
+    const displayWordClean = cleanStressMarks(displayWord);
+    const originalWordCleaned = cleanStressMarks(originalWordRaw);
+    const phrasalVerb = (displayWordClean.toLowerCase() === originalWordCleaned.toLowerCase()) ? detectedPhrasal : null;
 
     let activeTabName = 'definition';
     const activeBtn = Array.from(t.querySelectorAll('button[data-tab]')).find(
@@ -1149,11 +1236,14 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
     t.innerHTML = buildTipHTML(displayWord, toIPA(displayArpa ?? ''), hasBaseForm ? baseWord : null, phrasalVerb, activeTabName);
     t.style.pointerEvents = 'auto';
+    if (currentSentenceTranslation) {
+      renderSentence(currentSentenceTranslation);
+    }
 
     // Wire up speaker button
     const speakBtn = t.querySelector('#__ipa_speak_btn__') as HTMLButtonElement | null;
     if (speakBtn) {
-      speakBtn.addEventListener('click', e => { e.stopPropagation(); playPronunciation(displayWord); });
+      speakBtn.addEventListener('click', e => { e.stopPropagation(); playPronunciation(cleanWord); });
     }
 
     // Wire up Anki button
@@ -1163,7 +1253,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
         e.stopPropagation();
         const ipaSpan = t.querySelector('#__ipa_header_ipa__');
         const ipaVal = ipaSpan?.textContent || '';
-        void saveToAnki(displayWord, ipaVal, defCache[displayWord.toLowerCase()]);
+        void saveToAnki(cleanWord, ipaVal, defCache[wLower]);
       });
     }
 
@@ -1172,7 +1262,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
       btn.addEventListener('click', () => {
         t.querySelectorAll('[data-tab]').forEach(b => ((b as HTMLElement).style.cssText = S.tab + S.tabOff));
         (btn as HTMLElement).style.cssText = S.tab + S.tabOn;
-        void renderTab((btn as HTMLElement).dataset.tab!, displayWord, defCache[displayWord.toLowerCase()]);
+        void renderTab((btn as HTMLElement).dataset.tab!, cleanWord, defCache[wLower]);
       });
     });
 
@@ -1207,25 +1297,25 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
     // Render active tab immediately if possible
     if (activeTabName !== 'definition' && activeTabName !== 'examples') {
-      void renderTab(activeTabName, displayWord, defCache[wLower]);
+      void renderTab(activeTabName, cleanWord, defCache[wLower]);
     } else if (wLower in defCache) {
-      void renderTab(activeTabName, displayWord, defCache[wLower]);
+      void renderTab(activeTabName, cleanWord, defCache[wLower]);
     }
 
     // 1. Definition (always)
-    void fetchDictDef(displayWord);
+    void fetchDictDef(cleanWord);
 
     // 2. Word POS translations
     if (lang && lang !== 'none') {
-      void fetchWordData(displayWord, lang).then(data => {
-        if (currentWord !== displayWord) return;
+      void fetchWordData(cleanWord, lang).then(data => {
+        if (currentWord !== cleanWord) return;
         renderPosArea(data.posList, lang, data.mainTranslation);
       });
     }
   };
 
   const t = getTip();
-  renderContent(originalWord, originalArpa ?? '');
+  renderContent(originalWordRaw, originalArpa ?? '');
 
   t.style.transform = 'translateY(6px)'; t.style.opacity = '0';
   requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
@@ -1237,6 +1327,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
     if (sentence) {
       void translate(sentence, lang).then(result => {
         if (!currentWord) return;
+        currentSentenceTranslation = result;
         renderSentence(result);
       });
     }
@@ -1440,17 +1531,19 @@ function guessPronunciation(word: string, depth = 0): string | null {
 
 function processTextNode(node: Text): void {
   const text = node.textContent;
-  if (!text?.trim() || !/[a-zA-Z]/.test(text)) return;
+  if (!text?.trim() || !/[\p{L}\p{M}]/u.test(text)) return;
   // Normalize curly apostrophes (U+2019) and modifier letter apostrophe (U+02BC) → straight
   const norm = text.replace(/[’ʼ]/g, "'");
-  const tokens = norm.match(/[a-zA-Z']+|[^a-zA-Z']+/g) ?? [];
+  const tokens = norm.match(/[\p{L}\p{M}']+|[^\p{L}\p{M}]+/gu) ?? [];
   const frag = document.createDocumentFragment();
   let changed = false;
 
   for (const token of tokens) {
-    if (!/^[a-zA-Z']+$/i.test(token)) { frag.appendChild(document.createTextNode(token)); continue; }
+    if (!/^[\p{L}\p{M}']+$/iu.test(token)) { frag.appendChild(document.createTextNode(token)); continue; }
 
-    const clean = token.replace(/^'+|'+$/g, ''); // strip leading/trailing apostrophes
+    const displayWord = token.replace(/^'+|'+$/g, ''); // strip leading/trailing apostrophes
+    const clean = displayWord.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents/diacritics for dict check
+    
     let arpa = clean ? (dict?.[clean.toLowerCase()] ?? null) : null;
     if (!arpa && clean && baseforms) {
       const base = baseforms[clean.toLowerCase()];
@@ -1472,15 +1565,16 @@ function processTextNode(node: Text): void {
 
       if (clean.includes("'")) {
         // Contraction: IPA the base word only, suffix lives as text inside same rp-w
-        // → hover on "'m" / "'ve" etc. still triggers popup for the whole word
-        const apostIdx = clean.indexOf("'");
-        const base = clean.slice(0, apostIdx);
-        const suffix = clean.slice(apostIdx);
-        const baseArpa = (base && dict?.[base.toLowerCase()]) ?? arpa;
-        frag.appendChild(makeContractionEl(base, baseArpa, suffix, clean));
+        const apostIdx = displayWord.indexOf("'");
+        const base = displayWord.slice(0, apostIdx);
+        const suffix = displayWord.slice(apostIdx);
+        
+        const cleanBase = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const baseArpa = (cleanBase && dict?.[cleanBase]) ?? arpa;
+        frag.appendChild(makeContractionEl(base, baseArpa, suffix, displayWord));
       } else {
         const post = token.match(/'+$/)?.[0] ?? '';
-        frag.appendChild(renderWordFrag(clean, arpa));
+        frag.appendChild(renderWordFrag(displayWord, arpa));
         if (post) frag.appendChild(document.createTextNode(post));
       }
       changed = true;
@@ -1489,30 +1583,32 @@ function processTextNode(node: Text): void {
 
     // Contraction fallback (guessPronunciation also failed)
     if (clean.includes("'")) {
-      const apostIdx = clean.indexOf("'");
-      const base = clean.slice(0, apostIdx);
-      const suffix = clean.slice(apostIdx);
+      const apostIdx = displayWord.indexOf("'");
+      const base = displayWord.slice(0, apostIdx);
+      const suffix = displayWord.slice(apostIdx);
       if (base.length > 0) {
-        let baseArpa = dict?.[base.toLowerCase()] ?? null;
-        if (!baseArpa && base.length > 2 && base.endsWith('n')) {
-          baseArpa = dict?.[base.slice(0, -1).toLowerCase()] ?? null;
+        const cleanBase = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        let baseArpa = dict?.[cleanBase] ?? null;
+        if (!baseArpa && cleanBase.length > 2 && cleanBase.endsWith('n')) {
+          baseArpa = dict?.[cleanBase.slice(0, -1)] ?? null;
         }
         if (baseArpa) {
           const pre = token.match(/^'+/)?.[0] ?? '';
           if (pre) frag.appendChild(document.createTextNode(pre));
-          frag.appendChild(makeContractionEl(base, baseArpa, suffix, clean)); // suffix inside rp-w
+          frag.appendChild(makeContractionEl(base, baseArpa, suffix, displayWord)); // suffix inside rp-w
           changed = true;
           continue;
         }
       }
     }
-    // General fallback: if the word is alphabetical and has length >= 2, we still wrap it with an empty arpa
+    
+    // General fallback: if the word has length >= 2, we still wrap it with an empty arpa
     // so it is hoverable, has a dictionary definition, and can be saved to Anki.
-    if (clean && /^[a-zA-Z]+$/.test(clean) && clean.length >= 2) {
+    if (clean && clean.length >= 2) {
       const pre = token.match(/^'+/)?.[0] ?? '';
       if (pre) frag.appendChild(document.createTextNode(pre));
       const post = token.match(/'+$/)?.[0] ?? '';
-      frag.appendChild(renderWordFrag(clean, ''));
+      frag.appendChild(renderWordFrag(displayWord, ''));
       if (post) frag.appendChild(document.createTextNode(post));
       changed = true;
       continue;
@@ -1537,11 +1633,11 @@ function gatherWords(node: Node): Set<string> {
   function traverse(n: Node) {
     if (n.nodeType === Node.TEXT_NODE) {
       const text = n.textContent;
-      if (!text?.trim() || !/[a-zA-Z]/.test(text)) return;
+      if (!text?.trim() || !/[\p{L}\p{M}]/u.test(text)) return;
       const norm = text.replace(/[’ʼ]/g, "'");
-      const tokens = norm.match(/[a-zA-Z']+/g) ?? [];
+      const tokens = norm.match(/[\p{L}\p{M}']+/gu) ?? [];
       for (const token of tokens) {
-        const clean = token.replace(/^'+|'+$/g, '').toLowerCase();
+        const clean = token.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^'+|'+$/g, '').toLowerCase();
         if (clean && !dict[clean]) {
           words.add(clean);
           gatherGuesses(clean);
@@ -1610,7 +1706,7 @@ function updateContainerPronunciations(container: Node): void {
     if (!word) continue;
 
     const oldArpa = rpw.getAttribute('data-arpa') ?? '';
-    const clean = word.replace(/^'+|'+$/g, '').toLowerCase();
+    const clean = word.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^'+|'+$/g, '').toLowerCase();
 
     let newArpa = dict?.[clean] ?? null;
     if (!newArpa && baseforms) {
@@ -1623,9 +1719,10 @@ function updateContainerPronunciations(container: Node): void {
       const base = word.slice(0, apostIdx);
       const suffix = word.slice(apostIdx);
 
-      let baseArpa = dict?.[base.toLowerCase()] ?? null;
-      if (!baseArpa && base.length > 2 && base.endsWith('n')) {
-        baseArpa = dict?.[base.slice(0, -1).toLowerCase()] ?? null;
+      const cleanBase = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      let baseArpa = dict?.[cleanBase] ?? null;
+      if (!baseArpa && cleanBase.length > 2 && cleanBase.endsWith('n')) {
+        baseArpa = dict?.[cleanBase.slice(0, -1)] ?? null;
       }
 
       const resolvedBaseArpa = baseArpa || '';
