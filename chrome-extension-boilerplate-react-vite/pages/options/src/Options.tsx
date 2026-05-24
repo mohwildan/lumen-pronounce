@@ -2159,7 +2159,13 @@ const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
 
 function Onboarding({ onComplete }: { onComplete: () => void }) {
   const settings = useStorage(ipaSettingsStorage);
-  const [lang, setLang] = useState(settings?.targetLanguage || 'id'); // Default to 'id' (Indonesian) or similar based on locale, but let's use 'en' as default or whatever is in settings
+  
+  const [lang, setLang] = useState(() => {
+    if (settings?.targetLanguage) return settings.targetLanguage;
+    const browserLang = navigator.language.split('-')[0].toLowerCase();
+    const isSupported = LANGUAGES.some(l => l.code === browserLang);
+    return isSupported ? browserLang : 'en';
+  });
 
   useEffect(() => {
     if (settings?.targetLanguage) setLang(settings.targetLanguage);
