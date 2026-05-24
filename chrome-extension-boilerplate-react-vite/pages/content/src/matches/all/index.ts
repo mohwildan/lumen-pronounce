@@ -1143,32 +1143,36 @@ async function fetchDictDef(word: string): Promise<void> {
       defCache[key] = r.ok ? await r.json() : null;
     } catch { defCache[key] = null; }
   }
-  if (currentWord === cleanWord) {
-    let activeTabName = 'definition';
-    if (tip) {
-      const activeBtn = Array.from(tip.querySelectorAll('button[data-tab]')).find(
-        btn => (btn as HTMLElement).style.color === 'rgb(232, 163, 81)' || (btn as HTMLElement).style.color === '#e8a351'
-      ) as HTMLElement | null;
-      if (activeBtn) {
-        activeTabName = activeBtn.dataset.tab || 'definition';
+  if (currentWord) {
+    const curLower = currentWord.toLowerCase();
+    const curBase = (baseforms && baseforms[curLower]) ? baseforms[curLower].toLowerCase() : curLower;
+    if (curBase === key) {
+      let activeTabName = 'definition';
+      if (tip) {
+        const activeBtn = Array.from(tip.querySelectorAll('button[data-tab]')).find(
+          btn => (btn as HTMLElement).style.color === 'rgb(232, 163, 81)' || (btn as HTMLElement).style.color === '#e8a351'
+        ) as HTMLElement | null;
+        if (activeBtn) {
+          activeTabName = activeBtn.dataset.tab || 'definition';
+        }
       }
-    }
-    if (activeTabName === 'definition' || activeTabName === 'examples') {
-      void renderTab(activeTabName, cleanWord, defCache[key]);
-    }
-    const data = defCache[key];
-    if (data) {
-      const arr = data as Array<{ phonetic?: string; phonetics?: Array<{ text?: string }> }>;
-      let fetchedIpa = arr[0]?.phonetic || '';
-      if (!fetchedIpa && arr[0]?.phonetics) {
-        const found = arr[0].phonetics.find(p => p.text);
-        if (found) fetchedIpa = found.text || '';
+      if (activeTabName === 'definition' || activeTabName === 'examples') {
+        void renderTab(activeTabName, currentWord, defCache[key]);
       }
-      if (fetchedIpa) {
-        if (!fetchedIpa.startsWith('/')) fetchedIpa = '/' + fetchedIpa + '/';
-        const ipaSpan = document.getElementById('__ipa_header_ipa__');
-        if (ipaSpan && !ipaSpan.textContent) {
-          ipaSpan.textContent = fetchedIpa;
+      const data = defCache[key];
+      if (data && cleanWord === curLower) {
+        const arr = data as Array<{ phonetic?: string; phonetics?: Array<{ text?: string }> }>;
+        let fetchedIpa = arr[0]?.phonetic || '';
+        if (!fetchedIpa && arr[0]?.phonetics) {
+          const found = arr[0].phonetics.find(p => p.text);
+          if (found) fetchedIpa = found.text || '';
+        }
+        if (fetchedIpa) {
+          if (!fetchedIpa.startsWith('/')) fetchedIpa = '/' + fetchedIpa + '/';
+          const ipaSpan = document.getElementById('__ipa_header_ipa__');
+          if (ipaSpan && !ipaSpan.textContent) {
+            ipaSpan.textContent = fetchedIpa;
+          }
         }
       }
     }
@@ -1232,6 +1236,8 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
       activeTabName = activeBtn.dataset.tab || 'definition';
     }
 
+    const lookupWord = baseWord ? baseWord.toLowerCase() : wLower;
+
     t.innerHTML = buildTipHTML(displayWord, toIPA(displayArpa ?? ''), hasBaseForm ? baseWord : null, phrasalVerb, activeTabName);
     t.style.pointerEvents = 'auto';
     if (currentSentenceTranslation) {
@@ -1251,7 +1257,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
         e.stopPropagation();
         const ipaSpan = t.querySelector('#__ipa_header_ipa__');
         const ipaVal = ipaSpan?.textContent || '';
-        void saveToAnki(cleanWord, ipaVal, defCache[wLower]);
+        void saveToAnki(cleanWord, ipaVal, defCache[lookupWord]);
       });
     }
 
@@ -1260,7 +1266,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
       btn.addEventListener('click', () => {
         t.querySelectorAll('[data-tab]').forEach(b => ((b as HTMLElement).style.cssText = S.tab + S.tabOff));
         (btn as HTMLElement).style.cssText = S.tab + S.tabOn;
-        void renderTab((btn as HTMLElement).dataset.tab!, cleanWord, defCache[wLower]);
+        void renderTab((btn as HTMLElement).dataset.tab!, cleanWord, defCache[lookupWord]);
       });
     });
 
@@ -1295,17 +1301,17 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
 
     // Render active tab immediately if possible
     if (activeTabName !== 'definition' && activeTabName !== 'examples') {
-      void renderTab(activeTabName, cleanWord, defCache[wLower]);
-    } else if (wLower in defCache) {
-      void renderTab(activeTabName, cleanWord, defCache[wLower]);
+      void renderTab(activeTabName, cleanWord, defCache[lookupWord]);
+    } else if (lookupWord in defCache) {
+      void renderTab(activeTabName, cleanWord, defCache[lookupWord]);
     }
 
     // 1. Definition (always)
-    void fetchDictDef(cleanWord);
+    void fetchDictDef(lookupWord);
 
     // 2. Word POS translations
     if (lang && lang !== 'none') {
-      void fetchWordData(cleanWord, lang).then(data => {
+      void fetchWordData(lookupWord, lang).then(data => {
         if (currentWord !== cleanWord) return;
         renderPosArea(data.posList, lang, data.mainTranslation);
       });
