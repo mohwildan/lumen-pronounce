@@ -467,7 +467,9 @@ function getInOrderRpws(wordEl: Element, direction: 'forward' | 'backward', maxW
   walker.currentNode = wordEl;
 
   let textBetween = '';
-  while (result.length < maxWords) {
+  let visitedCount = 0;
+  while (result.length < maxWords && visitedCount < 100) {
+    visitedCount++;
     const node = direction === 'forward' ? walker.nextNode() : walker.previousNode();
     if (!node) break;
 
@@ -510,7 +512,7 @@ interface PhrasalCandidates {
 function getPhrasalCandidates(wordEl: Element): PhrasalCandidates {
   const contiguous: string[] = [];
   const separable: string[] = [];
-  
+
   const base = wordEl.getAttribute('data-word') || wordEl.textContent?.trim() || '';
   const cleanBase = cleanStressMarks(base).toLowerCase();
   if (!cleanBase) return { contiguous, separable };
@@ -1000,7 +1002,7 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
 
         const forms = response.forms;
         const wordLower = word.toLowerCase();
-        
+
         let verbParts: string[] | undefined = verbFormsMap.get(wordLower);
         let phrasalSuffix = '';
 
@@ -1018,7 +1020,7 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
           const fLower = f.toLowerCase();
           const arpa = dict[fLower] || '';
           let ipa = toIPA(arpa);
-          
+
           if (!ipa && fLower.includes(' ')) {
             const fWords = fLower.split(/\s+/);
             const hasAllIpa = fWords.every(w => dict[w]);
@@ -1079,7 +1081,7 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
           html += `<div style="margin-bottom:14px;">` +
             `<span style="font-size:.7rem;font-weight:700;color:#8c887a;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px">Verb Conjugations</span>` +
             `<div style="display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;background:#1e1d18;padding:12px;border-radius:10px;border:1px solid #3e3c33;">` +
-            
+
             `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">Base (V1)</div>` +
             `<div>${renderFormPill(v1, v1 === wordLower)}</div>` +
 
@@ -1094,7 +1096,7 @@ async function renderTab(tab: string, word: string, data: unknown, forceTranslat
 
             `<div style="font-size:.75rem;color:#8c887a;font-weight:600;">Gerund (-ing)</div>` +
             `<div>${renderFormPill(vGer, vGer === wordLower)}</div>` +
-            
+
             `</div>` +
             `</div>`;
 
@@ -1223,7 +1225,7 @@ function showTip(wordEl: Element, mouseX: number, mouseY: number): void {
     const wLower = cleanWord.toLowerCase();
     const baseWord = (baseforms && baseforms[wLower]) ? baseforms[wLower] : null;
     const hasBaseForm = baseWord && baseWord.toLowerCase() !== wLower;
-    
+
     const displayWordClean = cleanStressMarks(displayWord);
     const originalWordCleaned = cleanStressMarks(originalWordRaw);
     const phrasalVerb = (displayWordClean.toLowerCase() === originalWordCleaned.toLowerCase()) ? detectedPhrasal : null;
@@ -1547,7 +1549,7 @@ function processTextNode(node: Text): void {
 
     const displayWord = token.replace(/^'+|'+$/g, ''); // strip leading/trailing apostrophes
     const clean = displayWord.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents/diacritics for dict check
-    
+
     let arpa = clean ? (dict?.[clean.toLowerCase()] ?? null) : null;
     if (!arpa && clean && baseforms) {
       const base = baseforms[clean.toLowerCase()];
@@ -1572,7 +1574,7 @@ function processTextNode(node: Text): void {
         const apostIdx = displayWord.indexOf("'");
         const base = displayWord.slice(0, apostIdx);
         const suffix = displayWord.slice(apostIdx);
-        
+
         const cleanBase = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const baseArpa = (cleanBase && dict?.[cleanBase]) ?? arpa;
         frag.appendChild(makeContractionEl(base, baseArpa, suffix, displayWord));
@@ -1605,7 +1607,7 @@ function processTextNode(node: Text): void {
         }
       }
     }
-    
+
     // General fallback: if the word has length >= 2, we still wrap it with an empty arpa
     // so it is hoverable, has a dictionary definition, and can be saved to Anki.
     if (clean && clean.length >= 2) {
@@ -2057,18 +2059,37 @@ async function checkActivation(): Promise<void> {
 
 function handleMutations(mutations: MutationRecord[]): void {
   if (!isContextValid()) { teardown(); return; }
+
+  const addedSet = new Set<Node>();
   for (const m of mutations) {
     for (const node of Array.from(m.addedNodes)) {
-      if (!isInit) continue;
-      const el = node as Element;
-      if (el.getAttribute?.('data-ipa-ui')) continue;
-      if (el.id && IPA_ROOT_IDS.has(el.id)) continue;
-      if ((node as Node).parentElement?.closest?.('[data-ipa-ui]')) continue;
-      if (node.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(el.tagName)) {
-        void walk(node);
-      } else if (node.nodeType === Node.TEXT_NODE) {
-        void walk(node);
+      addedSet.add(node);
+    }
+  }
+
+  for (const node of addedSet) {
+    if (!isInit) continue;
+
+    // Skip nested children in the same batch since the top-most ancestor will be walked anyway
+    let parent = node.parentNode;
+    let hasAncestorInSet = false;
+    while (parent) {
+      if (addedSet.has(parent)) {
+        hasAncestorInSet = true;
+        break;
       }
+      parent = parent.parentNode;
+    }
+    if (hasAncestorInSet) continue;
+
+    const el = node as Element;
+    if (el.getAttribute?.('data-ipa-ui')) continue;
+    if (el.id && IPA_ROOT_IDS.has(el.id)) continue;
+    if ((node as Node).parentElement?.closest?.('[data-ipa-ui]')) continue;
+    if (node.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(el.tagName)) {
+      void walk(node);
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      void walk(node);
     }
   }
 }
@@ -2131,10 +2152,10 @@ async function init(): Promise<void> {
 
     dict = {};
     baseforms = enableBaseforms ? {} : null;
-    
+
     await loadPhrasalVerbs();
     await loadVerbForms();
-    
+
     isInit = true;
 
     void walk(document.body);
