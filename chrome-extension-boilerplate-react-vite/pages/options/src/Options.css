@@ -474,14 +474,14 @@ body {
   height: 16px;
 }
 
-/* ─── Hover delay control ─── */
-.opt-delay {
+/* ─── Range control ─── */
+.opt-range {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.opt-delay-range {
+.opt-range-input {
   width: 140px;
   appearance: none;
   height: 6px;
@@ -492,7 +492,7 @@ body {
   cursor: pointer;
 }
 
-.opt-delay-range::-webkit-slider-thumb {
+.opt-range-input::-webkit-slider-thumb {
   appearance: none;
   width: 14px;
   height: 14px;
@@ -502,7 +502,7 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
 }
 
-.opt-delay-range::-moz-range-thumb {
+.opt-range-input::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -511,14 +511,14 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
 }
 
-.opt-delay-range::-moz-range-track {
+.opt-range-input::-moz-range-track {
   height: 6px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dim) 60%, var(--border) 100%);
   border: 1px solid var(--border-lt);
 }
 
-.opt-delay-value {
+.opt-range-value {
   font-size: .75rem;
   color: var(--text-3);
   min-width: 58px;

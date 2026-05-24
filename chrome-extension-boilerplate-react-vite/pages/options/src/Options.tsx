@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ReactNode } from 'react';
+import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import '@src/Options.css';
 import '../../../chrome-extension/public/content.css';
 import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
@@ -170,6 +170,15 @@ function SettingsTab() {
   const hasCustomColors = !!settings.colorMap && Object.keys(settings.colorMap).length > 0;
   const popupMode = settings.popupMode ?? 'hover_or_click';
   const hoverDelayMs = settings.hoverDelayMs ?? 380;
+  const silentOpacity = settings.silentOpacity ?? 25;
+  const ghostOpacity = settings.ghostOpacity ?? 80;
+  const resolvedOpacity = Math.round((silentOpacity + ghostOpacity) / 2);
+  const [combinedOpacity, setCombinedOpacity] = useState(resolvedOpacity);
+  const opacityWriteTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCombinedOpacity(resolvedOpacity);
+  }, [resolvedOpacity]);
 
   const siteOverrideEntries = Object.entries(settings.siteOverrides ?? {});
   const normalizedOverrideQuery = overrideQuery.trim().toLowerCase();
@@ -194,45 +203,6 @@ function SettingsTab() {
         </div>
         <Switch checked={settings.enabled} onChange={v => ipaSettingsStorage.setEnabled(v)} />
       </div>
-
-      {/* Site overrides — only shown when non-empty */}
-      {siteOverrideEntries.length > 0 && (
-        <div className="opt-overrides">
-          <SectionLabel>Site Overrides</SectionLabel>
-          <div className="opt-override-toolbar">
-            <input
-              className="opt-override-search"
-              type="search"
-              placeholder="Search domains"
-              value={overrideQuery}
-              onChange={e => setOverrideQuery(e.target.value)}
-            />
-            <span className="opt-override-count">{filteredOverrides.length}/{siteOverrideEntries.length}</span>
-          </div>
-          {filteredOverrides.length > 0 ? (
-            <div className="opt-override-pills opt-override-scroll">
-              {filteredOverrides.map(([host, enabled]) => (
-                <div key={host} className={`opt-pill${enabled ? ' opt-pill-on' : ' opt-pill-off'}`}>
-                  <span className="opt-pill-dot" />
-                  <span>{host}</span>
-                  <button
-                    className="opt-pill-remove"
-                    title="Remove override"
-                    onClick={() => ipaSettingsStorage.clearSiteOverride(host)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="opt-override-empty">No matches for that search.</div>
-          )}
-          <p className="opt-overrides-hint">
-            Override set from the popup while browsing. Force a site on or off regardless of global setting.
-          </p>
-        </div>
-      )}
 
       {/* Color Coding */}
       <SectionLabel>Color Coding</SectionLabel>
@@ -388,9 +358,9 @@ function SettingsTab() {
               <small>Wait before showing the pop-up</small>
             </div>
           </div>
-          <div className="opt-delay">
+          <div className="opt-range">
             <input
-              className="opt-delay-range"
+              className="opt-range-input"
               type="range"
               min={120}
               max={900}
@@ -398,10 +368,82 @@ function SettingsTab() {
               value={hoverDelayMs}
               onChange={e => ipaSettingsStorage.setHoverDelayMs(Number(e.target.value))}
             />
-            <span className="opt-delay-value">{hoverDelayMs}ms</span>
+            <span className="opt-range-value">{hoverDelayMs}ms</span>
+          </div>
+        </div>
+
+        <div className="opt-row">
+          <div className="opt-row-body">
+            <span className="opt-swatch opt-swatch-ghost" />
+            <div className="opt-row-text">
+              <span className="opt-row-name">Silent + ghost opacity</span>
+              <small>Fade unpronounced letters and ghost phonemes together</small>
+            </div>
+          </div>
+          <div className="opt-range">
+            <input
+              className="opt-range-input"
+              type="range"
+              min={10}
+              max={80}
+              step={5}
+              value={combinedOpacity}
+              onChange={e => {
+                const next = Number(e.target.value);
+                setCombinedOpacity(next);
+                if (opacityWriteTimer.current) {
+                  window.clearTimeout(opacityWriteTimer.current);
+                }
+                opacityWriteTimer.current = window.setTimeout(() => {
+                  ipaSettingsStorage.setSilentOpacity(next);
+                  ipaSettingsStorage.setGhostOpacity(next);
+                  opacityWriteTimer.current = null;
+                }, 180);
+              }}
+            />
+            <span className="opt-range-value">{combinedOpacity}%</span>
           </div>
         </div>
       </div>
+
+      {/* Site overrides — only shown when non-empty */}
+      {siteOverrideEntries.length > 0 && (
+        <div className="opt-overrides">
+          <SectionLabel>Site Overrides</SectionLabel>
+          <div className="opt-override-toolbar">
+            <input
+              className="opt-override-search"
+              type="search"
+              placeholder="Search domains"
+              value={overrideQuery}
+              onChange={e => setOverrideQuery(e.target.value)}
+            />
+            <span className="opt-override-count">{filteredOverrides.length}/{siteOverrideEntries.length}</span>
+          </div>
+          {filteredOverrides.length > 0 ? (
+            <div className="opt-override-pills opt-override-scroll">
+              {filteredOverrides.map(([host, enabled]) => (
+                <div key={host} className={`opt-pill${enabled ? ' opt-pill-on' : ' opt-pill-off'}`}>
+                  <span className="opt-pill-dot" />
+                  <span>{host}</span>
+                  <button
+                    className="opt-pill-remove"
+                    title="Remove override"
+                    onClick={() => ipaSettingsStorage.clearSiteOverride(host)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="opt-override-empty">No matches for that search.</div>
+          )}
+          <p className="opt-overrides-hint">
+            Override set from the popup while browsing. Force a site on or off regardless of global setting.
+          </p>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="opt-actions">
@@ -2145,6 +2187,9 @@ const Options = () => {
 
   return (
     <div className="opt-app">
+      {(() => {
+        const { version } = chrome.runtime.getManifest();
+        return (
       <div className="opt-sidebar">
         <div className="opt-logo">
           <div className="opt-logo-icon">
@@ -2170,9 +2215,11 @@ const Options = () => {
         </nav>
 
         <div className="opt-sidebar-footer">
-          <span>v1.0 · Lumen</span>
+          <span>v{version} · Lumen</span>
         </div>
       </div>
+        );
+      })()}
 
       <div className="opt-content">
         {tab === 'settings' && <SettingsTab />}

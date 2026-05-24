@@ -98,6 +98,8 @@ let translatePerSentence = true;
 let pauseOnHover = false;
 let popupMode: IpaPopupMode = 'hover_or_click';
 let hoverDelayMs = 380;
+let silentOpacity = 25;
+let ghostOpacity = 80;
 let ankiEnabled = false;
 let ankiOfflineEnabled = true;
 let hasProcessed = false;
@@ -154,6 +156,12 @@ function applyColorMap(colorMap?: IpaColorMap): void {
     if (value) root.style.setProperty(cssVar, value);
     else root.style.removeProperty(cssVar);
   }
+}
+
+function applyOpacitySettings(): void {
+  const root = document.documentElement;
+  root.style.setProperty('--ipa-silent-opacity', String(silentOpacity / 100));
+  root.style.setProperty('--ipa-ghost-opacity', String(ghostOpacity / 100));
 }
 
 // ── ARPAbet ──────────────────────────────────────────────────────
@@ -2157,6 +2165,9 @@ async function checkActivation(): Promise<void> {
   applyColorMap(s?.colorMap);
   if (s?.popupMode) popupMode = s.popupMode;
   if (s?.hoverDelayMs !== undefined) hoverDelayMs = s.hoverDelayMs;
+  if (s?.silentOpacity !== undefined) silentOpacity = s.silentOpacity;
+  if (s?.ghostOpacity !== undefined) ghostOpacity = s.ghostOpacity;
+  applyOpacitySettings();
   if (s?.targetLanguage !== undefined) targetLanguage = s.targetLanguage;
   if (s?.ankiEnabled !== undefined) ankiEnabled = s.ankiEnabled;
   if (s?.ankiOfflineEnabled !== undefined) ankiOfflineEnabled = s.ankiOfflineEnabled;
@@ -2279,6 +2290,9 @@ async function init(): Promise<void> {
   applyColorMap(s?.colorMap);
   if (s?.popupMode) popupMode = s.popupMode;
   if (s?.hoverDelayMs !== undefined) hoverDelayMs = s.hoverDelayMs;
+  if (s?.silentOpacity !== undefined) silentOpacity = s.silentOpacity;
+  if (s?.ghostOpacity !== undefined) ghostOpacity = s.ghostOpacity;
+  applyOpacitySettings();
   if (s?.targetLanguage) targetLanguage = s.targetLanguage;
   if (s?.translatePerSentence !== undefined) translatePerSentence = s.translatePerSentence;
   if (s?.pauseOnHover !== undefined) pauseOnHover = s.pauseOnHover;

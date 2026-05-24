@@ -51,6 +51,8 @@ export type IpaSettingsState = {
   colorMap?: IpaColorMap;
   popupMode: IpaPopupMode;
   hoverDelayMs: number;
+  silentOpacity: number;
+  ghostOpacity: number;
   /** Per-site overrides. true = force active, false = force disabled. Missing = follow global. */
   siteOverrides: Record<string, boolean>;
   /** @deprecated use siteOverrides */
@@ -99,6 +101,8 @@ const DEFAULT_STATE: IpaSettingsState = {
   blacklist: [],
   popupMode: 'hover_or_click',
   hoverDelayMs: 380,
+  silentOpacity: 25,
+  ghostOpacity: 80,
   targetLanguage: 'en',
   translatePerSentence: true,
   pauseOnHover: false,
@@ -127,6 +131,8 @@ export type IpaSettingsStorageType = BaseStorageType<IpaSettingsState> & {
   clearColorMap: () => Promise<void>;
   setPopupMode: (mode: IpaPopupMode) => Promise<void>;
   setHoverDelayMs: (delayMs: number) => Promise<void>;
+  setSilentOpacity: (opacity: number) => Promise<void>;
+  setGhostOpacity: (opacity: number) => Promise<void>;
   /** Set explicit on/off override for a site. */
   setSiteEnabled: (host: string, enabled: boolean) => Promise<void>;
   /** Remove per-site override — site follows global again. */
@@ -184,6 +190,12 @@ export const ipaSettingsStorage: IpaSettingsStorageType = {
   },
   setHoverDelayMs: async (hoverDelayMs: number) => {
     await storage.set(prev => ({ ...prev, hoverDelayMs }));
+  },
+  setSilentOpacity: async (silentOpacity: number) => {
+    await storage.set(prev => ({ ...prev, silentOpacity }));
+  },
+  setGhostOpacity: async (ghostOpacity: number) => {
+    await storage.set(prev => ({ ...prev, ghostOpacity }));
   },
   setSiteEnabled: async (host: string, enabled: boolean) => {
     await storage.set(prev => ({

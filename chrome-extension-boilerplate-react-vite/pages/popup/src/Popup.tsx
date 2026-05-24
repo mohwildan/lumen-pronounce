@@ -251,6 +251,8 @@ const Popup = () => {
     ...(settings.colorMap ?? {}),
   };
   const hasCustomColors = !!settings.colorMap && Object.keys(settings.colorMap).length > 0;
+  const silentOpacity = settings.silentOpacity ?? 25;
+  const ghostOpacity = settings.ghostOpacity ?? 80;
 
   const getInitials = (name: string, email: string) => {
     const source = name || email;
@@ -393,9 +395,11 @@ const Popup = () => {
         <div className="ipa-section-title"><IconPalette />Appearance</div>
         {VISUAL_ROWS.map(row => {
           const colorValue = row.colorKey ? resolvedColorMap[row.colorKey] : undefined;
-          const exampleHtml = typeof row.example === 'function'
-            ? row.example(colorValue ?? row.defaultColor ?? '#999999')
-            : row.example;
+          const exampleHtml = row.id === 'silent'
+            ? `s<span style="opacity:${silentOpacity / 100}">w</span>ord`
+            : typeof row.example === 'function'
+              ? row.example(colorValue ?? row.defaultColor ?? '#999999')
+              : row.example;
           return (
             <div key={row.id} className="ipa-row">
               <div className="ipa-row-label">
@@ -443,12 +447,15 @@ const Popup = () => {
           const isPro = PRO_OPT_IDS.has(row.id);
           const tier = auth.user?.tier ?? 'free';
           const locked = isPro && tier !== 'pro';
+          const exampleHtml = row.id === 'phonemes'
+            ? `<sup style="color:#e879f9;opacity:${ghostOpacity / 100}">w</sup>one`
+            : row.example;
           return (
             <div key={row.id} className={`ipa-row${locked ? ' ipa-row-locked' : ''}`}>
               <div className="ipa-row-label">
                 <span>
                   {row.label}{' '}
-                  <small dangerouslySetInnerHTML={{ __html: `(${row.example})` }} />
+                  <small dangerouslySetInnerHTML={{ __html: `(${exampleHtml})` }} />
                 </span>
                 {locked && <span className="ipa-pro-badge">Pro</span>}
               </div>

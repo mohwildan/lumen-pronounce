@@ -6,6 +6,8 @@
   --ipa-teal:   #00838f;
   --ipa-orange: #e65100;
   --ipa-sup:    #666666;
+  --ipa-silent-opacity: 0.25;
+  --ipa-ghost-opacity: 0.8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,7 +41,7 @@ rp-sup[data-type], rp-sup[data-ghost], rp-c[data-type] { display: none !importan
 /* ── Per-opt body classes ── */
 
 /* silent letters */
-body.ipa-silent   rp-s[data-silent] { opacity: 0.25 !important; }
+body.ipa-silent   rp-s[data-silent] { opacity: var(--ipa-silent-opacity, 0.25) !important; }
 
 /* vowel colors */
 body.ipa-color-e     rp-s[data-vc="color_e"]     { color: var(--ipa-red)    !important; }
@@ -79,7 +81,7 @@ body.ipa-th-d rp-sup[data-type="DH"] { display: inline !important; }
 body.ipa-tmark rp-sup[data-type="tmark"] { display: inline !important; }
 
 /* hidden phonemes (ghost sups) */
-body.ipa-phonemes rp-sup[data-ghost] { display: inline !important; color: var(--accent, #ff3e88); }
+body.ipa-phonemes rp-sup[data-ghost] { display: inline !important; color: var(--accent, #ff3e88); opacity: var(--ipa-ghost-opacity, 0.8); }
 body.ipa-phonemes.ipa-color-e     rp-sup[data-ghost][data-gvc="color_e"]     { color: var(--ipa-red);    }
 body.ipa-phonemes.ipa-color-i     rp-sup[data-ghost][data-gvc="color_i"]     { color: var(--ipa-green);  }
 body.ipa-phonemes.ipa-color-u-alt rp-sup[data-ghost][data-gvc="color_u_alt"] { color: var(--ipa-purple); }
