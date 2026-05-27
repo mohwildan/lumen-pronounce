@@ -179,7 +179,7 @@ function SettingsTab() {
         {COLOR_OPTS.map(row => {
           const colorValue = row.colorKey ? resolvedColorMap[row.colorKey] : undefined;
           const descHtml = typeof row.desc === 'function' ? row.desc(colorValue ?? row.defaultColor ?? '#999999') : row.desc;
-          
+
           return (
             <div key={row.id} className="opt-row">
               <div className="opt-row-body">
@@ -192,19 +192,20 @@ function SettingsTab() {
                   <small dangerouslySetInnerHTML={{ __html: descHtml }} />
                 </div>
               </div>
-            {row.colorKey && (
-              <label className="opt-color-picker" title="Pick color">
-                <input
-                  className="opt-color-input"
-                  type="color"
-                  value={colorValue}
-                  onChange={e => ipaSettingsStorage.setColor(row.colorKey!, e.target.value)}
-                />
-              </label>
-            )}
-            <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
-          </div>
-        )})}
+              {row.colorKey && (
+                <label className="opt-color-picker" title="Pick color">
+                  <input
+                    className="opt-color-input"
+                    type="color"
+                    value={colorValue}
+                    onChange={e => ipaSettingsStorage.setColor(row.colorKey!, e.target.value)}
+                  />
+                </label>
+              )}
+              <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
+            </div>
+          )
+        })}
         <div className="opt-row opt-row-tight">
           <div className="opt-row-body">
             <span className="opt-swatch opt-swatch-ghost" />
@@ -237,7 +238,7 @@ function SettingsTab() {
             <div
               key={row.id}
               className={`opt-row${locked ? ' opt-row-locked' : ''}`}
-              onClick={locked ? () => ipaAuthStorage.openCheckout('year') : undefined}
+              onClick={locked ? () => window.open('https://www.patreon.com/c/pronounce/membership', '_blank') : undefined}
             >
               <div className="opt-row-body">
                 <span className="opt-swatch opt-swatch-ghost" />
@@ -252,9 +253,9 @@ function SettingsTab() {
               {locked ? (
                 <button
                   className="opt-upgrade-inline"
-                  onClick={e => { e.stopPropagation(); void ipaAuthStorage.openCheckout('year'); }}
+                  onClick={e => { e.stopPropagation(); window.open('https://www.patreon.com/c/pronounce/membership', '_blank'); }}
                 >
-                  Upgrade ↗
+                  Unlock with Patreon ↗
                 </button>
               ) : (
                 <Switch checked={settings.opts[row.id]} onChange={v => ipaSettingsStorage.setOpt(row.id, v)} />
@@ -646,13 +647,22 @@ function AccountTab() {
   };
 
   const handleLogout = async () => { setLoading(true); await ipaAuthStorage.logout(); setLoading(false); };
-  const handleUpgrade = async () => { setBillingLoading(true); await ipaAuthStorage.openCheckout(interval); setBillingLoading(false); };
-  const handleManageBilling = async () => { setBillingLoading(true); await ipaAuthStorage.openPortal(); setBillingLoading(false); };
+  const handleUpgrade = async () => { window.open('https://www.patreon.com/c/pronounce/membership', '_blank'); };
+  const handleManageBilling = async () => { window.open('https://www.patreon.com/c/pronounce/membership', '_blank'); };
+  const handleLinkPatreon = () => { window.open(`https://lumenverse.app/pronoun/api/patreon/auth?userId=${auth.user?.id}`, '_blank'); };
   const handleSyncTier = async () => {
     setSyncLoading(true);
     await ipaAuthStorage.syncTier().catch(() => { });
     setSyncLoading(false);
   };
+
+  useEffect(() => {
+    const onFocus = () => {
+      if (auth.isLoggedIn) ipaAuthStorage.syncTier().catch(() => {});
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [auth.isLoggedIn]);
 
   const PRO_FEATURES = [
     'Stress accents on vowels — Shows which syllable to emphasize in pronunciation',
@@ -802,8 +812,18 @@ function AccountTab() {
           <span className={`opt-tier-badge opt-tier-${tier}`}>
             {tier === 'pro' ? '★ Pro' : 'Free'}
           </span>
+          {!auth.user?.patreon_id && (
+            <button
+              className="opt-btn-outline"
+              onClick={handleLinkPatreon}
+              disabled={loading}
+              style={{ backgroundColor: '#ffd4a3', color: '#5e431f', borderColor: '#ffd4a3', marginRight: '8px' }}
+            >
+              🔗 Link Patreon Account
+            </button>
+          )}
           <button className="opt-btn-outline" onClick={handleLogout} disabled={loading}>
-            {loading ? '…' : 'Sign out'}
+            Log out
           </button>
         </div>
       </div>
@@ -1947,8 +1967,8 @@ function AnkiTab() {
 
       {!isPro && (
         <div style={{ marginTop: '16px', textAlign: 'center' }}>
-          <button className="opt-btn-upgrade" onClick={() => ipaAuthStorage.openCheckout('year')}>
-            Upgrade to Pro to unlock Anki Sync →
+          <button className="opt-btn-upgrade" onClick={() => window.open('https://www.patreon.com/c/pronounce/membership', '_blank')}>
+            Unlock with Patreon to get Anki Sync →
           </button>
         </div>
       )}
@@ -2159,7 +2179,7 @@ const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
 
 function Onboarding({ onComplete }: { onComplete: () => void }) {
   const settings = useStorage(ipaSettingsStorage);
-  
+
   const [lang, setLang] = useState(() => {
     if (settings?.targetLanguage) return settings.targetLanguage;
     const browserLang = navigator.language.split('-')[0].toLowerCase();

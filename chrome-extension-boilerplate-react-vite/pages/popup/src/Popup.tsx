@@ -462,17 +462,10 @@ const Popup = () => {
               {locked ? (
                 <button
                   className="ipa-lock-btn"
-                  onClick={async () => {
-                    setUpgradeLoading(true);
-                    const res = await ipaAuthStorage.openCheckout(interval);
-                    if (res?.error) {
-                      setUpgradeError(res.error);
-                    } else {
-                      setUpgradeError(null);
-                    }
-                    setUpgradeLoading(false);
+                  onClick={() => {
+                    window.open('https://www.patreon.com/c/pronounce/membership', '_blank');
                   }}
-                  title="Upgrade to Pro"
+                  title="Unlock with Patreon"
                 >
                   🔒
                 </button>
@@ -605,31 +598,36 @@ const Popup = () => {
                 {interval === 'year' && <p className="ipa-billed-note">Billed $27/year</p>}
                 <button
                   className="ipa-upgrade-btn"
-                  disabled={upgradeLoading}
-                  onClick={async () => {
-                    setUpgradeLoading(true);
-                    const res = await ipaAuthStorage.openCheckout(interval);
-                    if (res?.error) {
-                      setUpgradeError(res.error);
-                    } else {
-                      setUpgradeError(null);
-                    }
-                    setUpgradeLoading(false);
+                  onClick={() => {
+                    window.open('https://www.patreon.com/c/pronounce/membership', '_blank');
                   }}
                 >
-                  {upgradeLoading ? '…' : '⬆ Upgrade to Pro'}
+                  {upgradeLoading ? '…' : '⬆ Unlock with Patreon'}
                 </button>
                 {upgradeError && <div className="ipa-upgrade-error" style={{ color: 'var(--danger)', marginTop: '4px', fontSize: '.68rem' }}>{upgradeError}</div>}
               </div>
             ) : (
+              <>
               <button
                 className="ipa-manage-btn"
-                onClick={async () => {
-                  await ipaAuthStorage.openPortal();
+                onClick={() => {
+                  window.open('https://www.patreon.com/cw/pronouncea', '_blank');
                 }}
               >
                 Manage subscription
               </button>
+              {!auth.user?.patreon_id && (
+                <button
+                  className="ipa-manage-btn"
+                  onClick={() => {
+                    window.open(`https://lumenverse.app/pronoun/api/patreon/auth?userId=${auth.user?.id}`, '_blank');
+                  }}
+                  style={{ marginTop: '8px', backgroundColor: '#ffd4a3', color: '#5e431f' }}
+                >
+                  🔗 Link Patreon Account
+                </button>
+              )}
+              </>
             )}
 
             <button className="ipa-logout-btn" onClick={() => ipaAuthStorage.logout()}>Sign out</button>

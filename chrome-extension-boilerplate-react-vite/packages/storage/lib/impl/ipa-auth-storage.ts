@@ -7,6 +7,7 @@ export type IpaUser = {
   name: string;
   picture: string;
   tier: 'free' | 'pro';
+  patreon_id?: string | null;
 };
 
 export type IpaAuthState = {

@@ -115,10 +115,12 @@ export default function PricingSection() {
             {proFeatures.map((f) => <FeatureRow key={f.label} {...f} dark />)}
           </ul>
           <a
-            href="#browsers"
+            href="https://www.patreon.com/c/pronounce/membership"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex w-full items-center justify-center rounded-full bg-moss py-3.5 text-[14.5px] font-semibold text-white transition-all hover:-translate-y-px hover:bg-moss2"
           >
-            Start 14-day Pro trial
+            Support on Patreon to Unlock
           </a>
         </div>
       </div>

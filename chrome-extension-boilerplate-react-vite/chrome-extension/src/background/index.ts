@@ -31,7 +31,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // ── Profile helpers ──────────────────────────────────────────────
 
-type Profile = { id: string; email: string; name: string; avatar_url: string; tier: 'free' | 'pro'; is_developer?: boolean };
+type Profile = { id: string; email: string; name: string; avatar_url: string; tier: 'free' | 'pro'; is_developer?: boolean; patreon_id?: string | null };
 
 async function upsertProfile(user: User): Promise<Profile> {
   // Always fetch fresh from DB to get latest tier
@@ -58,6 +58,7 @@ async function upsertProfile(user: User): Promise<Profile> {
     avatar_url: user.user_metadata?.avatar_url ?? '',
     tier: 'free',
     is_developer: false,
+    patreon_id: null,
   };
 }
 
@@ -71,6 +72,7 @@ async function saveAuthState(user: User, profile: Profile): Promise<void> {
         name: profile.name,
         picture: profile.avatar_url,
         tier: profile.tier ?? 'free',
+        patreon_id: profile.patreon_id ?? null,
       },
       token: null,
     },
