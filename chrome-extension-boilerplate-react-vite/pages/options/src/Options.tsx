@@ -647,13 +647,25 @@ function AccountTab() {
   };
 
   const handleLogout = async () => { setLoading(true); await ipaAuthStorage.logout(); setLoading(false); };
-  const handleUpgrade = async () => { window.open('https://www.patreon.com/c/pronounce/membership', '_blank'); };
+  const handleUpgrade = async () => {
+    const url = new URL('https://www.patreon.com/checkout/pronounce');
+    url.searchParams.set('rid', '28691528');
+    if (interval === 'year') url.searchParams.set('cadence', '12');
+    window.open(url.toString(), '_blank');
+  };
   const handleManageBilling = async () => { window.open('https://www.patreon.com/c/pronounce/membership', '_blank'); };
   const handleLinkPatreon = () => { window.open(`https://lumenverse.app/pronoun/api/patreon/auth?userId=${auth.user?.id}`, '_blank'); };
   const handleSyncTier = async () => {
     setSyncLoading(true);
     await ipaAuthStorage.syncTier().catch(() => { });
     setSyncLoading(false);
+  };
+  const handleUnlinkPatreon = async () => {
+    if (confirm('Are you sure you want to unlink your Patreon account? You will lose access to Pro features until you link an active account again.')) {
+      setSyncLoading(true);
+      await ipaAuthStorage.unlinkPatreon();
+      setSyncLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -879,6 +891,9 @@ function AccountTab() {
             <button className="opt-btn-sync" onClick={handleSyncTier} disabled={syncLoading} title="Refresh subscription status">
               {syncLoading ? '…' : '↻ Sync'}
             </button>
+            <button className="opt-btn-sync" onClick={handleUnlinkPatreon} disabled={syncLoading} title="Switch Patreon Account" style={{marginLeft: '8px', opacity: 0.7}}>
+              Unlink
+            </button>
           </div>
           <p className="opt-billing-desc">You have access to all advanced pronunciation markers. Explore detailed phoneme breakdowns, stress patterns, vowel combinations, and special sound rules across all your reading. You're getting the complete language learning experience.</p>
           <button className="opt-btn-manage" onClick={handleManageBilling} disabled={billingLoading}>
@@ -897,26 +912,47 @@ function AccountTab() {
               <li key={f}><span className="opt-pro-check">✓</span> {f}</li>
             ))}
           </ul>
-          <div className="opt-interval-toggle">
-            <button
-              className={`opt-interval-btn${interval === 'month' ? ' active' : ''}`}
-              onClick={() => setInterval('month')}
-            >
-              <span className="opt-plan-label">Monthly</span>
-              <span className="opt-plan-price">$3<small>/mo</small></span>
-            </button>
-            <button
-              className={`opt-interval-btn${interval === 'year' ? ' active' : ''}`}
-              onClick={() => setInterval('year')}
-            >
-              <span className="opt-plan-label">Yearly <span className="opt-save-badge">save 25%</span></span>
-              <span className="opt-plan-price">$2.25<small>/mo</small></span>
-            </button>
-          </div>
-          {interval === 'year' && <p className="opt-billed-note">Billed $27/year</p>}
-          <button className="opt-btn-upgrade" onClick={handleUpgrade} disabled={billingLoading}>
-            {billingLoading ? 'Opening checkout…' : 'Start free trial →'}
-          </button>
+          {!auth.user?.patreon_id ? (
+            <div style={{ padding: '16px', textAlign: 'center', backgroundColor: 'rgba(255, 212, 163, 0.1)', borderRadius: '8px', border: '1px solid #ffd4a3', marginTop: '16px' }}>
+              <p style={{ marginBottom: '12px', color: '#ffd4a3', fontWeight: 'bold' }}>Step 1: Link your Patreon account to subscribe</p>
+              <button
+                className="opt-btn-outline"
+                onClick={handleLinkPatreon}
+                style={{ backgroundColor: '#ffd4a3', color: '#5e431f', border: 'none', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                🔗 Link Patreon Account
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <p style={{ margin: 0, color: '#8c887a', fontSize: '0.85rem' }}>Step 2: Choose your subscription plan</p>
+                  <button onClick={handleUnlinkPatreon} style={{ background: 'none', border: 'none', color: '#8c887a', fontSize: '0.75rem', textDecoration: 'underline', cursor: 'pointer' }}>Switch Patreon Account</button>
+                </div>
+                <div className="opt-interval-toggle">
+                  <button
+                    className={`opt-interval-btn${interval === 'month' ? ' active' : ''}`}
+                    onClick={() => setInterval('month')}
+                  >
+                    <span className="opt-plan-label">Monthly</span>
+                    <span className="opt-plan-price">$3<small>/mo</small></span>
+                  </button>
+                  <button
+                    className={`opt-interval-btn${interval === 'year' ? ' active' : ''}`}
+                    onClick={() => setInterval('year')}
+                  >
+                    <span className="opt-plan-label">Yearly <span className="opt-save-badge">save 25%</span></span>
+                    <span className="opt-plan-price">$2.25<small>/mo</small></span>
+                  </button>
+                </div>
+                {interval === 'year' && <p className="opt-billed-note">Billed $27/year</p>}
+                <button className="opt-btn-upgrade" onClick={handleUpgrade} disabled={billingLoading}>
+                  {billingLoading ? 'Opening checkout…' : 'Start free trial →'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

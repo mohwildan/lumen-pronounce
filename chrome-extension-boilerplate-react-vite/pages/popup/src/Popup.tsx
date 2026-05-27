@@ -244,6 +244,20 @@ const Popup = () => {
     ipaAuthStorage.syncTier().catch(() => { });
   }, []);
 
+  const handleSyncTier = async () => {
+    setUpgradeLoading(true);
+    await ipaAuthStorage.syncTier().catch(() => { });
+    setUpgradeLoading(false);
+  };
+
+  const handleUnlinkPatreon = async () => {
+    if (confirm('Are you sure you want to unlink your Patreon account?')) {
+      setUpgradeLoading(true);
+      await ipaAuthStorage.unlinkPatreon();
+      setUpgradeLoading(false);
+    }
+  };
+
   if (!settings || !auth) return null;
 
   const resolvedColorMap: Required<IpaColorMap> = {
@@ -579,54 +593,74 @@ const Popup = () => {
             {auth.user?.tier !== 'pro' ? (
               <div className="ipa-upgrade-block">
                 <p className="ipa-upgrade-tagline">Unlock all Pro features</p>
-                <div className="ipa-interval-toggle">
-                  <button
-                    className={interval === 'month' ? 'active' : ''}
-                    onClick={() => setInterval('month')}
-                  >
-                    <span className="ipa-plan-label">Monthly</span>
-                    <span className="ipa-plan-price">$3<small>/mo</small></span>
-                  </button>
-                  <button
-                    className={interval === 'year' ? 'active' : ''}
-                    onClick={() => setInterval('year')}
-                  >
-                    <span className="ipa-plan-label">Yearly <span className="ipa-save-badge">save 25%</span></span>
-                    <span className="ipa-plan-price">$2.25<small>/mo</small></span>
-                  </button>
-                </div>
-                {interval === 'year' && <p className="ipa-billed-note">Billed $27/year</p>}
-                <button
-                  className="ipa-upgrade-btn"
-                  onClick={() => {
-                    window.open('https://www.patreon.com/c/pronounce/membership', '_blank');
-                  }}
-                >
-                  {upgradeLoading ? '…' : '⬆ Unlock with Patreon'}
-                </button>
-                {upgradeError && <div className="ipa-upgrade-error" style={{ color: 'var(--danger)', marginTop: '4px', fontSize: '.68rem' }}>{upgradeError}</div>}
+                {!auth.user?.patreon_id ? (
+                  <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                    <p style={{ fontSize: '0.75rem', marginBottom: '8px', color: '#8c887a' }}>Step 1: Link your Patreon account</p>
+                    <button
+                      className="ipa-upgrade-btn"
+                      onClick={() => {
+                        window.open(`https://lumenverse.app/pronoun/api/patreon/auth?userId=${auth.user?.id}`, '_blank');
+                      }}
+                      style={{ backgroundColor: '#ffd4a3', color: '#5e431f' }}
+                    >
+                      🔗 Link Patreon Account
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#8c887a' }}>Step 2: Complete Subscription</p>
+                      <button onClick={handleUnlinkPatreon} style={{ background: 'none', border: 'none', color: '#8c887a', fontSize: '0.65rem', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Switch Account</button>
+                    </div>
+                    <div className="ipa-interval-toggle">
+                      <button
+                        className={interval === 'month' ? 'active' : ''}
+                        onClick={() => setInterval('month')}
+                      >
+                        <span className="ipa-plan-label">Monthly</span>
+                        <span className="ipa-plan-price">$3<small>/mo</small></span>
+                      </button>
+                      <button
+                        className={interval === 'year' ? 'active' : ''}
+                        onClick={() => setInterval('year')}
+                      >
+                        <span className="ipa-plan-label">Yearly <span className="ipa-save-badge">save 25%</span></span>
+                        <span className="ipa-plan-price">$2.25<small>/mo</small></span>
+                      </button>
+                    </div>
+                    {interval === 'year' && <p className="ipa-billed-note">Billed $27/year</p>}
+                    <button
+                      className="ipa-upgrade-btn"
+                      onClick={() => {
+                        const url = new URL('https://www.patreon.com/checkout/pronounce');
+                        url.searchParams.set('rid', '28691528');
+                        if (interval === 'year') url.searchParams.set('cadence', '12');
+                        window.open(url.toString(), '_blank');
+                      }}
+                    >
+                      {upgradeLoading ? '…' : '⬆ Unlock with Patreon'}
+                    </button>
+                    {upgradeError && <div className="ipa-upgrade-error" style={{ color: 'var(--danger)', marginTop: '4px', fontSize: '.68rem' }}>{upgradeError}</div>}
+                  </>
+                )}
               </div>
             ) : (
               <>
               <button
                 className="ipa-manage-btn"
                 onClick={() => {
-                  window.open('https://www.patreon.com/cw/pronouncea', '_blank');
+                  window.open('https://www.patreon.com/c/pronounce/membership', '_blank');
                 }}
               >
                 Manage subscription
               </button>
-              {!auth.user?.patreon_id && (
-                <button
-                  className="ipa-manage-btn"
-                  onClick={() => {
-                    window.open(`https://lumenverse.app/pronoun/api/patreon/auth?userId=${auth.user?.id}`, '_blank');
-                  }}
-                  style={{ marginTop: '8px', backgroundColor: '#ffd4a3', color: '#5e431f' }}
-                >
-                  🔗 Link Patreon Account
-                </button>
-              )}
+              <button
+                className="ipa-manage-btn"
+                onClick={handleUnlinkPatreon}
+                style={{ marginTop: '8px', backgroundColor: 'transparent', color: '#8c887a', border: '1px solid rgba(140,136,122,0.3)' }}
+              >
+                Unlink Patreon Account
+              </button>
               </>
             )}
 

@@ -229,6 +229,30 @@ async function handleSyncTier(sendResponse: (r: object) => void): Promise<void> 
   } catch (e) { sendResponse({ error: String(e) }); }
 }
 
+async function handleUnlinkPatreon(sendResponse: (r: object) => void): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { sendResponse({ error: 'Not logged in' }); return; }
+    
+    // Update DB to nullify patreon_id, tier to free, subscription_status to canceled
+    const { error } = await supabase.from('profiles').update({
+      patreon_id: null,
+      tier: 'free',
+      subscription_status: 'canceled'
+    }).eq('id', session.user.id);
+    
+    if (error) throw error;
+    
+    // Resync local state
+    const profile = await upsertProfile(session.user);
+    await saveAuthState(session.user, profile);
+    
+    sendResponse({ ok: true });
+  } catch (e) {
+    sendResponse({ error: String(e) });
+  }
+}
+
 async function handleOpenCheckout(
   msg: { interval: 'month' | 'year' },
   sendResponse: (r: object) => void,
@@ -773,6 +797,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'SUPABASE_GET_SESSION') { void handleGetSession(sendResponse); return true; }
   if (msg.type === 'TTS_FETCH') { void handleTts(msg.word as string, sendResponse); return true; }
   if (msg.type === 'SYNC_TIER') { void handleSyncTier(sendResponse); return true; }
+  if (msg.type === 'UNLINK_PATREON') { void handleUnlinkPatreon(sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_CHECKOUT') { void handleOpenCheckout(msg as { interval: 'month' | 'year' }, sendResponse); return true; }
   if (msg.type === 'STRIPE_OPEN_PORTAL') { void handleOpenPortal(sendResponse); return true; }
   if (msg.type === 'ANKI_CHECK_CONNECTION') { void handleAnkiCheckConnection(sendResponse); return true; }

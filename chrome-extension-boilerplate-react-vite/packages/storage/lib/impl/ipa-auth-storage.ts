@@ -32,6 +32,7 @@ export type IpaAuthStorageType = BaseStorageType<IpaAuthState> & {
   openCheckout: (interval: 'month' | 'year') => Promise<{ ok?: boolean; error?: string }>;
   openPortal: () => Promise<{ ok?: boolean; error?: string }>;
   syncTier: () => Promise<{ tier?: 'free' | 'pro'; error?: string }>;
+  unlinkPatreon: () => Promise<{ ok?: boolean; error?: string }>;
 };
 
 const storage = createStorage<IpaAuthState>('ipa-auth', DEFAULT_AUTH, {
@@ -125,6 +126,11 @@ export const ipaAuthStorage: IpaAuthStorageType = {
 
   syncTier: async () => {
     const res = await msg<{ tier?: 'free' | 'pro'; error?: string }>('SYNC_TIER');
+    return res ?? { error: 'No response from background' };
+  },
+
+  unlinkPatreon: async () => {
+    const res = await msg<{ ok?: boolean; error?: string }>('UNLINK_PATREON');
     return res ?? { error: 'No response from background' };
   },
 };
