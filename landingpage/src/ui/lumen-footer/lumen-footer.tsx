@@ -1,5 +1,6 @@
 import { LogoMark } from "@/ui/logo-mark";
 import { currentYear } from "@/consts";
+import Link from "next/link";
 
 const cols = [
   {
@@ -25,7 +26,7 @@ const cols = [
     title: "Company",
     links: [
       { label: "About", href: "#" },
-      { label: "Privacy", href: "#" },
+      { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "#" },
       { label: "Contact", href: "#" },
     ],
@@ -39,8 +40,8 @@ export default function LumenFooter() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand column */}
           <div>
-            <a
-              href="#"
+            <Link
+              href="/"
               className="flex items-center gap-2.5 font-fraunces text-[19px] font-bold tracking-tight"
               style={{ color: "var(--paper)" }}
             >
@@ -54,7 +55,7 @@ export default function LumenFooter() {
                 Lumen
                 <em className="not-italic font-bold" style={{ color: "var(--moss-soft)" }}>Pronunciation</em>
               </span>
-            </a>
+            </Link>
             <p className="mt-4 max-w-[280px] text-[13.5px] leading-[1.55]" style={{ color: "rgba(251,247,236,0.6)" }}>
               Part of the LumenVerse — small, focused tools for the unglamorous parts of learning a language.
             </p>
@@ -69,7 +70,7 @@ export default function LumenFooter() {
               <ul className="space-y-0">
                 {links.map(({ label, href }) => (
                   <li key={label} className="py-[5px] text-[14px]" style={{ color: "rgba(251,247,236,0.75)" }}>
-                    <a href={href} className="transition-colors hover:text-mosssoft">{label}</a>
+                    <Link href={href} className="transition-colors hover:text-mosssoft">{label}</Link>
                   </li>
                 ))}
               </ul>

@@ -3,17 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-async function getStripe() {
+async function getStripe(secret: string) {
   const { default: Stripe } = await import('stripe');
-  return new Stripe(STRIPE_SECRET_KEY);
+  return new Stripe(secret);
 }
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function findCustomerId(val: unknown): string | null {
   if (!val) return null;
@@ -24,28 +17,40 @@ function findCustomerId(val: unknown): string | null {
   return null;
 }
 
-async function updateByCustomer(custId: string, patch: Record<string, unknown>) {
-  const { error } = await supabase
-    .from('profiles')
-    .update(patch)
-    .eq('stripe_customer_id', custId);
-  if (error) console.error('[webhook] DB update error:', error.message);
-}
-
 export async function POST(req: NextRequest) {
+  const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+  const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  async function updateByCustomer(custId: string, patch: Record<string, unknown>) {
+    const { error } = await supabase
+      .from('profiles')
+      .update(patch)
+      .eq('stripe_customer_id', custId);
+    if (error) console.error('[webhook] DB update error:', error.message);
+  }
+
   const body = await req.text();
   const sig = req.headers.get('stripe-signature') || '';
-
   const signature = sig.trim();
 
-  console.log('[DEBUG WEBHOOK - HARDCODED]');
+  console.log('[DEBUG WEBHOOK - ENV CHECK]');
+  console.log('- STRIPE_WEBHOOK_SECRET exists?', !!STRIPE_WEBHOOK_SECRET);
+  console.log('- STRIPE_SECRET_KEY exists?', !!STRIPE_SECRET_KEY);
   console.log('- Signature header (sig):', signature);
   console.log('- Body length:', body ? body.length : 0);
-  console.log('- Body preview (first 100 chars):', body ? body.substring(0, 100) : 'empty');
+
+  if (!STRIPE_WEBHOOK_SECRET) {
+    console.error('[webhook] CRITICAL ERROR: STRIPE_WEBHOOK_SECRET is missing from environment variables!');
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+  }
 
   let event: any;
   try {
-    const stripe = await getStripe();
+    const stripe = await getStripe(STRIPE_SECRET_KEY);
     event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
   } catch (err: any) {
     console.error('[webhook] Signature verification failed:', err.message || err);

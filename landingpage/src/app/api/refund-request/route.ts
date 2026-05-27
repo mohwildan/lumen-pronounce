@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? 'support@lumenpronunciation.com';
 
 export async function POST(req: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  
+  if (!supabaseUrl) {
+    console.error('[refund-request] Error: NEXT_PUBLIC_SUPABASE_URL is not set');
+  }
+  
+  const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
   try {
     const { email, reason, note } = await req.json() as {
       email?: string;

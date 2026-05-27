@@ -1003,7 +1003,7 @@ setInterval(async () => {
 }, 5 * 60 * 1000);
 
 // Immediately sync tier when user lands on success page after checkout
-const SUCCESS_URL_PATTERNS = ['localhost:3000/pro-activated', 'lumenpronunciation.com/pro-activated'];
+const SUCCESS_URL_PATTERNS = ['localhost:3000/pro-activated', 'lumenpronunciation.com/pro-activated', 'lumen-pronounce-landingpage.vercel.app/pro-activated'];
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete') return;
